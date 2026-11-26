@@ -150,6 +150,18 @@
     }, 60000);
   })();
 
-  let upChecked = false; App.afterEnter = () => { if (upChecked) return; upChecked = true; const t = () => ($('#overlay').classList.contains('show') || Games.isOpen()) ? setTimeout(t, 3000) : checkUpdate(false); setTimeout(t, 2500); };
+  // Güncelleme kontrolü: açılışta, uygulamaya geri dönüldüğünde (arka plandan) ve 30 dakikada bir.
+  // Oyun/masa/pencere açıkken araya girmez; boşa çıkınca sorar. Aynı sürüm "Daha sonra" denirse 30 dk tekrar sorulmaz.
+  let upLast = 0, upBusy = false;
+  const busyNow = () => $('#overlay').classList.contains('show') || Games.isOpen() || (window.Okey && Okey.isOpen()) || (window.Tavla && Tavla.isOpen()) || (window.Aviator && Aviator.isOpen());
+  function autoUpdate(force) {
+    if (!App.me || upBusy || (!force && Date.now() - upLast < 30 * 60e3)) return;
+    upBusy = true; upLast = Date.now();
+    const t = () => { if (!App.me) { upBusy = false; return; } if (busyNow()) return setTimeout(t, 5000); upBusy = false; checkUpdate(false); };
+    setTimeout(t, 2500);
+  }
+  App.afterEnter = () => autoUpdate(true);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && Date.now() - upLast > 60e3) autoUpdate(true); });
+  setInterval(() => autoUpdate(false), 5 * 60e3);
   boot();
 })();
