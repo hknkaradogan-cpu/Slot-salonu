@@ -15,9 +15,9 @@ public class AppBridge {
 
     @JavascriptInterface
     public void setOrientation(String mode) {
-        final boolean land = "landscape".equals(mode);
+        final boolean land = true; // 4.0: tüm platform yatay (tam ekran)
         activity.runOnUiThread(() -> {
-            activity.setRequestedOrientation(land ? ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE : ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+            activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE); // platform her zaman yatay
             View decor = activity.getWindow().getDecorView();
             if (Build.VERSION.SDK_INT >= 30) {
                 WindowInsetsController c = decor.getWindowInsetsController();

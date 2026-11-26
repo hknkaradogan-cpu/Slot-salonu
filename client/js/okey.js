@@ -29,10 +29,10 @@
 
   /* ===================== LOBİ (dikey) ===================== */
   async function lobby() {
-    stopTable(); O.screen = 'lobby'; setOrient('portrait');
+    stopTable(); O.screen = 'lobby'; setOrient('landscape');
     UI.screen('okeyLobby', `<div class="topbar"><button class="iconbtn" id="olBack">◀</button><div class="grow center"><b class="gold" style="font-size:21px;letter-spacing:1px">101 OKEY</b><div class="small muted" id="olOnline">çevrim içi</div></div><div class="pill" id="olCoins">🪙 ${App.me.unlimited ? '∞' : fmt(App.me.balance)}</div></div><div class="scroll nonav" id="olBody"><p class="center muted">Yükleniyor…</p></div>`);
     UI.show('okeyLobby');
-    $('#olBack').onclick = () => { O.screen = null; Screens.go('lobby'); };
+    $('#olBack').onclick = () => { O.screen = null; Screens.go('home'); };
     try { O.lobbyData = await Api.get('/api/okey/lobby'); } catch (e) { $('#olBody').innerHTML = `<p class="err center">${esc(e.message)}</p><button class="btn gold block" id="olRe">Tekrar dene</button>`; $('#olRe').onclick = lobby; return; }
     renderLobby();
   }
@@ -50,11 +50,13 @@
       <div class="section-t">🎲 Masalar <small class="muted" style="font-weight:600">Oyna'ya dokun → oyun seçeneklerini seç</small></div>
       <div class="oktiers">${stakes.map(st => { const [nm, ic] = STAKE_NAMES[st] || [fmt(st), '🎲']; const w = waitN(st); const can = !st || App.me.unlimited || App.me.balance >= st;
         return `<div class="oktier ${can ? '' : 'dis'}"><div class="ic">${ic}</div><div class="grow"><b>${nm}</b><small>${st ? `Giriş ${fmt(st)} · Havuz ${fmt(st * 4)}` : 'Jeton harcanmaz · XP kazanırsın'}</small>${w ? `<small class="okw">⏳ ${w} masada oyuncu bekleniyor</small>` : ''}</div><button class="btn green sm" data-q="${st}" ${can ? '' : 'disabled'}>OYNA</button></div>`; }).join('')}</div>
+      <div class="section-t">🟢 Açık masalar <small class="muted" style="font-weight:600">oyuncu bekleyen masalar · 🔒 = şifreli</small></div><div class="list" id="olOpen"><p class="small muted center">Yükleniyor…</p></div>
       <div class="row" style="margin-top:12px"><button class="btn purple grow" id="olPriv">🔒 Oda Kur</button><button class="btn gold grow" id="olCode">🔑 Kodla Katıl</button></div>
       <div class="card" style="margin-top:12px"><div class="kv small"><b>Oynadığın</b><span>${d.stats.played || 0}</span><b>Kazandığın</b><span>${d.stats.won || 0}</span><b>Okey kazancın</b><span>${fmt(d.stats.coins_won || 0)} 🪙</span></div></div>
       <div class="row"><button class="btn ghost grow sm" id="olTop">🏆 Sıralama</button><button class="btn ghost grow sm" id="olRules">📖 Kurallar</button></div>
       <p class="small muted center">Masa yatay ekranda açılır. Tekli: havuzun %60'ı birinciye, %30'u ikinciye, %10'u üçüncüye. Eşli: kazanan takım paylaşır. Jetonlar sanaldır; nakde çevrilemez.</p>`;
     $$('[data-q]').forEach(b => b.onclick = () => optionsModal('quick', +b.dataset.q));
+    openTables();
     $$('[data-inv]').forEach(b => b.onclick = () => guard(b, async () => { const r = await Api.post('/api/okey/join', { tableId: +b.dataset.inv }); openTable(r.tableId); }));
     $('#olResume') && ($('#olResume').onclick = () => openTable(d.active.id));
     $('#olRejoin') && ($('#olRejoin').onclick = () => guard($('#olRejoin'), async () => { const r = await Api.post('/api/okey/join', { tableId: d.rejoin.id }); toast('Masaya geri döndün.'); openTable(r.tableId); }));
@@ -74,6 +76,7 @@
       <div><div class="okopt-t">El Sayısı</div>${[1, 2, 3, 4].map(r => `<button class="okob" data-r="${r}" ${allowR(r) ? '' : 'disabled'}>${r} El</button>`).join('')}</div></div>
       ${kind === 'private' ? `<div class="okopt-t" style="margin-top:8px">Masa</div><div class="okstk">${stakes.map(x => `<button class="okob sm" data-s="${x}">${(STAKE_NAMES[x] || ['', '🎲'])[1]} ${x ? fmt(x) : 'Ücretsiz'}</button>`).join('')}</div>`
         : `<p class="small center" style="margin:8px 0 0">${(STAKE_NAMES[st] || [''])[1]} <b>${(STAKE_NAMES[st] || [fmt(st)])[0]}</b> · ${st ? 'giriş ' + fmt(st) + ' jeton' : 'ücretsiz'}</p>`}
+      ${kind === 'private' ? '<div class="okpw"><input id="okoPw" type="text" maxlength="20" placeholder="🔒 Masa şifresi (isteğe bağlı)"></div>' : ''}
       <p class="small muted center" id="okoDesc" style="margin:6px 0"></p>
       <button class="okgo" id="okoGo">${kind === 'private' ? 'Odayı Oluştur' : 'Masaya Otur'}</button></div>`, {
       cls: 'okoptm',
@@ -92,15 +95,28 @@
         $$('[data-s]', m).forEach(b => b.onclick = () => { st = +b.dataset.s; paint(); });
         paint();
         $('#okoGo').onclick = () => guard($('#okoGo'), async () => {
-          const r = await Api.post(kind === 'private' ? '/api/okey/private' : '/api/okey/quick', { ...o, stake: st });
+          const pw = kind === 'private' && $('#okoPw') ? $('#okoPw').value.trim() : '';
+          const r = await Api.post(kind === 'private' ? '/api/okey/private' : '/api/okey/quick', { ...o, stake: st, ...(pw ? { password: pw } : {}) });
           closeModal(); if (r.existing) toast('Zaten bir masadasın — oraya dönüyorsun.'); openTable(r.tableId);
         });
       },
     });
   }
+  async function openTables() {
+    const el = $('#olOpen'); if (!el) return;
+    let d; try { d = await Api.get('/api/okey/tables'); } catch (e) { el.innerHTML = `<p class="small muted center">Masalar alınamadı: ${esc(e.message)}</p>`; return; }
+    if (!document.body.contains(el)) return;
+    if (!d.tables.length) { el.innerHTML = '<p class="small muted center">Şu an bekleyen açık masa yok. Hızlı oyna ya da masa aç.</p>'; return; }
+    el.innerHTML = d.tables.map(t => `<div class="li"><div class="grow"><b>${t.locked ? '🔒 ' : ''}${t.mode === 'esli' ? 'Eşli' : 'Tekli'} · ${t.katlamali ? 'Katlamalı' : 'Katlamasız'} · ${t.rounds} el</b><small>${t.stake ? '🪙 ' + fmt(t.stake) + ' giriş' : 'Ücretsiz'} · ${t.seats.map(x => x ? esc(x.name) : '—').join(', ')}</small></div><b class="okfill">${t.filled}/4</b><button class="btn green sm" data-ot="${t.id}" data-lk="${t.locked ? 1 : 0}">OTUR</button></div>`).join('');
+    $$('[data-ot]', el).forEach(b => b.onclick = () => guard(b, async () => {
+      const body = { tableId: +b.dataset.ot };
+      if (b.dataset.lk === '1') { const pw = await Platform.askText('🔒 Şifreli masa', 'Masa şifresi'); if (!pw) return; body.password = pw; }
+      const r = await Api.post('/api/okey/join', body); openTable(r.tableId);
+    }));
+  }
   function codeModal() {
     modal(`<h3 class="gold">🔑 Kodla Katıl</h3><label class="field"><span>Masa kodu (6 karakter)</span><input id="okCode" maxlength="6" style="text-transform:uppercase;letter-spacing:4px;font-size:22px;text-align:center"></label><button class="btn green block" id="okCodeGo">MASAYA OTUR</button>`, {
-      onOpen() { $('#okCode').focus(); $('#okCodeGo').onclick = () => guard($('#okCodeGo'), async () => { const r = await Api.post('/api/okey/join', { code: $('#okCode').value.trim() }); closeModal(); openTable(r.tableId); }); },
+      onOpen() { $('#okCode').focus(); $('#okCodeGo').onclick = () => guard($('#okCodeGo'), async () => { const code = $('#okCode').value.trim(); closeModal(); window.Platform ? Platform.joinCode(code) : openTable((await Api.post('/api/okey/join', { code })).tableId); }); },
     });
   }
   async function topModal() {
@@ -409,9 +425,12 @@
     const humans = v.seats.filter(x => x && x.human).length, left = v.fillAt ? Math.max(0, Math.ceil((v.fillAt - (Date.now() - O.skew)) / 1000)) : null;
     el.innerHTML = `<b class="gold" style="font-size:20px">${v.cfg.private ? '🔒 Özel oda' : '🟢 Oyuncu aranıyor'}</b>
       <p>${v.cfg.mode === 'esli' ? 'Eşli' : 'Tekli'} · ${v.cfg.katlamali ? 'Katlamalı' : 'Katlamasız'} · ${v.cfg.rounds} el · ${humans} gerçek oyuncu masada${v.cfg.private || !v.cfg.bots ? '' : ` · <span id="okFill">${left != null ? left + ' sn sonra boş koltuklara bot oturur' : ''}</span>`}</p>
-      ${v.code ? `<p>Oda kodu: <b class="okcode">${v.code}</b></p>` : ''}
+      ${v.code ? `<p>Oda kodu: <b class="okcode">${v.code}</b>${v.locked ? ' 🔒' : ''} <button class="okbtn2 sm" id="okCopy">📋 Kopyala</button> <button class="okbtn2 sm wa" id="okWa">🟢 WhatsApp</button></p>` : ''}
+      <p class="small">Masa doluluğu: <b>${v.seats.filter(Boolean).length}/4</b></p>
       <div class="row" style="justify-content:center;gap:8px"><button class="okbtn2" id="okInvite">👥 Arkadaş Davet Et</button>${(v.cfg.private && !v.owner) || v.cfg.bots === false ? '' : '<button class="okbtn2 go" id="okStart">🤖 Botlarla Başlat</button>'}</div>
       ${v.cfg.mode === 'esli' ? '<p class="small">Eşli: karşılıklı oturanlar takım. Boş koltuktaki “Otur” ile yerini seçebilirsin.</p>' : ''}`;
+    const inv = () => `101 Okey masama gel! Slot Salonu'nda "Kodla Katıl"a ${v.code} yaz.${v.locked ? ' (Şifreyi ayrıca söyleyeceğim.)' : ''} Jetonlar sanaldır.`;
+    $('#okCopy') && ($('#okCopy').onclick = () => Platform.copy(v.code)); $('#okWa') && ($('#okWa').onclick = () => Platform.share(inv()));
     $('#okInvite').onclick = inviteModal; $('#okStart') && ($('#okStart').onclick = () => guard($('#okStart'), async () => { await Api.post(`/api/okey/${O.id}/start`, {}); poll(true); }));
   }
   function timers() {
@@ -670,7 +689,7 @@
   function back() {
     if ($('#overlay').classList.contains('show')) { closeModal(); return true; }
     if (O.screen === 'table') { leaveTable(); return true; }
-    if (O.screen === 'lobby') { O.screen = null; Screens.go('lobby'); return true; }
+    if (O.screen === 'lobby') { O.screen = null; Screens.go('home'); return true; }
     return false;
   }
   /** Uygulama açılışında devam eden masa varsa sor */
@@ -678,5 +697,6 @@
     if (!t || O.screen) return;
     UI.modal(`<h3 class="gold">🀄 101 Okey</h3><p class="center">${t.status === 'waiting' ? 'Oyuncu beklediğin bir masan var.' : 'Devam eden bir 101 Okey oyunun var.'}</p><div class="row"><button class="btn ghost grow" data-close="0">Sonra</button><button class="btn green grow" data-close="1">MASAYA DÖN</button></div>`).then(x => { if (x === '1') openTable(t.id); });
   }
-  window.Okey = { lobby, openTable, offerResume, isOpen: () => !!O.screen && (($('#okeyRoot') && $('#okeyRoot').classList.contains('show')) || ($('#okeyLobby') && $('#okeyLobby').classList.contains('active'))), back, close: () => { stopTable(); O.screen = null; } };
+  async function createPrivate() { try { O.lobbyData = O.lobbyData || await Api.get('/api/okey/lobby'); optionsModal('private'); } catch (e) { toast(e.message, true); } }
+  window.Okey = { lobby, openTable, offerResume, createPrivate, isOpen: () => !!O.screen && (($('#okeyRoot') && $('#okeyRoot').classList.contains('show')) || ($('#okeyLobby') && $('#okeyLobby').classList.contains('active'))), back, close: () => { stopTable(); O.screen = null; } };
 })();

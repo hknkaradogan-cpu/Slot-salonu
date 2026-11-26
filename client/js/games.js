@@ -30,26 +30,22 @@
     const jpBars = id === 'korsan' ? `<div class="jpbars"><div class="jp major">MAJOR<b id="jpMajor"></b></div><div class="jp grand">GRAND<b id="jpGrand"></b></div></div>` : id === 'altin' ? `<div class="jpbars"><div class="jp grand" style="flex:1">JACKPOT ÇARKI<b id="jpGrand"></b></div></div>` : '';
     const buyC = meta.info.buyCost || {};
     const buyBtns = (buyC.fs ? `<button class="buybtn" id="buyFs"><small>FREE SPIN</small>SATIN AL<b id="buyFsC"></b></button>` : '') + (buyC.super ? `<button class="buybtn super" id="buySuper"><small>SÜPER</small>FREE SPIN<b id="buySuperC"></b></button>` : '');
-    const s = UI.screen('game', `<div class="bgart"></div>
-      <div class="ghead"><button class="iconbtn" id="gBack">◀</button>
+    // YATAY DÜZEN: sol = karakter/başlık/çarpan/satın alma · orta = makaralar · sağ = bakiye, kazanç, bahis, SPIN
+    const s = UI.screen('game', `<div class="bgart"></div><div class="bglayer"></div>${id === 'peri' ? '<div class="pcrys"><i></i><i></i><i></i><i></i><i></i><i></i></div>' : ''}${id === 'zeus' ? '<div class="zclouds"></div>' : ''}
+      <div class="ghead"><button class="iconbtn" id="gBack">◀</button><div class="gtitle gold">${esc(meta.name)}</div><span class="gvol">${esc(meta.info.volatility || '')} volatilite · RTP %${(meta.info.rtp * 100).toFixed(1)}</span><div class="grow"></div>
         <div class="lvlbox"><div class="nm"><span class="lvl" id="tLvl"></span><span id="tName"></span></div><div class="xpbar"><i id="tXp"></i><em id="tXpT"></em></div></div>
         <div class="coins" id="tCoins"><span class="c">🪙</span><span id="tBal"></span><span class="plus" id="gShop">+</span></div></div>
-      <div class="gtop">
-        <div class="sidebox" id="mL"><small>TOPLAM ÇARPAN</small><b>x0</b></div>
-        <div class="hero">${hero}<div class="gtitle gold">${esc(meta.name)}</div></div>
-        <div class="sidebox" id="mR"><small>KALAN FREE SPIN</small><b>—</b></div>
-      </div>${jpBars}
-      ${buyBtns ? `<div class="buyrow">${buyBtns}</div>` : ''}
-      <div class="machine" id="machine"><div class="reels" id="reels"></div><svg class="linesvg" id="lineSvg"></svg><div id="fsBar"></div></div>
-      <div class="winline"><div class="wlbal"><small>BAKİYE</small><b id="wBal"></b></div><div class="wlwin" id="winLine"><span class="muted small">${esc(meta.tag)}</span></div></div>
-      <div class="gbar">
-        <button class="gb small" id="gInfo">ℹ</button>
-        <div class="betgrp"><button class="gb" id="bMinus">−</button><div class="betv"><b id="bVal"></b><small>TOPLAM BAHİS</small></div><button class="gb" id="bPlus">+</button></div>
-        <button class="gb max" id="bMax">MAKS<br>BAHİS</button>
+      <div class="gleft"><div class="hero">${hero}${id === 'peri' ? '<i class="wandstar"></i>' : ''}</div>
+        <div class="gboxes"><div class="sidebox" id="mL"><small>TOPLAM ÇARPAN</small><b>x0</b></div><div class="sidebox" id="mR"><small>KALAN FREE SPIN</small><b>—</b></div></div>
+        ${jpBars}${buyBtns ? `<div class="buyrow">${buyBtns}</div>` : ''}</div>
+      <div class="gcenter"><div class="machine" id="machine"><div class="reels" id="reels"></div><svg class="linesvg" id="lineSvg"></svg><div id="fsBar"></div></div></div>
+      <div class="gright">
+        <div class="winline"><div class="wlbal"><small>BAKİYE</small><b id="wBal"></b></div><div class="wlwin" id="winLine"><span class="muted small">${esc(meta.tag)}</span></div></div>
+        <div class="betgrp"><button class="gb" id="bMinus">−</button><div class="betv"><b id="bVal"></b><small>BAHİS</small></div><button class="gb" id="bPlus">+</button></div>
         <button class="spinpill" id="gSpin"><span class="t1">SPIN</span><span class="t2">basılı tut: OTO</span></button>
-        <div class="row" style="flex-direction:column;gap:4px"><button class="gb small" id="gAuto">A<span class="autoN"></span></button><button class="gb small ${G.turbo ? 'on' : ''}" id="gTurbo">⚡</button></div>
-      </div>`, 'gscreen');
-    s.style.cssText = `--b1:${th.b1};--b2:${th.b2};--glow:${th.glow}`;
+        <div class="gbar"><button class="gb small" id="gInfo">ℹ</button><button class="gb max" id="bMax">MAKS</button><button class="gb small" id="gAuto">A<span class="autoN"></span></button><button class="gb small ${G.turbo ? 'on' : ''}" id="gTurbo">⚡</button></div>
+      </div>`, 'gscreen land');
+    s.style.cssText = `--b1:${th.b1};--b2:${th.b2};--glow:${th.glow}`; s.dataset.g = id;
     if (G.rows <= 3) s.classList.add('tall');
     const bc = () => { const b = App.bets[G.betIdx]; if ($('#buyFsC')) $('#buyFsC').textContent = short(Math.round(b * buyC.fs)); if ($('#buySuperC')) $('#buySuperC').textContent = short(Math.round(b * buyC.super)); }; G.updBuy = bc;
     UI.show('game'); Screens.renderTop();
@@ -76,7 +72,7 @@
     G.gen++; G.open = false; G.auto = 0; G.skip = true; G.spinning = false;
     try { $$('.bigwin,.multbadge,.bolt,.flash,.zcharge,.zimpact,.zring,.flymult,.fxi,.flyorb,.expandcol').forEach(e => e.remove()); } catch (e) { /* yoksay */ }
     try { UI.closeModal(true); } catch (e) { /* yoksay */ }
-    try { Screens.go(App.tab && App.tab !== 'game' ? App.tab : 'lobby'); }
+    try { const cur = window.Platform && Platform.current(); Screens.go(cur && cur !== 'game' ? cur : 'home'); }
     catch (e) { window.reportError && window.reportError(e); try { UI.show('main'); } catch (e2) { /* yoksay */ } }
   }
   function renderBet() {
@@ -104,17 +100,18 @@
     });
   }
   function sizeGrid() {
-    const W = Math.min(innerWidth, 520) - 16 - 28; const hasBuy = G.meta.info.buyCost && Object.keys(G.meta.info.buyCost).length; const H = innerHeight - 300 - (hasBuy ? 56 : 0) - (G.id === 'korsan' || G.id === 'altin' ? 44 : 0) - 150;
+    // yatay sahne (960×440): orta sütun ~468×380
+    const W = 468 - 20; const H = 440 - 48 - 24;
     const byW = Math.floor((W - 4 * (G.cols - 1)) / G.cols); const byH = Math.floor((H - 4 * (G.rows - 1)) / G.rows);
     const cell = Math.max(40, Math.min(byW, byH, G.cols <= 3 ? 110 : 92));
     $('#game').style.setProperty('--cell', cell + 'px'); G.cell = cell; G.step = cell + 4;
   }
   // Izgarayı ekranda kalan dikey boşluğu dolduracak kadar büyüt (genişlik sınırı içinde)
   function fitGrid() {
-    const bar = $('.gbar'), wl = $('.winline'); if (!bar || !wl) return;
-    const free = bar.getBoundingClientRect().top - wl.getBoundingClientRect().bottom - 6;
-    const W = Math.min(innerWidth, 520) - 16 - 28; const byW = Math.floor((W - 4 * (G.cols - 1)) / G.cols);
-    const cell = Math.max(40, Math.min(byW, G.cell + Math.floor(free / G.rows), G.cols <= 3 ? 116 : 96));
+    const c = $('.gcenter'); if (!c) return;
+    const W = c.clientWidth - 24, H = c.clientHeight - 24;
+    const byW = Math.floor((W - 4 * (G.cols - 1)) / G.cols), byH = Math.floor((H - 4 * (G.rows - 1)) / G.rows);
+    const cell = Math.max(40, Math.min(byW, byH, G.cols <= 3 ? 118 : 96));
     if (cell !== G.cell) { $('#game').style.setProperty('--cell', cell + 'px'); G.cell = cell; G.step = cell + 4; }
   }
   function buildGrid() {
@@ -130,6 +127,7 @@
     const s = b.firstElementChild; if (from != null) { s.classList.add('fall'); s.style.setProperty('--from', from + 'px'); s.style.setProperty('--d', (delay * G.speed) + 's'); }
   }
   function initialFill() { for (let i = 0; i < G.boxes.length; i++) setCell(i, randCode(), '', -G.step * (G.rows + 1), ((i / G.rows) | 0) * 0.05); }
+  const SC = () => { const a = document.getElementById('app'); return a ? a.getBoundingClientRect().width / 960 : 1; };
   function center(i) { const r = G.boxes[i].getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }
   function countWin(from, to, label) {
     return new Promise(res => {
@@ -273,12 +271,12 @@
     pts.push([x1, y1]); return pts;
   }
   const pathD = (pts) => 'M' + pts.map(p => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' L');
-  function heroPoint() { const h = $('.gtop .heroimg'); if (!h) return { x: innerWidth / 2, y: 60 }; const r = h.getBoundingClientRect(); return { x: r.left + r.width * 0.62, y: r.top + r.height * 0.42 }; }
+  function heroPoint() { const h = $('.gleft .heroimg'); if (!h) return { x: innerWidth / 2, y: 60 }; const r = h.getBoundingClientRect(); return { x: r.left + r.width * 0.62, y: r.top + r.height * 0.42 }; }
   async function zeusStrike(i, onImpact) {
     const to = center(i), from = heroPoint(), sp = G.speed;
     // 1) yüklenme
     const orb = document.createElement('div'); orb.className = 'zcharge'; orb.style.cssText = `left:${from.x}px;top:${from.y}px`; document.body.appendChild(orb);
-    const hero = $('.gtop .heroimg'); hero && hero.classList.add('zflash');
+    const hero = $('.gleft .heroimg'); hero && hero.classList.add('zflash');
     Sound.play('orb'); await sleep(170);
     // 2) hareket: ana gövde + 2 dal
     const main = jag(from.x, from.y, to.x, to.y, 12, 38);
@@ -291,8 +289,8 @@
     document.body.appendChild(svg); Sound.play('thunder');
     await sleep(160);
     // 3) çarpma
-    const imp = document.createElement('div'); imp.className = 'zimpact'; imp.style.cssText = `left:${to.x}px;top:${to.y}px;--sz:${G.cell * 2.4}px`; document.body.appendChild(imp);
-    const ring = document.createElement('div'); ring.className = 'zring'; ring.style.cssText = `left:${to.x}px;top:${to.y}px;--sz:${G.cell * 2.8}px`; document.body.appendChild(ring);
+    const imp = document.createElement('div'); imp.className = 'zimpact'; imp.style.cssText = `left:${to.x}px;top:${to.y}px;--sz:${G.cell * 2.4 * SC()}px`; document.body.appendChild(imp);
+    const ring = document.createElement('div'); ring.className = 'zring'; ring.style.cssText = `left:${to.x}px;top:${to.y}px;--sz:${G.cell * 2.8 * SC()}px`; document.body.appendChild(ring);
     UI.burst(to.x, to.y, 12, ['#ffffff', '#9fe8ff', '#5aa0ff']);
     const m = $('#machine'); m.classList.remove('shake'); void m.offsetWidth; m.classList.add('shake');
     Sound.vibrate(30);
@@ -300,6 +298,32 @@
     await sleep(240);
     svg.classList.add('zfade'); orb.remove(); hero && hero.classList.remove('zflash');
     setTimeout(() => { svg.remove(); imp.remove(); ring.remove(); }, 380);
+  }
+  // KRİSTAL PERİ: 1) asa kalkar ve yıldız parlar 2) kristal parçaları asadan süzülür 3) hedef sembol ışıldar
+  // 4) kristal patlaması 5) çarpan (X) ancak patlamadan SONRA açılır — Zeus şimşeğinden tamamen farklı akış
+  async function periStrike(i, onReveal) {
+    const to = center(i), from = heroPoint(), sp = G.speed, k = SC();
+    const hero = $('.gleft .hero'); hero && hero.classList.add('pwand');
+    Sound.play('orb'); await sleep(260 * sp);
+    const shards = [];
+    for (let n = 0; n < 5; n++) {
+      const d = document.createElement('div'); d.className = 'pshard';
+      const mx = (from.x + to.x) / 2 + (n - 2) * 34 * k, my = Math.min(from.y, to.y) - (40 + n * 8) * k;
+      d.style.cssText = `left:${from.x}px;top:${from.y}px;--dx:${to.x - from.x}px;--dy:${to.y - from.y}px;--mx:${mx - from.x}px;--my:${my - from.y}px;animation-duration:${(.42 + n * .05) * sp}s;--s:${k}`;
+      document.body.appendChild(d); shards.push(d);
+    }
+    await sleep(380 * sp);
+    const cell = G.boxes[i] && G.boxes[i].firstElementChild; cell && cell.classList.add('pglow');
+    await sleep(200 * sp);
+    const burst = document.createElement('div'); burst.className = 'pburst'; burst.style.cssText = `left:${to.x}px;top:${to.y}px;--sz:${G.cell * 2.6 * k}px`;
+    for (let n = 0; n < 10; n++) { const f = document.createElement('i'); f.style.setProperty('--a', (n * 36) + 'deg'); burst.appendChild(f); }
+    document.body.appendChild(burst); UI.burst(to.x, to.y, 14, ['#ffd6ff', '#ff9ae8', '#9ff3ff', '#ffffff']);
+    Sound.play('pop'); Sound.vibrate(25);
+    shards.forEach(d => d.remove());
+    await sleep(260 * sp);
+    onReveal && onReveal();
+    hero && hero.classList.remove('pwand');
+    setTimeout(() => { burst.remove(); cell && cell.classList.remove('pglow'); }, 500);
   }
   // 4) çarpan değeri büyük yazıyla hedef kutuya uçar
   async function flyMult(i, v, target) {
@@ -336,7 +360,7 @@
     const TIERS = [[10, 'BÜYÜK KAZANÇ'], [25, 'MEGA KAZANÇ'], [50, 'SÜPER KAZANÇ'], [100, 'EFSANE KAZANÇ']];
     const final = TIERS.filter(t => x >= t[0]).length - 1;
     return new Promise(res => {
-      const d = document.createElement('div'); d.className = 'bigwin bw2';
+      const d = document.createElement('div'); d.className = 'bigwin bw2' + (G.id ? ' bw-' + G.id : '');
       d.innerHTML = `<div class="rays"></div>${G.th && G.th.heroImg ? `<img class="bwhero" src="assets/${G.th.heroImg}.webp" alt="">` : ''}
         <div class="bwt">TEBRİKLER!</div><div class="bwsub"><span>KAZANDINIZ</span></div>
         <div class="bwframe"><div class="n" id="bwN">0</div></div>
@@ -387,10 +411,10 @@
     Sound.play('stop'); await sleep(430);
     let prev = seq.grid, running = 0;
     for (const st of seq.steps || []) {
-      const rem = new Set(st.removed); rem.forEach(i => G.boxes[i].firstElementChild.classList.add('win'));
+      const rem = new Set(st.removed); rem.forEach(i => G.boxes[i].firstElementChild.classList.add('win', ...(G.id === 'peri' ? ['psparkle'] : [])));
       running += st.wins.reduce((a, w) => a + w.pay, 0) * bet; setWin(Math.round(running), 'ZİNCİR');
       Sound.play('win'); await sleep(G.skip ? 120 : 480);
-      rem.forEach((i, k) => { const s = G.boxes[i].firstElementChild; s.classList.remove('win'); s.classList.add(G.id === 'zeus' ? 'zpop' : 'pop'); if (k % 2 === 0) { const c = center(i); UI.burst(c.x, c.y, 4, G.id === 'zeus' ? ['#fff', '#9fe8ff'] : undefined); } });
+      rem.forEach((i, k) => { const s = G.boxes[i].firstElementChild; s.classList.remove('win', 'psparkle'); s.classList.add(G.id === 'zeus' ? 'zpop' : G.id === 'peri' ? 'ppop' : 'pop'); if (k % 2 === 0) { const c = center(i); UI.burst(c.x, c.y, 4, G.id === 'zeus' ? ['#fff', '#9fe8ff'] : undefined); } });
 
       Sound.play('pop'); Sound.vibrate(20); await sleep(300);
       for (let c = 0; c < G.cols; c++) {
@@ -415,6 +439,7 @@
         const v = prev[i] - 1000;
         const reveal = () => { if (!G.boxes[i]) return; G.boxes[i].innerHTML = Sym.symHtml(G.id, 1000 + v, 'open mreveal'); };
         if (G.id === 'zeus') await zeusStrike(i, reveal);
+        else if (G.id === 'peri') await periStrike(i, reveal);
         else { const c = center(i); fxs('fx_purple', c.x, c.y, G.cell * 2.2, 0.8, { s: 1.7 }); Sound.play('orb'); reveal(); await sleep(300); }
         await sleep(G.skip ? 60 : 260); // X değeri sembolün üstünde net görünsün
         if (box) await flyMult(i, v, box);

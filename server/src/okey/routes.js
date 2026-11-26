@@ -126,7 +126,7 @@ export function registerOkey(A) {
   });
   r('GET', '/api/okey/tables', auth, async () => {
     const rows = await Q("SELECT id, code, mode, stake, rounds, katlamali, private, state, updated_at FROM slot.okey_tables WHERE status='waiting' AND updated_at>$1 ORDER BY id DESC LIMIT 30", [now() - 10 * 60e3]);
-    return { tables: rows.map(t => { const T = JSON.parse(t.state); return { id: t.id, code: t.private ? null : null, mode: t.mode, stake: Number(t.stake), rounds: t.rounds, katlamali: t.katlamali, private: t.private, locked: !!T.passHash,
+    return { tables: rows.filter(t => !t.private || !!JSON.parse(t.state).passHash).map(t => { const T = JSON.parse(t.state); return { id: t.id, code: t.private ? null : null, mode: t.mode, stake: Number(t.stake), rounds: t.rounds, katlamali: t.katlamali, private: t.private, locked: !!T.passHash,
       seats: T.seats.map(x => (x ? { name: x.name, bot: x.bot } : null)), filled: T.seats.filter(Boolean).length }; }) };
   });
   r('GET', '/api/okey/leaderboard', auth, async () => ({ top: await Q('SELECT u.username, u.avatar, s.played, s.won, s.coins_won FROM slot.okey_stats s JOIN slot.users u ON u.id=s.user_id ORDER BY s.won DESC, s.coins_won DESC LIMIT 20') }));
@@ -183,7 +183,10 @@ export function registerOkey(A) {
     }
     if (ex) throw err(409, 'already_at_table', 'Zaten bir masadasın. Önce o masadan ayrıl.');
     const T = JSON.parse(row.state); if (T.status !== 'waiting') throw err(409, 'table_started', 'Bu masada oyun başladı.');
-    if (T.passHash && !(await one(q, 'SELECT 1 x FROM slot.okey_invites WHERE table_id=$1 AND to_id=$2', [row.id, ctx.user.id])) && C.sha256('okey:' + T.code + ':' + String(ctx.body.password || '')) !== T.passHash) throw err(403, 'bad_password', ctx.body.password ? 'Masa şifresi yanlış.' : 'Bu masa şifreli. Şifreyi gir.');
+    const invited = !!(await one(q, 'SELECT 1 x FROM slot.okey_invites WHERE table_id=$1 AND to_id=$2', [row.id, ctx.user.id]));
+    // şifresiz özel masa yalnızca kodla ya da davetle açılır; listeden kimliğiyle girilemez
+    if (T.cfg.private && !T.passHash && !ctx.body.code && !invited) throw err(403, 'private_table', 'Bu özel masaya yalnızca davet ya da masa koduyla girilebilir.');
+    if (T.passHash && !invited && C.sha256('okey:' + T.code + ':' + String(ctx.body.password || '')) !== T.passHash) throw err(403, 'bad_password', ctx.body.password ? 'Masa şifresi yanlış.' : 'Bu masa şifreli. Şifreyi gir.');
     const u = await userLite(q, ctx.user.id);
     if (T.cfg.stake && !u.unlimited && u.balance < T.cfg.stake) throw err(402, 'insufficient_funds', 'Bu masa için yeterli jetonun yok.');
     try { await seatUser(q, row.id, T, u, ctx.body.seat != null ? int(ctx.body.seat, 'seat', 0, 3) : null); } catch (e) { wrapErr(e); }

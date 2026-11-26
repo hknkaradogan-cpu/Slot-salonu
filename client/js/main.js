@@ -33,7 +33,7 @@
         else Screens.setBalance(r.balance);
       } else if (r.status === 'pending') toast('Ödemen onay bekliyor. Onaylanınca jetonlar otomatik eklenecek.');
       else if (r.status === 'canceled') toast('Ödeme iptal edildi.', true);
-      if (App.tab === 'shop') Screens.go('shop');
+      if (window.Platform && Platform.current() === 'shop') Screens.go('shop');
     } catch (e) { toast(e.message, true); }
   }
   window.__billing = function (type, json) {
@@ -62,7 +62,8 @@
       if ($('#overlay').classList.contains('show')) { closeModal(true); return true; }
       if (document.querySelector('.bigwin')) { document.querySelectorAll('.bigwin').forEach(e => e.remove()); return true; }
     } catch (e) { window.reportError && window.reportError(e); if (App.me) { try { UI.show('main'); Screens.go('lobby'); } catch (e2) { /* yoksay */ } return true; } }
-    if (App.me && App.tab !== 'lobby') { Screens.go('lobby'); return true; }
+    if (window.Admin && $('#admin') && $('#admin').classList.contains('active')) { Screens.go('home'); return true; }
+    if (App.me && window.Platform && Platform.current() && Platform.current() !== 'home') { Platform.home(); return true; }
     return false;
   };
   document.addEventListener('pointerdown', () => { if (App.me) Sound.startMusic(); }, { once: true });
@@ -82,6 +83,7 @@
 
   /* ---------- Açılış ---------- */
   async function boot() {
+    Platform.initStage();
     const msg = $('#splashMsg');
     if (!Api.hasToken()) { await new Promise(r => setTimeout(r, 600)); return Screens.login(); }
     for (;;) {

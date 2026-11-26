@@ -30,7 +30,7 @@
     zeus: { b1: '#0a1a3a', b2: '#2a5aa8', glow: '#8fe3ff', frame: '#f2c14e', emb: '⚡', heroImg: 'hero_zeus', card: 'card_zeus',
       syms: [I('a_dia2'), I('a_green2'), I('a_purple'), I('b_hex'), I('a_red'), I('a_ostar'), I('b_sun'), I('a_crown'), I('b_crown')],
       scatter: I('b_scatter'), names: ['Safir', 'Zümrüt', 'Ametist', 'Altın Taş', 'Yakut', 'Yıldız', 'Güneş', 'Altın Taç', 'Kraliyet Tacı'] },
-    peri: { b1: '#1b0f4a', b2: '#9a5bd6', glow: '#ff9ae8', frame: '#f2c14e', emb: '🧚', heroImg: 'a_princess', heroAlpha: true, card: 'b_fairy', cardAlpha: true,
+    peri: { b1: '#1b0f4a', b2: '#9a5bd6', glow: '#ff9ae8', frame: '#f2c14e', emb: '🧚', heroImg: 'menu_fairy', heroAlpha: false, card: 'b_fairy', cardAlpha: true,
       syms: [I('b_green'), I('b_blue'), I('b_hex'), I('b_heart'), I('b_moon'), I('b_star'), I('b_sun'), I('a_wand'), I('b_crown')],
       scatter: I('a_scatter'), names: ['Yeşil Kristal', 'Mavi Kristal', 'Altın Kristal', 'Kalp', 'Ay', 'Yıldız', 'Güneş', 'Sihirli Asa', 'Taç'] },
     misir: { b1: '#2a1206', b2: '#d9772a', glow: '#ffb347', frame: '#e8b04a', emb: '🏺', heroImg: 'hero_egypt', card: 'card_egypt',

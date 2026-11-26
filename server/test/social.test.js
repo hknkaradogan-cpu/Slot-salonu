@@ -131,3 +131,13 @@ test('101 Okey: şifreli özel masa, doluluk listesi, davet edilen şifresiz gir
   const list = (await api('GET', '/api/okey/tables', null, b.token)).body.tables; const t = list.find(x => x.id === p.body.tableId);
   assert.equal(t.filled, 3); assert.equal(t.locked, true);
 });
+
+test('101 Okey: şifresiz özel masa listede görünmez, kimlikle girilemez; kodla girilir', async () => {
+  const a = await reg('soc_pv1'), b = await reg('soc_pv2');
+  const p = await api('POST', '/api/okey/private', { mode: 'esli', stake: 0, rounds: 1, katlamali: true }, a.token); assert.equal(p.status, 200);
+  assert.ok(/^[A-Z0-9]{6}$/.test(p.body.code), 'kod 6 karakter');
+  const list = (await api('GET', '/api/okey/tables', null, b.token)).body.tables;
+  assert.ok(!list.some(x => x.id === p.body.tableId), 'şifresiz özel masa listede olmamalı');
+  assert.equal((await api('POST', '/api/okey/join', { tableId: p.body.tableId }, b.token)).body.error, 'private_table');
+  assert.equal((await api('POST', '/api/okey/join', { code: p.body.code.toLowerCase() }, b.token)).status, 200);
+});

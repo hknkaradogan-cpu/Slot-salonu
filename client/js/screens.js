@@ -5,11 +5,11 @@
   const S = window.App = { me: null, daily: null, levelRewards: [], events: [], badges: {}, games: [], bets: [], tab: 'lobby' };
 
   /* ===================== GİRİŞ / KAYIT ===================== */
+  // Yatay giriş ekranı: solda oyun dünyası (Kristal Peri + 101 Okey + Zeus), sağda form
   function authShell(inner) {
-    return `<div class="scroll nonav" style="display:flex;flex-direction:column;justify-content:center;min-height:100%">
-      <div class="logo" style="margin:10px 0 18px"><span class="crown">👑</span><b>SLOT</b><b>SALONU</b></div>
-      <div class="card">${inner}</div>
-      <p class="small muted center">18 yaş ve üzeri içindir. Sanal jetonlar yalnızca eğlence amaçlıdır; gerçek para veya ödül kazandırmaz.</p></div>`;
+    return `<div class="authw"><div class="authart"><img class="aafairy" src="assets/menu_fairy.webp" alt=""><img class="aaokey" src="assets/card_okey101.webp" alt=""><img class="aazeus" src="assets/card_zeusslot.webp" alt="">
+        <div class="logo"><span class="crown">👑</span><b>SLOT</b><b>SALONU</b></div></div>
+      <div class="authform"><div class="card">${inner}</div><p class="small muted center">18 yaş ve üzeri içindir. Sanal jetonlar yalnızca eğlence amaçlıdır; gerçek para veya ödül kazandırmaz.</p></div></div>`;
   }
   // Giriş ekranı: üstte kullanıcı adı + şifre (Giriş Yap / Kayıt Ol), altta e-posta ile giriş ve Şifremi Unuttum
   function login() {
@@ -138,7 +138,7 @@
     $('#splashMsg') && ($('#splashMsg').textContent = 'Salon hazırlanıyor…');
     const [g] = await Promise.all([Api.get('/api/games'), refresh()]);
     S.games = g.games; S.bets = g.bets;
-    buildMain(); go('lobby');
+    buildMain();
     Billing.init();
     if (S.daily.available && S.me.role !== 'admin') { const tryDaily = () => { if (!S.me || !S.daily.available) return; if ($('#overlay').classList.contains('show') || Games.isOpen()) return setTimeout(tryDaily, 1500); dailyModal(); }; setTimeout(tryDaily, 900); }
     Sound.startMusic();
@@ -167,11 +167,13 @@
     const n = S.badges || {}; const d = (sel, v) => { const e = $(sel); if (!e) return; e.innerHTML = v ? `<span class="dot">${v}</span>` : ''; };
     d('#bDaily', S.daily && S.daily.available ? '!' : ''); d('#bLvl', S.levelRewards && S.levelRewards.pending ? S.levelRewards.pending.count : 0);
     d('#bFriends', (n.gifts || 0) + (n.friendRequests || 0)); d('#bEvents', (S.events || []).length);
+    window.Platform && Platform.renderBadges();
   }
 
   /* ===================== ANA ÇERÇEVE ===================== */
   const TABS = [['lobby', '🎰', 'Lobi'], ['quests', '📜', 'Görevler'], ['shop', '🛒', 'Mağaza'], ['friends', '👥', 'Arkadaşlar'], ['profile', '👤', 'Profil']];
-  function buildMain() {
+  function buildMain() { Platform.home(); }
+  function buildMainOld() {
     screen('main', `${topbar()}<div class="scroll" id="mainBody"></div>
       <div class="nav">${TABS.map(([k, i, t]) => `<button data-tab="${k}"><span class="i">${i}</span>${t}${k === 'friends' ? '<span id="bFriends"></span>' : ''}</button>`).join('')}</div>`);
     $('#main').addEventListener('click', (e) => {
@@ -181,6 +183,7 @@
     renderTop();
   }
   function go(tab) {
+    if (window.Platform) { if (!tab || tab === 'lobby' || tab === 'home') return Platform.home(); return Platform.panel(tab); }
     S.tab = tab; show('main');
     $$('.nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
     const body = $('#mainBody'); body.scrollTop = 0;
@@ -406,5 +409,6 @@
     modal(which === 'privacy' ? P : T);
   }
 
-  window.Screens = { login, register, enter, refresh, renderTop, renderBadges, setBalance, go, logout, adminLogin, levelRewardsModal, dailyModal, celebrate100, shop: () => go('shop') };
+  window.Screens = { login, register, enter, refresh, renderTop, renderBadges, setBalance, go, logout, adminLogin, levelRewardsModal, dailyModal, celebrate100, eventsModal, settings, help, state: () => S,
+    shop: (b) => (b ? shop(b) : go('shop')), quests: (b) => quests(b), friends: (b) => friends(b), profile: (b) => profile(b) };
 })();

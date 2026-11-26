@@ -22,7 +22,7 @@
     }
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), opts.timeout || 15000);
-    let res;
+    let res; const t0 = performance.now();
     try {
       res = await fetch(BASE + path, {
         method, signal: ctrl.signal,
@@ -33,7 +33,7 @@
       clearTimeout(timer); setOffline(true);
       throw new ApiError(0, 'network', 'Sunucuya ulaşılamıyor. İnternet bağlantını kontrol et.');
     }
-    clearTimeout(timer); setOffline(false);
+    clearTimeout(timer); setOffline(false); NET.push(performance.now() - t0); if (NET.length > 200) NET.shift();
     let data = {};
     try { data = await res.json(); } catch (e) {}
     if (res.status === 401 && token && !opts.noAuthEvent) listeners.unauthorized.forEach(f => f());
@@ -48,8 +48,11 @@
     }
     throw last;
   }
-  window.Api = {
-    get: (p) => request('GET', p), post: (p, b) => request('POST', p, b || {}), put: (p, b) => request('PUT', p, b || {}),
+  // Ağ gecikmesi (istek→yanıt) arayüz gecikmesinden ayrı ölçülür; Ayarlar ve test raporu bunu kullanır
+  const NET = [];
+  const netStats = () => { if (!NET.length) return null; const a = NET.slice().sort((x, y) => x - y); return { n: a.length, p50: Math.round(a[a.length >> 1]), p95: Math.round(a[Math.floor(a.length * 0.95)]) }; };
+  window.Api = { netStats,
+    get: (p) => request('GET', p), post: (p, b) => request('POST', p, b || {}), put: (p, b) => request('PUT', p, b || {}), del: (p) => request('DELETE', p),
     retrying, ApiError,
     setToken(t) { token = t; try { t ? localStorage.setItem('slot_token', t) : localStorage.removeItem('slot_token'); } catch (e) {} },
     hasToken: () => !!token, isOffline: () => offline, isLocal: () => LOCAL,

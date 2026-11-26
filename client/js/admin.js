@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const { $, $$, esc, fmt, toast, modal, closeModal, guard } = UI;
-  const TABS = [['stats', '📊 Özet'], ['users', '👥 Oyuncular'], ['games', '🎰 Oyunlar & RTP'], ['gstats', '📈 İstatistikler'], ['okey', '🀄 101 Okey'], ['rewards', '🎁 Ödüller'], ['packages', '🛒 Paketler'], ['purchases', '💳 Satın Almalar'], ['events', '🎉 Etkinlikler'], ['quests', '📜 Görevler'], ['tickets', '💬 Destek'], ['perf', '⚡ Performans'], ['audit', '🧾 İşlem Geçmişi']];
+  const TABS = [['stats', '📊 Özet'], ['users', '👥 Oyuncular'], ['tourn', '🏆 Turnuvalar'], ['gift', '🎁 Hediye Gönder'], ['chat', '💬 Sohbet Denetimi'], ['games', '🎰 Oyunlar & RTP'], ['gstats', '📈 İstatistikler'], ['okey', '🀄 101 Okey'], ['rewards', '🎁 Ödüller'], ['packages', '🛒 Paketler'], ['purchases', '💳 Satın Almalar'], ['events', '🎉 Etkinlikler'], ['quests', '📜 Görevler'], ['tickets', '💬 Destek'], ['perf', '⚡ Performans'], ['audit', '🧾 İşlem Geçmişi']];
   let tab = 'stats';
   const dt = (t) => t ? new Date(t).toLocaleString('tr-TR') : '—';
   const toLocal = (t) => { const d = new Date(t - new Date().getTimezoneOffset() * 60000); return d.toISOString().slice(0, 16); };
@@ -10,11 +10,57 @@
   function open() {
     UI.screen('admin', `<div class="topbar"><button class="iconbtn" id="aBack">◀</button><div class="grow center gold" style="font-weight:900;font-size:18px">🛡️ YÖNETİCİ PANELİ</div><div style="width:40px"></div></div>
       <div style="padding:8px 10px 0"><div class="tabs">${TABS.map(([k, t]) => `<button data-t="${k}">${t}</button>`).join('')}</div></div><div class="scroll nonav" id="aBody"></div>`);
-    UI.show('admin'); $('#aBack').onclick = () => Screens.go('profile');
+    UI.show('admin'); $('#aBack').onclick = () => Screens.go('home');
     $$('[data-t]').forEach(b => b.onclick = () => go(b.dataset.t)); go(tab);
   }
   function go(t) { tab = t; $$('[data-t]').forEach(b => b.classList.toggle('on', b.dataset.t === t)); const body = $('#aBody'); body.innerHTML = '<p class="center muted">Yükleniyor…</p>'; V[t](body).catch(e => { if (e.status === 403) { body.innerHTML = '<p class="center">Yönetici oturumu gerekli.</p>'; Screens.adminLogin(); return; } body.innerHTML = `<p class="err center">${esc(e.message)}</p>`; }); }
   const V = {};
+
+  V.tourn = async (b) => {
+    const r = await Api.get('/api/admin/tournaments');
+    const st = { active: '<span class="pill ok">aktif</span>', settled: '<span class="pill">bitti</span>', cancelled: '<span class="pill warn">iptal</span>' };
+    b.innerHTML = `<div class="card"><div class="section-t">Yeni turnuva</div>
+      <div class="agrid"><label class="field"><span>Başlık</span><input id="tTi" maxlength="60" placeholder="Hafta sonu kupası"></label>
+      <label class="field"><span>Oyun</span><select id="tGa"><option value="slots">Slotlar</option><option value="okey">101 Okey</option></select></label>
+      <label class="field"><span>Süre (saat)</span><input id="tHo" type="number" min="1" max="744" value="24"></label>
+      <label class="field"><span>Giriş (bilet)</span><input id="tEn" type="number" min="0" max="100" value="0"></label>
+      <label class="field" style="grid-column:1/-1"><span>Ödüller (jeton, virgülle: 1.→2.→3.)</span><input id="tPr" value="50000,25000,10000"></label></div>
+      <button class="btn green block" id="tGo">Turnuvayı başlat</button><p class="small muted">Ödüller sanal jetondur. Turnuva bitince sıralamaya göre otomatik dağıtılır ve oyunculara bildirim gider.</p></div>
+      <div class="card"><table class="tbl"><tr><th>#</th><th>Başlık</th><th>Oyun</th><th>Bitiş</th><th>Oyuncu</th><th>Durum</th><th></th></tr>${r.tournaments.map(t => `<tr><td>${t.id}</td><td>${esc(t.title)}</td><td>${t.game === 'okey' ? '101 Okey' : 'Slot'}</td><td>${dt(Number(t.ends_at))}</td><td>${t.players}</td><td>${st[t.status] || esc(t.status)}</td>
+        <td>${t.status === 'active' ? `<button class="btn gold sm" data-te="${t.id}">Bitir</button> <button class="btn ghost sm" data-tc="${t.id}">İptal</button>` : ''}</td></tr>`).join('')}</table></div>`;
+    $('#tGo').onclick = () => guard($('#tGo'), async () => {
+      const prizes = $('#tPr').value.split(',').map(x => parseInt(x.replace(/\D/g, ''), 10)).filter(x => x >= 0);
+      await Api.post('/api/admin/tournaments', { title: $('#tTi').value, game: $('#tGa').value, hours: +$('#tHo').value, entryTickets: +$('#tEn').value, prizes });
+      toast('Turnuva başladı.'); go('tourn');
+    });
+    $$('[data-te]', b).forEach(x => x.onclick = () => guard(x, async () => { await Api.post(`/api/admin/tournaments/${x.dataset.te}/end`, {}); toast('Turnuva bitirildi, ödüller dağıtıldı.'); go('tourn'); }));
+    $$('[data-tc]', b).forEach(x => x.onclick = () => guard(x, async () => { await Api.post(`/api/admin/tournaments/${x.dataset.tc}/cancel`, {}); toast('Turnuva iptal edildi.'); go('tourn'); }));
+  };
+
+  V.gift = async (b) => {
+    b.innerHTML = `<div class="card"><div class="section-t">🎁 Hediye / ödül gönder</div>
+      <div class="agrid"><label class="field"><span>Alıcı</span><select id="gTo"><option value="one">Tek oyuncu (ID)</option><option value="all">Tüm oyuncular</option></select></label>
+      <label class="field" id="gIdW"><span>Oyuncu ID</span><input id="gId" type="number" min="1"></label>
+      <label class="field"><span>Jeton</span><input id="gCo" type="number" min="0" value="10000"></label>
+      <label class="field"><span>Bilet</span><input id="gTk" type="number" min="0" max="1000" value="0"></label>
+      <label class="field" style="grid-column:1/-1"><span>Mesaj</span><input id="gMs" maxlength="200" value="Yönetimden hediye!"></label></div>
+      <button class="btn green block" id="gGo">Gönder</button><p class="small muted">Sanal jeton ve bilet; nakde çevrilemez. Her gönderim denetim kaydına yazılır ve oyuncuya bildirim gider.</p></div>`;
+    $('#gTo').onchange = () => $('#gIdW').classList.toggle('hidden', $('#gTo').value === 'all');
+    $('#gGo').onclick = () => guard($('#gGo'), async () => {
+      const all = $('#gTo').value === 'all';
+      if (all && !(await UI.confirm('Tüm oyunculara hediye gönderilsin mi?'))) return;
+      const r = await Api.post('/api/admin/gift', { all, userId: all ? undefined : +$('#gId').value, coins: +$('#gCo').value || 0, tickets: +$('#gTk').value || 0, message: $('#gMs').value });
+      toast(`${fmt(r.count)} oyuncuya gönderildi.`);
+    });
+  };
+
+  V.chat = async (b) => {
+    const r = await Api.get('/api/chat');
+    b.innerHTML = `<div class="card"><div class="section-t">💬 Canlı sohbet (son 60 mesaj) · çevrimiçi ${r.online}</div><div class="list">${r.messages.slice().reverse().map(m => `<div class="li"><div class="grow"><b>${esc(m.username)}</b> <small class="muted">#${m.uid} · ${dt(Number(m.created_at))}</small><small style="color:#fff">${esc(m.body)}</small></div>
+      <button class="btn ghost sm" data-cd="${m.id}">Sil</button>${m.role === 'admin' ? '' : `<button class="btn gold sm" data-cm="${m.uid}">1 sa sustur</button>`}</div>`).join('') || '<p class="muted center">Mesaj yok.</p>'}</div></div>`;
+    $$('[data-cd]', b).forEach(x => x.onclick = () => guard(x, async () => { await Api.del(`/api/admin/chat/${x.dataset.cd}`); toast('Mesaj silindi.'); go('chat'); }));
+    $$('[data-cm]', b).forEach(x => x.onclick = () => guard(x, async () => { await Api.post(`/api/admin/users/${x.dataset.cm}/mute`, { minutes: 60 }); toast('Oyuncu 1 saat susturuldu.'); }));
+  };
 
   V.stats = async (b) => {
     const s = await Api.get('/api/admin/stats');
@@ -51,7 +97,7 @@
         $('#cGo').onclick = () => guard($('#cGo'), async () => { const d = Math.trunc(+$('#cAmt').value); if (!d) return toast('Miktar girin', true); await Api.post(`/api/admin/users/${id}/coins`, { delta: d, reason: $('#cWhy').value || 'manuel' }); toast('Bakiye güncellendi.'); closeModal(); user(id, reload); reload && reload(); });
         $('#pGo').onclick = () => guard($('#pGo'), async () => { const body = {}; if ($('#pLv').value) body.level = +$('#pLv').value; if ($('#pXp').value) body.xp = +$('#pXp').value; await Api.post(`/api/admin/users/${id}/progress`, body); toast('İlerleme güncellendi.'); closeModal(); user(id, reload); });
         $('#bGo') && ($('#bGo').onclick = () => guard($('#bGo'), async () => { await Api.post(`/api/admin/users/${id}/status`, { banned: !u.banned }); closeModal(); user(id, reload); reload && reload(); }));
-        $('#pwGo') && ($('#pwGo').onclick = async () => { const pw = prompt('Oyuncu için yeni geçici şifre (en az 8 karakter, harf ve rakam):'); if (!pw) return; await Api.post(`/api/admin/users/${id}/password`, { password: pw }).then(() => toast('Şifre değiştirildi; oyuncunun tüm oturumları kapatıldı.')).catch(e => toast(e.message, true)); });
+        $('#pwGo') && ($('#pwGo').onclick = async () => { const pw = await Platform.askText('🔑 Geçici şifre', 'Yeni geçici şifre (en az 8 karakter, harf ve rakam)', 64); if (!pw) return; await Api.post(`/api/admin/users/${id}/password`, { password: pw }).then(() => toast('Şifre değiştirildi; oyuncunun tüm oturumları kapatıldı.')).catch(e => toast(e.message, true)); });
         $$('[data-rf]', m).forEach(x => x.onclick = async () => { if (await UI.confirm('Bu satın alma iade edilmiş sayılıp jetonlar geri alınsın mı?')) { await Api.post(`/api/admin/purchases/${x.dataset.rf}/refund`).catch(e => toast(e.message, true)); user(id, reload); } });
       },
     });
