@@ -40,7 +40,7 @@ Geliştirmede `BILLING_MODE=mock` varsayılandır: mağazada "test satın alma" 
 
 ## APK derleme
 
-Bu çalışmanın yapıldığı ortamda Google'ın Android SDK ve Maven sunucularına erişim engelli olduğundan APK burada derlenemedi. Proje iki yoldan derlenir:
+İmzalı APK her `main` gönderiminde GitHub Actions'ta otomatik derlenir, **Releases** sayfasına ve sunucunun uygulama içi güncelleme kanalına yüklenir (en son: https://github.com/hknkaradogan-cpu/Slot-salonu/releases/latest). Kurulum, yönetici ve ticari dağıtım için `docs/KURULUM_VE_YONETIM.md`, testler için `docs/TEST_RAPORU.md`. Elle derleme yolları:
 
 - **GitHub Actions (önerilen)**: Projeyi bir GitHub deposuna gönderin. Depo ayarları > Variables'a `SLOT_API_BASE=https://sunucunuz` ekleyin. Her push'ta `.github/workflows/build.yml` testleri çalıştırır ve `slot-salonu-debug-apk` çıktısını üretir. İmzalı sürüm ve Play Console için AAB: `KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD` gizlilerini ekleyin.
 - **Android Studio / komut satırı**: `cd android && ./gradlew assembleDebug -PslotApiBase=https://sunucunuz` (JDK 17, Android SDK 36). Çıktı: `android/app/build/outputs/apk/debug/app-debug.apk`. Emülatörde yerel sunucu için `-PslotApiBase=http://10.0.2.2:8080`.

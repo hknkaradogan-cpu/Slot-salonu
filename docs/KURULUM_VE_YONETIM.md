@@ -86,7 +86,7 @@ müşteri verileri birbirinden tamamen ayrıdır.
    Uygulama içi ürünler (`coins_starter`, `coins_small`, `coins_medium`, `coins_large`, `coins_mega`, `coins_vip`) →
    Hizmet hesabı oluşturup Play Console'da “Finansal verileri görüntüle / siparişleri yönet” izni verin →
    JSON anahtarı sunucuya `GOOGLE_SERVICE_ACCOUNT_JSON` olarak girin → RTDN için Pub/Sub push adresini
-   `/api/billing/rtdn?secret=…` yapın (aynı değeri `RTDN_SECRET` olarak girin). Sunucu her satın almayı Google'a doğrulatmadan jeton vermez.
+   `/api/billing/rtdn?secret=…` yapın (aynı değeri `RTDN_SECRET` olarak girin). Son olarak `BILLING_MODE=google` girin (varsayılan `mock` test modudur ve gerçek ödeme almadan test jetonu verir). Bu moddan sonra sunucu her satın almayı Google'a doğrulatmadan jeton vermez.
 5. **Lisans/konfigürasyon:** oyunlar, RTP, paketler, ödüller ve etkinlikler müşteri bazında yönetici
    panelinden ayarlanır; kod değişikliği gerekmez.
 
