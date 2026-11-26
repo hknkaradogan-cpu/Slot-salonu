@@ -208,9 +208,9 @@
   async function leave() {
     const v = T.v;
     if (v && (v.status === 'playing' || v.status === 'game_end') && !(await UI.confirm(`Masadan ayrılırsan yerine bot oynar${v.cfg.stake ? ' ve giriş jetonun iade edilmez' : ''}. Maç sürdükçe geri dönebilirsin. Ayrılmak istiyor musun?`, 'Ayrıl'))) return;
-    const id = T.id; stop();
+    const id = T.id; stop(); Screens.go('home'); // önce salona dön, ayrılma isteği arkada gider
     if (v && v.status !== 'finished') { try { const r = await Api.post(`/api/tavla/${id}/leave`, {}); if (r.refunded) toast(`Giriş jetonu iade edildi: ${fmt(r.refunded)}`); } catch (e) { /* */ } }
-    Screens.refresh && Screens.refresh().catch(() => {}); Screens.go('home');
+    Screens.refresh && Screens.refresh().catch(() => {});
   }
   function exit() { stop(); Screens.go('home'); }
   function menu() {

@@ -8,6 +8,8 @@ export const TURN_MS = 30000, BOT_MIN_MS = 700, BOT_MAX_MS = 1600, ROUND_PAUSE_M
 export const BOT_NAMES = ['Ayşe', 'Mehmet', 'Zeynep', 'Emre', 'Elif', 'Burak', 'Selin', 'Hakan', 'Derya', 'Kerem', 'Merve', 'Oğuz', 'Gizem', 'Serkan', 'Ece', 'Tolga', 'Pınar', 'Cem', 'Ebru', 'Murat'];
 
 // 4 kişilik masada sıra saat yönünde; 2 kişilik masada oyuncular karşılıklı (0 ve 2) oturur
+// Bir elde en çok bu kadar tur: yandan alıp verme döngüsü eli asla kilitleyemez (normal el ~60–120 tur)
+const MAX_TURNS = 400;
 export const seatsOf = (T) => (T.cfg.players === 2 ? [0, 2] : [0, 1, 2, 3]);
 const nx = (T, s) => (T.cfg.players === 2 ? (s + 2) % 4 : (s + 1) % 4), pv = (T, s) => (T.cfg.players === 2 ? (s + 2) % 4 : (s + 3) % 4);
 export const isFull = (T) => seatsOf(T).every(i => T.seats[i]);
@@ -209,7 +211,7 @@ export function act(T, s, a, now, rnd = Math.random) {
       else if (R.isCommittable(id, H.melds, k)) H.penalties[s] += 101;
       log(T, { t: 'discard', s, tile: id, pen: joker || R.isCommittable(id, H.melds, k) ? 101 : 0 });
       H.turn = nx(T, s); H.phase = 'draw'; H.took = null; H.laidThisTurn = false; H.turnNo++;
-      if (!H.pile.length) { log(T, { t: 'pile_empty' }); return endRound(T, null, now); } // ortada taş bitti → el sona erer
+      if (!H.pile.length || H.turnNo > MAX_TURNS) { log(T, { t: 'pile_empty' }); return endRound(T, null, now); } // ortada taş bitti (ya da el sonsuz döngüde) → el sona erer
       if (!joker) H.okeyBlocked = false;
       beginTurn(T, now, rnd); return {};
     }
@@ -225,14 +227,14 @@ function actDuz(T, s, a, now, rnd, k) {
     case 'draw': {
       needTurn(T, s, 'draw');
       if (!H.pile.length) return endRound(T, null, now);
-      const id = H.pile.shift(); H.racks[s].push(id); H.phase = 'play'; H.took = null; H.okeyBlocked = false;
+      const id = H.pile.shift(); H.racks[s].push(id); H.phase = 'play'; H.took = null; H.okeyBlocked = false; H.sideStreak = 0;
       log(T, { t: 'draw', s }); return { drawn: id };
     }
     case 'take': {
       needTurn(T, s, 'draw');
       const d = H.discards[pv(T, s)]; if (!d.length) fail('empty', 'Alınacak taş yok.');
       if (H.okeyBlocked) fail('okey_blocked', 'Atılan okey alınamaz.');
-      const id = d.pop(); H.racks[s].push(id); H.phase = 'play'; H.took = { id, from: pv(T, s) };
+      const id = d.pop(); H.racks[s].push(id); H.phase = 'play'; H.took = { id, from: pv(T, s) }; H.sideStreak = (H.sideStreak || 0) + 1;
       log(T, { t: 'take', s, tile: id }); return { taken: id };
     }
     case 'discard': {
@@ -241,7 +243,7 @@ function actDuz(T, s, a, now, rnd, k) {
       takeFromRack(rack, [id]); H.discards[s].push(id); const joker = k.isJoker(id);
       log(T, { t: 'discard', s, tile: id });
       H.turn = nx(T, s); H.phase = 'draw'; H.took = null; H.turnNo++; H.okeyBlocked = joker;
-      if (!H.pile.length) { log(T, { t: 'pile_empty' }); return endRound(T, null, now); }
+      if (!H.pile.length || H.turnNo > MAX_TURNS) { log(T, { t: 'pile_empty' }); return endRound(T, null, now); }
       beginTurn(T, now, rnd); return {};
     }
     case 'finish': { // bu taşı atarak el bitir: kalan 14 taş sunucuda perlere/7 çifte ayrılmalı
@@ -264,7 +266,10 @@ function autoTurnDuz(T, s, now, rnd, k) {
   const smart = seat.bot || seat.left || seat.away;
   if (H.phase === 'draw') {
     const d = H.discards[pv(T, s)], top = d.length ? d[d.length - 1] : null;
-    if (smart && top != null && !H.okeyBlocked && D.duzWantTake(H.racks[s], top, k)) actDuz(T, s, { type: 'take' }, now, rnd, k);
+    // Döngü koruması: bot, aldığı taşı hemen geri atacaksa ya da üst üste çok kez yandan aldıysa ortadan çeker
+    // (2 kişilik masada iki botun aynı taşı sonsuza dek alıp vermesi eli bitirmiyordu).
+    const useful = top != null && D.duzWantTake(H.racks[s], top, k) && (k.isJoker(top) || D.findFinish(H.racks[s].concat(top), k) || D.duzDiscard(H.racks[s].concat(top), k) !== top);
+    if (smart && useful && !H.okeyBlocked && (H.sideStreak || 0) < 6) actDuz(T, s, { type: 'take' }, now, rnd, k);
     else { const r = actDuz(T, s, { type: 'draw' }, now, rnd, k); if (T.status !== 'playing' || T.hand !== H) return r; }
   }
   const f = D.findFinish(H.racks[s], k);

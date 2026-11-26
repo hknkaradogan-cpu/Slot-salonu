@@ -725,10 +725,10 @@
     if (v && (v.status === 'playing' || v.status === 'round_end')) {
       if (!(await UI.confirm(`Masadan ayrılırsan yerine bot oynar${v.cfg.stake ? ' ve giriş jetonun iade edilmez' : ''}. Oyun sürdüğü sürece lobiden geri dönebilirsin. Ayrılmak istiyor musun?`, 'Ayrıl'))) return;
     }
-    const id = O.id; stopTable(); O.screen = null;
+    const id = O.id; stopTable(); O.screen = null; O.v = null;
+    Screens.go('home'); // masadan çıkış → ana salon (ağ beklenmeden hemen; arkada masa boş ekran kalmaz)
     if (v && v.status !== 'finished') { try { const r = await Api.post(`/api/okey/${id}/leave`, {}); if (r.refunded) toast(`Giriş jetonu iade edildi: ${fmt(r.refunded)}`); } catch (e) { /* bağlantı yoksa sunucu süre dolunca otomatik oynatır */ } }
     Screens.refresh && Screens.refresh().catch(() => {});
-    Screens.go('home'); // masadan çıkış → ana salon
   }
   function menuModal() {
     modal(`<h3 class="gold">Menü</h3><div class="list">

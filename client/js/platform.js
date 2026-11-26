@@ -118,8 +118,16 @@
   /* ===================== GEZİNME ===================== */
   function bind(root) {
     if (root.__spBound) return; root.__spBound = true; // ekran öğesi yeniden kullanılır: dinleyici yalnızca bir kez eklenir
+    // HAYALET DOKUNUŞ KORUMASI (kesin): salondaki bir düğme yalnızca parmak O düğmeye inip kalktıysa çalışır.
+    // Oyundan çıkış dokunuşunun "click"i yeni açılan salonda sol üstteki profile düşse bile, o dokunuş
+    // salonda başlamadığı için (pointerdown yok) yok sayılır. Süreye bağlı değildir; yavaş cihazlarda da çalışır.
+    let pressed = null, pressedAt = 0;
+    root.addEventListener('pointerdown', (e) => { pressed = e.target.closest('[data-p]'); pressedAt = Date.now(); }, true);
     root.addEventListener('click', (e) => {
       const t = e.target.closest('[data-p]'); if (!t || t.tagName === 'INPUT') return;
+      const fromPointer = e.detail > 0 || e.pointerType; // klavye/erişilebilirlik tıklamaları (detail 0) serbest
+      if (fromPointer && (pressed !== t || Date.now() - pressedAt > 5000)) { e.stopPropagation(); return; }
+      pressed = null;
       if (e.target.closest('#hCode,#hJoin')) return;
       Sound.play('click');
       // canlı oyun kartı: kart öne çıkıp ekranı doldurur, oyun arkada açılır

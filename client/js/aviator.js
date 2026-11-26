@@ -212,6 +212,10 @@
   }
   function frame(ts) {
     if (!A.open) return; A.raf = requestAnimationFrame(frame);
+    // Düşük donanım: ortalama kare süresi 28 ms'yi aşarsa sahne 30 kare/sn çizilir (oyun mantığı sunucu saatine bağlı, etkilenmez)
+    const fdt = ts - (A.lastTs || ts); A.lastTs = ts; A.favg = (A.favg || 16.7) * 0.95 + Math.min(100, fdt) * 0.05;
+    if (A.favg > 28 || document.body.classList.contains('lowfx')) { A.skipF = !A.skipF; if (A.skipF) return; }
+    if (document.hidden) return;
     const cv = $('#avCv'); if (!cv) return; const c = cv.getContext('2d'), W = 1380, H = 792;
     // performans: tuval çözünürlüğü ekrana göre (en çok 1,5 kat); çizim koordinatları sabit 1380×792
     if (!A.cvS) { const r = cv.getBoundingClientRect(); A.cvS = Math.min(1, Math.max(0.5, (r.width * Math.min(1.5, devicePixelRatio || 1)) / 1380)); cv.width = Math.round(1380 * A.cvS); cv.height = Math.round(792 * A.cvS); }

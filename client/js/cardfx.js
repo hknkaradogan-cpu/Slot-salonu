@@ -240,8 +240,11 @@
       if (low && I.P.length > 40) I.P.splice(0, I.P.length - 40); // hafif mod: parçacık sınırı
       I.dirty = I.P.length > 0 || I.B.length > 0; drawP(I, dt);
     });
-    if (any || live.size) raf = requestAnimationFrame(loop);
+    // Salon gizliyken (oyun açık) her karede düzen sorgusu yapan döngü çalışmaz: 400 ms'de bir uyanıp bakar
+    if (any) raf = requestAnimationFrame(loop);
+    else if (live.size && !idleT) idleT = setTimeout(() => { idleT = 0; kick(); }, 400);
   }
+  let idleT = 0;
   document.addEventListener('visibilitychange', () => { if (!document.hidden) kick(); });
 
   /* ---------------- dokununca: kart öne çıkar, büyür ve oyuna açılır ---------------- */

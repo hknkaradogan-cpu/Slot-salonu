@@ -138,7 +138,8 @@
       const dt = now - last; last = now;
       if (Games.isOpen() && !document.hidden) { frames++; if (dt > worst && dt < 1000) worst = dt; }
       if (now - t0 >= 5000) { const fps = frames / ((now - t0) / 1000); if (frames > 30 && fps < minFps) minFps = fps; t0 = now; tick.samples.push(fps); frames = 0; }
-      requestAnimationFrame(tick);
+      // oyun açık değilken her karede çalışmaz (salonda gereksiz kare döngüsü yok)
+      if (Games.isOpen() && !document.hidden) requestAnimationFrame(tick); else setTimeout(() => { last = performance.now(); requestAnimationFrame(tick); }, 1000);
     };
     tick.samples = []; requestAnimationFrame(tick);
     setInterval(() => {

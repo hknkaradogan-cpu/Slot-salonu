@@ -82,3 +82,13 @@ test('bot-bot 100 oyun: hepsi biter, el sonlarında ya bitiren var ya da ortada 
     assert.equal(rounds, 2);
   }
 });
+
+test('Düz Okey 2 kişilik: botlar yandan alıp verme döngüsüne girmez, her oyun biter', () => {
+  for (let g = 0; g < 150; g++) {
+    const rnd = seeded(5000 + g * 7);
+    const T = TB.newTable({ variant: 'duz', mode: 'tekli', rounds: 1 + (g % 3), players: 2 }, 0); TB.fillBots(T, rnd); TB.startRound(T, 0, rnd);
+    let now = 0;
+    for (let i = 0; i < 6000 && T.status !== 'finished'; i++) { now += 2500; TB.tick(T, now, rnd); }
+    assert.equal(T.status, 'finished', 'oyun ' + g + ' bitmedi (döngü)');
+  }
+});
