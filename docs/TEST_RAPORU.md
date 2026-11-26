@@ -66,3 +66,26 @@ Yeniden üretmek için: `cd server && node tools/simulate.js --rtp profil --spin
   `slot.server_config`'e `BILLING_MODE=google` ve `GOOGLE_SERVICE_ACCOUNT_JSON` girilmelidir; bundan sonra sunucu
   her satın almayı Google'a doğrulatmadan jeton vermez.
 - Uygulama içi güncelleme yalnızca Play Store dışı dağıtımda kullanılır; Play sürümünde kapatılmalıdır.
+
+## 5. 101 Okey (3.1)
+
+| Alan | Sonuç |
+|---|---|
+| Kural ve masa testleri | 8/8 geçti (`server/test/okey.test.js`) — toplam sunucu testleri **32/32** |
+| Bot-bot simülasyonu | 300 oyun × 3 el = 900 el: hata 0, kilitlenme 0, taş kaybı 0, geçersiz per 0 |
+| Çözücü (Seri Diz / bot) | 22 taşlık elde ortalama 0,3 ms, en kötü 8 ms; 2.000 elde ürettiği tüm perler geçerli |
+| Tarayıcıda online | 2 gerçek oyuncu aynı masaya eşleşti, botlarla başlatıldı, sürükle-bırak çekme/atma, Seri Diz, el sonu ve oyun sonu ekranları, havuz dağıtımı: hatasız |
+| Yatay ekran | Android'de masa açılınca yatay + tam ekran; dikey tarayıcıda masa otomatik döndürülür |
+
+**Uygulanan kurallar** (okey-gg 101 kurallarıyla karşılaştırıldı): 106 taş, başlayan 22 / diğerleri 21, gösterge → okey (13 → 1), sahte okey;
+seri (1-2-3 geçerli, 12-13-1 geçersiz), aynı sayı 3–4 farklı renk, çift; 101 sayı veya 5 çiftle açma, katlamalı (rakiplerin en yüksek açışı + 1; eşlide yalnızca karşı takım);
+siler (150+ / 7+ çift → −101); yandan alınan taşla açma/işleme zorunluluğu ve geri bırakma; işleme (çift açan yalnızca çift koyar, işleyebilir);
+masadan okey alma (perde 4 renk tamamsa), koyana +101; okey atma +101 (sonraki alamaz), işlek taş atma +101, attığı taşla açılana ×10 (çiftte ×20);
+bitiş −101 / okeyle −202 / çiftle −202 (okeyle −404) / elden −202 (okeyle −404); açmayan 202 / 404 / 808; açanın eli (çiftte ×2) + elde okey 101;
+deste biterse kimse açmadıysa el sayılmaz; eşlide bitenin eşi 0; en düşük toplam kazanır.
+
+**Bilinçli sadeleştirmeler:** göstergeyi gösterme (çift yolunda okey sayılması) ve “seriye bir turda en fazla 2 taş işleme” sınırı uygulanmadı.
+Hatalı açış denemesi ceza yerine reddedilir (uygulamalar gibi). Botlar masada **BOT** etiketiyle gösterilir.
+
+**Jeton:** masa girişi havuza girer (botların payı sanal); tekli 1. %60 · 2. %30 · 3. %10, eşlide kazanan takım paylaşır, eşitlikte paylar bölünür.
+Bekleme sırasında ayrılan iade alır; oyun sırasında ayrılanın yerine bot oynar ve ödül alamaz. Ücretsiz masalarda yalnızca XP verilir.
