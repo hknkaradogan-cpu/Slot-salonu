@@ -51,7 +51,7 @@
       const b = f.querySelector('button[type=submit]'); b.disabled = true;
       try {
         const r = await Api.post('/api/auth/register', { email: f.email.value.trim(), username: f.username.value.trim(), password: f.password.value });
-        Api.setToken(r.token); await enter(); toast('Hoş geldin! Başlangıç jetonların hesabına yüklendi.'); verifyEmailModal();
+        Api.setToken(r.token); await enter(); toast('Hoş geldin! Başlangıç jetonların hesabına yüklendi.'); if (!Api.isLocal()) verifyEmailModal();
       } catch (er) { $('#rErr').textContent = er.message; Sound.play('error'); } finally { b.disabled = false; }
     };
     $('#toLogin').onclick = login; $('#tabLogin').onclick = login;
