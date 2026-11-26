@@ -42,35 +42,32 @@
     try { return await fn(); } catch (e) { toast(errMsg(e), true); } finally { if (btn) btn.disabled = false; }
   }
 
-  /* ---------- parçacık efektleri (tam ekran tuval) ---------- */
-  const cv = $('#fxCanvas'); const cx = cv.getContext('2d'); let parts = [], running = false, dpr = 1;
-  function resize() { dpr = Math.min(2, window.devicePixelRatio || 1); cv.width = innerWidth * dpr; cv.height = innerHeight * dpr; }
+  /* ---------- parçacık efektleri (hafif: önceden çizilmiş sprite, gölge/karışım yok) ---------- */
+  const cv = $('#fxCanvas'); const cx = cv.getContext('2d'); let parts = [], running = false;
+  function resize() { cv.width = innerWidth; cv.height = innerHeight; } // DPR=1: telefonda 4 kat daha az piksel
   addEventListener('resize', resize); resize();
+  function sprite(draw, size) { const c = document.createElement('canvas'); c.width = c.height = size; draw(c.getContext('2d'), size); return c; }
+  const COIN = sprite((g, s) => { const r = s / 2 - 1, gr = g.createRadialGradient(r * .7, r * .7, 1, r, r, r); gr.addColorStop(0, '#fff6b0'); gr.addColorStop(.6, '#ffc72e'); gr.addColorStop(1, '#a86a0a'); g.fillStyle = gr; g.beginPath(); g.arc(s / 2, s / 2, r, 0, 6.3); g.fill(); g.strokeStyle = '#7a4a00'; g.lineWidth = 1.5; g.stroke(); }, 28);
+  const SPARK = {}; const spark = (c) => SPARK[c] || (SPARK[c] = sprite((g, s) => { const gr = g.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2); gr.addColorStop(0, '#fff'); gr.addColorStop(.35, c); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, s, s); }, 16));
   function loop() {
-    cx.setTransform(dpr, 0, 0, dpr, 0, 0); cx.clearRect(0, 0, innerWidth, innerHeight);
+    cx.clearRect(0, 0, cv.width, cv.height);
     for (let i = parts.length - 1; i >= 0; i--) {
       const p = parts[i]; p.vy += p.g; p.x += p.vx; p.y += p.vy; p.rot += p.vr; p.life--;
-      if (p.life <= 0 || p.y > innerHeight + 40) { parts.splice(i, 1); continue; }
-      cx.save(); cx.translate(p.x, p.y); cx.globalAlpha = Math.min(1, p.life / 20);
-      if (p.kind === 'coin') {
-        cx.scale(Math.abs(Math.cos(p.rot)) * 0.9 + 0.1, 1);
-        const g = cx.createRadialGradient(-p.r * .3, -p.r * .3, 1, 0, 0, p.r); g.addColorStop(0, '#fff6b0'); g.addColorStop(.6, '#ffc72e'); g.addColorStop(1, '#a86a0a');
-        cx.beginPath(); cx.arc(0, 0, p.r, 0, 6.3); cx.fillStyle = g; cx.fill(); cx.lineWidth = 1.5; cx.strokeStyle = '#7a4a00'; cx.stroke();
-      } else if (p.kind === 'spark') {
-        cx.globalCompositeOperation = 'lighter'; cx.beginPath(); cx.arc(0, 0, p.r, 0, 6.3); cx.fillStyle = p.c; cx.shadowBlur = 12; cx.shadowColor = p.c; cx.fill();
-      } else { cx.rotate(p.rot); cx.fillStyle = p.c; cx.fillRect(-p.r, -p.r / 2, p.r * 2, p.r); }
-      cx.restore();
+      if (p.life <= 0 || p.y > innerHeight + 30) { parts[i] = parts[parts.length - 1]; parts.pop(); continue; }
+      cx.globalAlpha = p.life < 20 ? p.life / 20 : 1;
+      if (p.kind === 'coin') { const w = p.r * 2 * (Math.abs(Math.cos(p.rot)) * .85 + .15); cx.drawImage(COIN, p.x - w / 2, p.y - p.r, w, p.r * 2); }
+      else if (p.kind === 'spark') cx.drawImage(spark(p.c), p.x - p.r * 2, p.y - p.r * 2, p.r * 4, p.r * 4);
+      else { cx.fillStyle = p.c; cx.fillRect(p.x - p.r, p.y - p.r / 2, p.r * 2 * Math.abs(Math.cos(p.rot)) + 1, p.r); }
     }
+    cx.globalAlpha = 1;
     if (parts.length) requestAnimationFrame(loop); else { running = false; cx.clearRect(0, 0, cv.width, cv.height); }
   }
-  function add(p) { if (parts.length > 220) return; parts.push(p); if (!running) { running = true; requestAnimationFrame(loop); } }
+  function add(p) { if (parts.length > 140) return; parts.push(p); if (!running) { running = true; requestAnimationFrame(loop); } }
   const rnd = (a, b) => a + Math.random() * (b - a);
-  function burst(x, y, n = 24, colors = ['#fff6b0', '#ffd34d', '#ff7acf', '#7fd8ff']) {
-    for (let i = 0; i < n; i++) { const a = Math.random() * 6.28, v = rnd(2, 8); add({ kind: 'spark', x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, g: 0.12, r: rnd(2, 5), rot: 0, vr: 0, life: rnd(25, 50), c: colors[i % colors.length] }); }
-  }
-  function coinShower(n = 30) { for (let i = 0; i < n; i++) add({ kind: 'coin', x: rnd(0, innerWidth), y: rnd(-300, -20), vx: rnd(-1.5, 1.5), vy: rnd(2, 6), g: 0.18, r: rnd(7, 13), rot: Math.random() * 6, vr: rnd(-.25, .25), life: 220 }); }
-  function coinBurst(x, y, n = 14) { for (let i = 0; i < n; i++) { const a = rnd(-Math.PI, 0), v = rnd(4, 11); add({ kind: 'coin', x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 3, g: 0.35, r: rnd(6, 11), rot: Math.random() * 6, vr: rnd(-.3, .3), life: 120 }); } }
-  function confetti(n = 50) { const c = ['#ff5d73', '#35d6ff', '#ffd23f', '#6bff7a', '#c07bff', '#ff9ae8']; for (let i = 0; i < n; i++) add({ kind: 'conf', x: rnd(0, innerWidth), y: rnd(-200, 0), vx: rnd(-2, 2), vy: rnd(1, 4), g: 0.06, r: rnd(4, 8), rot: Math.random() * 6, vr: rnd(-.2, .2), life: 260, c: c[i % c.length] }); }
+  function burst(x, y, n = 12, colors = ['#ffd34d', '#ff7acf', '#7fd8ff']) { n = Math.min(n, 12); for (let i = 0; i < n; i++) { const a = Math.random() * 6.28, v = rnd(2, 6); add({ kind: 'spark', x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, g: 0.12, r: rnd(2, 4), rot: 0, vr: 0, life: rnd(18, 34), c: colors[i % colors.length] }); } }
+  function coinShower(n = 24) { for (let i = 0; i < n; i++) add({ kind: 'coin', x: rnd(0, innerWidth), y: rnd(-260, -20), vx: rnd(-1.2, 1.2), vy: rnd(3, 6), g: 0.16, r: rnd(8, 13), rot: Math.random() * 6, vr: rnd(-.2, .2), life: 160 }); }
+  function coinBurst(x, y, n = 12) { for (let i = 0; i < n; i++) { const a = rnd(-Math.PI, 0), v = rnd(4, 10); add({ kind: 'coin', x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 3, g: 0.35, r: rnd(7, 11), rot: Math.random() * 6, vr: rnd(-.3, .3), life: 90 }); } }
+  function confetti(n = 40) { const c = ['#ff5d73', '#35d6ff', '#ffd23f', '#6bff7a', '#c07bff']; for (let i = 0; i < n; i++) add({ kind: 'conf', x: rnd(0, innerWidth), y: rnd(-200, 0), vx: rnd(-1.5, 1.5), vy: rnd(1, 3.5), g: 0.05, r: rnd(4, 7), rot: Math.random() * 6, vr: rnd(-.2, .2), life: 200, c: c[i % c.length] }); }
 
   window.UI = { $, $$, esc, fmt, short, sleep, show, screen, toast, modal, closeModal, confirm, errMsg, guard, burst, coinShower, coinBurst, confetti, AVATARS, speed: 1 };
 })();

@@ -97,7 +97,7 @@
     });
   }
   function sizeGrid() {
-    const W = Math.min(innerWidth, 520) - 16 - 28; const H = innerHeight - (G.meta.info.buyCost && Object.keys(G.meta.info.buyCost).length ? 450 : 400);
+    const W = Math.min(innerWidth, 520) - 16 - 28; const hasBuy = G.meta.info.buyCost && Object.keys(G.meta.info.buyCost).length; const H = innerHeight - 300 - (hasBuy ? 56 : 0) - (G.id === 'korsan' || G.id === 'altin' ? 44 : 0) - 150;
     const byW = Math.floor((W - 4 * (G.cols - 1)) / G.cols); const byH = Math.floor((H - 4 * (G.rows - 1)) / G.rows);
     const cell = Math.max(40, Math.min(byW, byH, G.cols <= 3 ? 110 : 92));
     $('#game').style.setProperty('--cell', cell + 'px'); G.cell = cell; G.step = cell + 4;
@@ -189,8 +189,8 @@
 
   /* ---------- makara görselleri ---------- */
   function startVisual() {
-    if (G.meta.family === 'tumble') { // eski semboller aşağı düşüp kaybolur
-      G.boxes.forEach((b, i) => { const s = b.firstElementChild; if (s) { s.style.transition = `transform ${0.3 * G.speed}s ease-in ${((i / G.rows) | 0) * 0.03}s, opacity .3s`; s.style.transform = `translateY(${G.step * (G.rows + 1)}px)`; s.style.opacity = '0'; } });
+    if (G.meta.family === 'tumble') { // eski semboller hafifçe aşağı kayar; yenileri sunucu yanıtıyla düşer
+      G.boxes.forEach((b, i) => { const s = b.firstElementChild; if (s) { s.style.transition = `transform ${0.18 * G.speed}s ease-in ${((i / G.rows) | 0) * 0.02}s`; s.style.transform = `translateY(${G.step * 0.25}px)`; } });
       return { tumble: true };
     }
     const iv = setInterval(() => { G.boxes.forEach((b, i) => { if (!vis.stopped[(i / G.rows) | 0]) { b.innerHTML = Sym.symHtml(G.id, randCode()); b.firstElementChild.style.filter = 'blur(1.5px)'; b.firstElementChild.style.transform = `translateY(${(Math.random() * 10 - 5) | 0}px)`; } }); Sound.play('tick'); }, 70);
@@ -202,7 +202,7 @@
   function sideR(label, val) { const m = $('#mR'); if (m) m.innerHTML = `<small>${label}</small><b>${val}</b>`; }
   async function stopReels(vis, grid, decor) {
     for (let c = 0; c < G.cols; c++) {
-      await sleep(c === 0 ? 260 : 130);
+      await sleep(c === 0 ? 220 : 110);
       vis.stopped[c] = true;
       for (let r = 0; r < G.rows; r++) { const i = c * G.rows + r; setCell(i, decor ? decor(i, grid[i]) : grid[i]); G.boxes[i].firstElementChild.classList.add('stopbounce'); }
       Sound.play('stop');
@@ -274,7 +274,7 @@
       const art = { '⚡': 'b_scatter', '🧚': 'a_scatter', '📖': 'a_bonus', '🐉': 'card_dragon', '🏴‍☠️': 'a_chest', '🎰': 'a_jackpot', '🏆': 'b_chest', '✨': 'b_scatter', '🔮': 'a_scatter', '💰': 'a_jackpot', '🍒': 'a_seven' }[emoji];
       d.innerHTML = `<div class="rays"></div><img class="bgfx" src="assets/fx_burstp.webp" alt="">${art ? `<img src="assets/${art}.webp" style="position:relative;width:220px;max-height:200px;object-fit:contain;animation:floaty 2s infinite;filter:drop-shadow(0 0 18px #ffd34d)${art.startsWith('card') ? ';border-radius:24px' : ''}" alt="">` : emoji ? `<div style="position:relative;font-size:90px;animation:floaty 2s infinite">${emoji}</div>` : ''}<div class="t gold">${title}</div><div class="s" style="font-size:18px;color:#fff">${sub || ''}</div><div class="s">Devam etmek için dokun</div>`;
       document.body.appendChild(d); Sound.play('feature'); UI.confetti(50);
-      const gen = G.gen; const done = () => { d.remove(); res(); }; d.onclick = done; setTimeout(() => d.isConnected && done(), G.auto ? ms * 0.6 : ms * 1.6);
+      const gen = G.gen; const done = () => { d.remove(); res(); }; d.onclick = done; setTimeout(() => d.isConnected && done(), G.auto ? ms * 0.5 : ms * 0.9);
       const chk = setInterval(() => { if (gen !== G.gen) { clearInterval(chk); done(); } else if (!d.isConnected) clearInterval(chk); }, 300);
     });
   }
@@ -319,16 +319,16 @@
   // 1) TUMBLE (Zeus, Kristal Peri)
   async function playSequence(seq, bet, fsAcc) {
     const R = G.rows, nS = nSyms();
-    G.boxes.forEach((b, i) => setCell(i, seq.grid[i], '', -G.step * (R + 1), ((i / R) | 0) * 0.06 + (R - 1 - i % R) * 0.02));
-    Sound.play('stop'); await sleep(520);
+    G.boxes.forEach((b, i) => setCell(i, seq.grid[i], '', -G.step * (R + 1), ((i / R) | 0) * 0.035 + (R - 1 - i % R) * 0.015));
+    Sound.play('stop'); await sleep(430);
     let prev = seq.grid, running = 0;
     for (const st of seq.steps || []) {
       const rem = new Set(st.removed); rem.forEach(i => G.boxes[i].firstElementChild.classList.add('win'));
       running += st.wins.reduce((a, w) => a + w.pay, 0) * bet; setWin(Math.round(running), 'ZİNCİR');
-      Sound.play('win'); await sleep(G.skip ? 150 : 650);
+      Sound.play('win'); await sleep(G.skip ? 120 : 480);
       rem.forEach((i, k) => { const s = G.boxes[i].firstElementChild; s.classList.remove('win'); s.classList.add('pop'); const c = center(i); UI.burst(c.x, c.y, 5); });
-      { const m = reelsMid(); const pay = st.wins.reduce((a, w) => a + w.pay, 0); if (pay >= 5) fxs('fx_coins', m.x, m.y, m.w * 0.6, 0.9, { s: 1.4, r1: 10 }); }
-      Sound.play('pop'); Sound.vibrate(20); await sleep(380);
+
+      Sound.play('pop'); Sound.vibrate(20); await sleep(300);
       for (let c = 0; c < G.cols; c++) {
         const removedRows = []; for (let r = 0; r < R; r++) if (rem.has(c * R + r)) removedRows.push(r);
         const k = removedRows.length; if (!k) continue;
@@ -339,7 +339,7 @@
         }
         function survivorsOld(j) { let n = -1; for (let r = 0; r < R; r++) if (!rem.has(c * R + r)) { n++; if (n === j) return r; } return j; }
       }
-      await sleep(420); prev = st.grid;
+      await sleep(340); prev = st.grid;
     }
     // çarpanlar
     const mpos = []; for (let i = 0; i < prev.length; i++) if (prev[i] >= 1000) mpos.push(i);
@@ -379,13 +379,12 @@
         fsBar(`BONUS KAZANÇ ${fmt(Math.round(total))}`);
         meter('L', `TOPLAM ÇARPAN<b>x${sp.acc - (sp.seqWin ? sp.added : 0)}</b>`);
         meter('R', `KALAN FREE SPIN<b>${sp.left}</b>`);
-        G.boxes.forEach((bx) => { const s = bx.firstElementChild; if (s) { s.style.transition = `transform ${0.25 * G.speed}s ease-in, opacity .25s`; s.style.transform = `translateY(${G.step * (G.rows + 1)}px)`; s.style.opacity = '0'; } });
-        await sleep(260);
+        setWin(0);
         await playSequence(sp, bet, sp.seqWin ? sp.acc : null);
         meter('L', `TOPLAM ÇARPAN<b>x${sp.acc}</b>`);
         total += sp.seqWin * bet; fsBar(`BONUS KAZANÇ ${fmt(Math.round(total))}`);
         if (sp.retrig) { await overlayBanner(`+${sp.retrig} DÖNÜŞ!`, 'Ekstra ücretsiz dönüş kazandın', 1400, '✨'); }
-        await sleep(G.skip ? 120 : 380);
+        await sleep(G.skip ? 80 : 220);
       }
       fsBar(''); meter('L'); meter('R'); await overlayBanner('BONUS BİTTİ', `Toplam: ${fmt(Math.round(total))} jeton`, 2000, '🏆');
       shown += total;
