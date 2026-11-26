@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const { $, $$, esc, fmt, toast, modal, closeModal, guard } = UI;
-  const TABS = [['stats', '📊 Özet'], ['users', '👥 Oyuncular'], ['games', '🎰 Oyunlar & RTP'], ['rewards', '🎁 Ödüller'], ['packages', '🛒 Paketler'], ['purchases', '💳 Satın Almalar'], ['events', '🎉 Etkinlikler'], ['quests', '📜 Görevler'], ['tickets', '💬 Destek'], ['perf', '⚡ Performans'], ['audit', '🧾 İşlem Geçmişi']];
+  const TABS = [['stats', '📊 Özet'], ['users', '👥 Oyuncular'], ['games', '🎰 Oyunlar & RTP'], ['gstats', '📈 İstatistikler'], ['okey', '🀄 101 Okey'], ['rewards', '🎁 Ödüller'], ['packages', '🛒 Paketler'], ['purchases', '💳 Satın Almalar'], ['events', '🎉 Etkinlikler'], ['quests', '📜 Görevler'], ['tickets', '💬 Destek'], ['perf', '⚡ Performans'], ['audit', '🧾 İşlem Geçmişi']];
   let tab = 'stats';
   const dt = (t) => t ? new Date(t).toLocaleString('tr-TR') : '—';
   const toLocal = (t) => { const d = new Date(t - new Date().getTimezoneOffset() * 60000); return d.toISOString().slice(0, 16); };
@@ -78,16 +78,52 @@
   // Oyun bazlı teorik RTP / volatilite / aktiflik. Değişiklikler kayıt altına alınır.
   V.games = async (b) => {
     const r = await Api.get('/api/admin/games');
-    b.innerHTML = `<p class="small muted">RTP uzun vadeli <b>teorik</b> geri dönüş oranıdır; her oyuncuya veya oturuma garanti değildir. Sonuçlar denetlenebilir RNG ile bağımsız belirlenir; oyuncu geçmişi olasılıkları etkilemez. İzin verilen aralık: %${(r.min * 100).toFixed(0)}–%${(r.max * 100).toFixed(0)}. Ödeme tablosu RTP ile orantılı ölçeklenir; bonus satın alma RTP'si de aynı değere eşit kalır.</p>` +
+    b.innerHTML = `<p class="small muted"><b>Volatilite:</b> Düşük = sık ve küçük kazançlar, özellikler seyrek · Orta = dengeli · Yüksek = çarpan/bonus daha sık, ana oyun daha cimri. Her seviye milyonlarca spinle ayrı kalibre edildi; seçilen RTP her seviyede korunur.</p><p class="small muted">RTP uzun vadeli <b>teorik</b> geri dönüş oranıdır; her oyuncuya veya oturuma garanti değildir. Sonuçlar denetlenebilir RNG ile bağımsız belirlenir; oyuncu geçmişi olasılıkları etkilemez. İzin verilen aralık: %${(r.min * 100).toFixed(0)}–%${(r.max * 100).toFixed(0)}. Ödeme tablosu RTP ile orantılı ölçeklenir; bonus satın alma RTP'si de aynı değere eşit kalır.</p>` +
       r.games.map(g => { const obs = g.observed.wagered ? (g.observed.won / g.observed.wagered * 100).toFixed(2) + '%' : '—';
         return `<div class="card" data-g="${g.id}"><div class="row"><b class="grow" style="font-size:17px">${esc(g.name)}</b><label class="check" style="margin:0"><input type="checkbox" data-act ${g.active ? 'checked' : ''}>Aktif</label></div>
-        <div class="kv small" style="margin:6px 0"><b>Teorik RTP</b><span>%${(g.rtp * 100).toFixed(2)}</span><b>Volatilite</b><span>${esc(g.volatility)}</span><b>Gerçekleşen (${fmt(g.observed.spins)} spin)</b><span>${obs}</span><b>Bonus satın alma</b><span>${Object.entries(g.buyCost).map(([k, v]) => `${k === 'super' ? 'Süper' : 'FS'} ${v}x`).join(' · ') || '—'}</span></div>
+        <div class="kv small" style="margin:6px 0"><b>Teorik RTP</b><span>%${(g.rtp * 100).toFixed(2)}</span><b>Volatilite</b><span><select data-vol style="padding:5px;border-radius:8px;background:rgba(10,2,30,.6);color:#fff;border:1.5px solid rgba(255,255,255,.2)">${r.volLevels.map(l => `<option value="${l.id}" ${l.id === g.vol ? 'selected' : ''}>${l.name}</option>`).join('')}</select></span><b>Gerçekleşen (${fmt(g.observed.spins)} spin)</b><span>${obs}</span><b>Bonus satın alma</b><span>${Object.entries(g.buyCost).map(([k, v]) => `${k === 'super' ? 'Süper' : 'FS'} ${v}x`).join(' · ') || '—'}</span></div>
         <div class="row"><input type="number" step="0.1" min="${r.min * 100}" max="${r.max * 100}" value="${(g.rtp * 100).toFixed(1)}" data-rtp style="width:90px;padding:8px;border-radius:8px;border:1.5px solid rgba(255,255,255,.2);background:rgba(10,2,30,.6);color:#fff"> %
         <input placeholder="Not" data-note class="grow" style="min-width:0;width:40px;padding:8px;border-radius:8px;border:1.5px solid rgba(255,255,255,.2);background:rgba(10,2,30,.6);color:#fff"><button class="btn green sm" data-save>Kaydet</button></div></div>`; }).join('') +
-      `<div class="section-t">RTP değişiklik kayıtları</div><table class="tbl"><tr><th>Tarih</th><th>Oyun</th><th>Eski</th><th>Yeni</th><th>Yönetici</th><th>Not</th></tr>${r.history.map(h => `<tr><td>${dt(h.created_at)}</td><td>${esc(h.game)}</td><td>${h.old_rtp ? (h.old_rtp * 100).toFixed(1) + '%' : '—'}</td><td>${(h.new_rtp * 100).toFixed(1)}%</td><td>${esc(h.admin_name || '')}</td><td>${esc(h.note || '')}</td></tr>`).join('')}</table>`;
+      `<div class="section-t">RTP değişiklik kayıtları</div><table class="tbl"><tr><th>Tarih</th><th>Oyun</th><th>Eski</th><th>Yeni</th><th>Yönetici</th><th>Not</th></tr>${r.history.map(h => `<tr><td>${dt(h.created_at)}</td><td>${esc(h.game)}</td><td>${h.old_rtp ? (h.old_rtp * 100).toFixed(1) + '%' : '—'}${h.old_vol ? ' · ' + esc(h.old_vol) : ''}</td><td>${(h.new_rtp * 100).toFixed(1)}%${h.new_vol ? ' · ' + esc(h.new_vol) : ''}</td><td>${esc(h.admin_name || '')}</td><td>${esc(h.note || '')}</td></tr>`).join('')}</table>`;
     $$('[data-g]', b).forEach(c => {
-      c.querySelector('[data-save]').onclick = () => guard(c.querySelector('[data-save]'), async () => { await Api.put('/api/admin/games/' + c.dataset.g, { rtp: +c.querySelector('[data-rtp]').value / 100, note: c.querySelector('[data-note]').value }); toast('RTP kaydedildi'); go('games'); });
+      c.querySelector('[data-save]').onclick = () => guard(c.querySelector('[data-save]'), async () => { await Api.put('/api/admin/games/' + c.dataset.g, { rtp: +c.querySelector('[data-rtp]').value / 100, vol: c.querySelector('[data-vol]').value, note: c.querySelector('[data-note]').value }); toast('RTP ve volatilite kaydedildi'); go('games'); });
       c.querySelector('[data-act]').onchange = (e) => guard(null, async () => { await Api.put('/api/admin/games/' + c.dataset.g, { active: e.target.checked }); toast(e.target.checked ? 'Oyun aktif' : 'Oyun pasif'); });
+    });
+  };
+  // Kazanç/kayıp raporu: teorik ve gerçekleşen RTP ayrı, oyuncu sayıları, günlük seyir
+  V.gstats = async (b, days = 7) => {
+    const r = await Api.get('/api/admin/game-stats?days=' + days); const P = r.players;
+    const pct = (x) => (x == null ? '—' : (x * 100).toFixed(2) + '%');
+    const tot = r.games.reduce((a, g) => ({ spins: a.spins + g.spins, wagered: a.wagered + Number(g.wagered), won: a.won + Number(g.won) }), { spins: 0, wagered: 0, won: 0 });
+    const maxD = Math.max(1, ...r.daily.map(d => Number(d.wagered)));
+    b.innerHTML = `<div class="row" style="gap:6px;margin-bottom:8px">${[[1, 'Bugün'], [7, '7 gün'], [30, '30 gün'], [0, 'Tümü']].map(([d, t]) => `<button class="btn ${d === days ? 'gold' : 'ghost'} sm grow" data-d="${d}">${t}</button>`).join('')}</div>
+      <div class="card"><div class="section-t">👥 Oyuncular</div><div class="kv"><b>Kayıtlı oyuncu</b><span>${fmt(P.total)}</span><b>Şu an çevrim içi (5 dk)</b><span>${fmt(P.online5m)}</span><b>Son 24 saatte aktif</b><span>${fmt(P.active24h)}</span><b>Son 7 günde yeni</b><span>${fmt(P.new7d)}</span><b>101 Okey masasında</b><span>${fmt(P.okeyNow)}</span></div></div>
+      <div class="card"><div class="section-t">🎰 Slot özeti (${days ? days + ' gün' : 'tümü'})</div><div class="kv"><b>Spin</b><span>${fmt(tot.spins)}</span><b>Toplam bahis</b><span>${fmt(tot.wagered)}</span><b>Toplam ödeme</b><span>${fmt(tot.won)}</span><b>Gerçekleşen RTP</b><span>${tot.wagered ? pct(tot.won / tot.wagered) : '—'}</span><b>Kasa sonucu (sanal)</b><span>${fmt(tot.wagered - tot.won)}</span></div></div>
+      <div style="overflow-x:auto"><table class="tbl"><tr><th>Oyun</th><th>Vol.</th><th>Teorik RTP</th><th>Gerçekleşen</th><th>Spin</th><th>Oyuncu</th><th>İsabet</th><th>Bahis</th><th>Ödeme</th><th>Kasa</th><th>20x+</th><th>En büyük</th></tr>
+      ${r.games.map(g => `<tr><td><b>${esc(g.name)}</b>${g.active ? '' : ' <span class="pill bad">pasif</span>'}</td><td>${esc(g.volatility)}</td><td>${pct(g.theoreticalRtp)}</td><td>${pct(g.observedRtp)}</td><td>${fmt(g.spins)}</td><td>${fmt(g.players)}</td><td>${pct(g.hitRate)}</td><td>${fmt(g.wagered)}</td><td>${fmt(g.won)}</td><td>${fmt(g.house)}</td><td>${fmt(g.bigwins)}</td><td>${fmt(g.biggest)}</td></tr>`).join('')}</table></div>
+      <p class="small muted">Gerçekleşen RTP kısa dönemde teorik değerden sapabilir (yüksek volatilitede daha çok); spin sayısı arttıkça teorik değere yaklaşır. Sonuçlar oyuncuya özel müdahale olmadan denetlenebilir RNG ile üretilir.</p>
+      <div class="card"><div class="section-t">📅 Günlük bahis / ödeme (son 30 gün)</div>${r.daily.map(d => `<div class="row" style="gap:6px;align-items:center;font-size:12px"><span style="width:52px">${new Date(Number(d.day)).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit' })}</span><div class="grow" style="background:rgba(255,255,255,.08);border-radius:6px;height:12px;position:relative"><i style="position:absolute;left:0;top:0;bottom:0;width:${Number(d.wagered) / maxD * 100}%;background:#7a3cc8;border-radius:6px"></i><i style="position:absolute;left:0;top:3px;height:6px;width:${Number(d.won) / maxD * 100}%;background:#ffd34d;border-radius:6px"></i></div><span style="width:60px;text-align:right">${Number(d.wagered) ? pct(d.won / d.wagered) : '—'}</span></div>`).join('') || '<p class="muted small">Veri yok</p>'}<p class="small muted">Mor: bahis · Sarı: ödeme · Sağda gerçekleşen RTP</p></div>`;
+    $$('[data-d]', b).forEach(x => x.onclick = () => { b.innerHTML = '<p class="center muted">Yükleniyor…</p>'; V.gstats(b, +x.dataset.d); });
+  };
+  // 101 Okey: modlar, masalar, süreler, canlı masalar
+  V.okey = async (b) => {
+    const r = await Api.get('/api/admin/okey'), c = r.config;
+    const chk = (name, val, on, label) => `<label class="check" style="margin:2px 8px 2px 0;display:inline-flex"><input type="checkbox" data-${name}="${val}" ${on ? 'checked' : ''}><span>${label}</span></label>`;
+    b.innerHTML = `<div class="card"><div class="section-t">Oyun modları ve masa ayarları</div>
+      <label class="check"><input type="checkbox" id="okEn" ${c.enabled ? 'checked' : ''}><span><b>101 Okey açık</b> (kapalıyken yeni masa açılamaz)</span></label>
+      <div class="small muted" style="margin-top:8px">Oyun türü</div><div>${chk('m', 'tekli', c.modes.includes('tekli'), 'Tekli')}${chk('m', 'esli', c.modes.includes('esli'), 'Eşli')}${chk('k', '1', c.katlamali.includes(true), 'Katlamalı')}${chk('k', '0', c.katlamali.includes(false), 'Katlamasız')}</div>
+      <div class="small muted" style="margin-top:6px">El sayısı</div><div>${r.roundsAll.map(x => chk('r', x, c.rounds.includes(x), x + ' El')).join('')}</div>
+      <div class="small muted" style="margin-top:6px">Açık masalar (giriş jetonu)</div><div>${r.stakesAll.map(x => chk('s', x, c.stakes.includes(x), x ? fmt(x) : 'Ücretsiz')).join('')}</div>
+      <div class="kv" style="margin-top:8px"><b>Hamle süresi (sn)</b><span><input id="okTurn" type="number" min="10" max="120" value="${c.turnSeconds}" style="width:80px"></span><b>Bot oturma süresi (sn)</b><span><input id="okFill" type="number" min="5" max="300" value="${c.botFillSeconds}" style="width:80px"></span></div>
+      <label class="check"><input type="checkbox" id="okBots" ${c.botsAllowed ? 'checked' : ''}><span>Boş koltuklara bot oturabilir (kapalıysa masa 4 gerçek oyuncuyla başlar)</span></label>
+      <button class="btn green block" id="okSave" style="margin-top:8px">Kaydet</button><p class="small muted">Ayarlar yeni açılan masalara uygulanır; oyundaki masaların kuralı değişmez.</p></div>
+      <div class="card"><div class="section-t">Son 7 gün</div><div class="kv"><b>Oynayan oyuncu</b><span>${fmt(r.players.played7d)}</span><b>Giriş jetonları</b><span>${fmt(r.players.entries7d)}</span><b>Dağıtılan ödül</b><span>${fmt(r.players.paid7d)}</span></div>
+      <table class="tbl">${r.summary.map(x => `<tr><td>${esc(x.mode)}</td><td>${esc(x.status)}</td><td>${x.n}</td></tr>`).join('')}</table></div>
+      <div class="card"><div class="section-t">Canlı masalar</div><table class="tbl"><tr><th>#</th><th>Durum</th><th>Tür</th><th>El</th><th>Giriş</th><th>Gerçek oyuncu</th><th>Kod</th></tr>${r.tables.map(t => `<tr><td>${t.id}</td><td>${esc(t.status)}</td><td>${t.mode === 'esli' ? 'Eşli' : 'Tekli'} · ${t.katlamali ? 'Katl.' : 'Katl.siz'}</td><td>${t.rounds}</td><td>${fmt(t.stake)}</td><td>${t.humans}</td><td>${esc(t.code || '')}</td></tr>`).join('') || '<tr><td class="muted">Açık masa yok</td></tr>'}</table></div>`;
+    $('#okSave').onclick = () => guard($('#okSave'), async () => {
+      const vals = (n) => $$(`[data-${n}]`, b).filter(x => x.checked).map(x => x.dataset[n]);
+      await Api.put('/api/admin/okey', { enabled: $('#okEn').checked, modes: vals('m'), katlamali: vals('k').map(x => x === '1'), rounds: vals('r').map(Number), stakes: vals('s').map(Number), turnSeconds: +$('#okTurn').value, botFillSeconds: +$('#okFill').value, botsAllowed: $('#okBots').checked });
+      toast('101 Okey ayarları kaydedildi'); go('okey');
     });
   };
   V.purchases = async (b) => {

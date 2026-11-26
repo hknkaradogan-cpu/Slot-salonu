@@ -41,7 +41,7 @@
       </div>${jpBars}
       ${buyBtns ? `<div class="buyrow">${buyBtns}</div>` : ''}
       <div class="machine" id="machine"><div class="reels" id="reels"></div><svg class="linesvg" id="lineSvg"></svg><div id="fsBar"></div></div>
-      <div class="winline" id="winLine"><span class="muted small">${esc(meta.tag)}</span></div>
+      <div class="winline"><div class="wlbal"><small>BAKİYE</small><b id="wBal"></b></div><div class="wlwin" id="winLine"><span class="muted small">${esc(meta.tag)}</span></div></div>
       <div class="gbar">
         <button class="gb small" id="gInfo">ℹ</button>
         <div class="betgrp"><button class="gb" id="bMinus">−</button><div class="betv"><b id="bVal"></b><small>TOPLAM BAHİS</small></div><button class="gb" id="bPlus">+</button></div>
@@ -111,7 +111,7 @@
   }
   // Izgarayı ekranda kalan dikey boşluğu dolduracak kadar büyüt (genişlik sınırı içinde)
   function fitGrid() {
-    const bar = $('.gbar'), wl = $('#winLine'); if (!bar || !wl) return;
+    const bar = $('.gbar'), wl = $('.winline'); if (!bar || !wl) return;
     const free = bar.getBoundingClientRect().top - wl.getBoundingClientRect().bottom - 6;
     const W = Math.min(innerWidth, 520) - 16 - 28; const byW = Math.floor((W - 4 * (G.cols - 1)) / G.cols);
     const cell = Math.max(40, Math.min(byW, G.cell + Math.floor(free / G.rows), G.cols <= 3 ? 116 : 96));
@@ -131,7 +131,16 @@
   }
   function initialFill() { for (let i = 0; i < G.boxes.length; i++) setCell(i, randCode(), '', -G.step * (G.rows + 1), ((i / G.rows) | 0) * 0.05); }
   function center(i) { const r = G.boxes[i].getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }
-  function setWin(amount, label) { $('#winLine').innerHTML = amount > 0 ? `<span>${label || 'KAZANÇ'}</span><span class="v">${fmt(amount)}</span>` : `<span class="muted small">${esc(G.meta.tag)}</span>`; }
+  function countWin(from, to, label) {
+    return new Promise(res => {
+      const el = $('#winLine'); if (!el) return res();
+      el.innerHTML = `<span class="lb">${label}</span><span class="v mcount">${fmt(Math.round(from))}</span>`; const v = el.querySelector('.v');
+      const dur = G.skip ? 150 : 900, t0 = performance.now(), gen = G.gen;
+      const step = (t) => { if (gen !== G.gen) return res(); const p = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - p, 3); v.textContent = fmt(Math.round(from + (to - from) * e)); if (p < 1) requestAnimationFrame(step); else { setWin(Math.round(to), 'KAZANÇ'); Sound.play('coin'); setTimeout(res, G.skip ? 50 : 350); } };
+      requestAnimationFrame(step);
+    });
+  }
+  function setWin(amount, label) { const el = $('#winLine'); if (!el) return; el.innerHTML = amount > 0 ? `<span class="lb">${label || 'KAZANÇ'}</span><span class="v">${fmt(amount)}</span>` : `<span class="lb">KAZANÇ</span><span class="v dim">0</span>`; }
   function meter(side, html) {
     const m = $(side === 'L' ? '#mL' : '#mR'); if (!m) return;
     if (!html) { m.innerHTML = side === 'L' ? `<small>${G.meta.family === 'ways' ? 'ÇARPAN' : G.meta.family === 'tumble' ? 'TOPLAM ÇARPAN' : 'BONUS'}</small><b>${G.meta.family === 'ways' ? 'x1' : G.meta.family === 'tumble' ? 'x0' : '—'}</b>` : `<small>KALAN FREE SPIN</small><b>—</b>`; m.classList.remove('lit'); return; }
@@ -322,29 +331,31 @@
       const chk = setInterval(() => { if (gen !== G.gen) { clearInterval(chk); done(); } else if (!d.isConnected) clearInterval(chk); }, 300);
     });
   }
-  // Büyük kazanç: sayaç yükselirken seviye BIG → MEGA → SUPER → EPIC olarak yükselir
+  // Büyük kazanç: "TEBRİKLER! KAZANDINIZ" — sayaç yükselirken seviye BIG → MEGA → SUPER → EPIC yükselir, DEVAM ET ile kapanır
   function bigWin(win, x) {
-    const TIERS = [[10, 'BIG<br>WIN'], [25, 'MEGA<br>WIN'], [50, 'SUPER<br>WIN'], [100, 'EPIC<br>WIN']];
+    const TIERS = [[10, 'BÜYÜK KAZANÇ'], [25, 'MEGA KAZANÇ'], [50, 'SÜPER KAZANÇ'], [100, 'EFSANE KAZANÇ']];
     const final = TIERS.filter(t => x >= t[0]).length - 1;
     return new Promise(res => {
-      const d = document.createElement('div'); d.className = 'bigwin';
-      d.innerHTML = `<div class="rays"></div><img class="bwfx sun" src="assets/fx_orange.webp" alt="">
-        <img id="bwJ" src="assets/a_jackpot.webp" style="position:relative;width:280px;opacity:0;transform:scale(.6);transition:all .4s" alt="">
-        <div class="t bigwintxt" id="bwT">${TIERS[0][1]}</div><div class="n winpill" id="bwN">0</div>
-        <img src="assets/b_chest.webp" id="bwC" style="position:relative;width:200px;margin-top:6px;opacity:0;transition:opacity .4s" alt="">
-        <div class="s">x${(Math.round(x * 10) / 10)} · Geçmek için dokun</div>`;
+      const d = document.createElement('div'); d.className = 'bigwin bw2';
+      d.innerHTML = `<div class="rays"></div>${G.th && G.th.heroImg ? `<img class="bwhero" src="assets/${G.th.heroImg}.webp" alt="">` : ''}
+        <div class="bwt">TEBRİKLER!</div><div class="bwsub"><span>KAZANDINIZ</span></div>
+        <div class="bwframe"><div class="n" id="bwN">0</div></div>
+        <div class="bwtier" id="bwT">${TIERS[0][1]}</div>
+        <button class="bwgo" id="bwGo">DEVAM ET</button><div class="s">x${(Math.round(x * 10) / 10)} bahis</div>`;
       document.body.appendChild(d); Sound.play('bigwin'); Sound.vibrate([60, 40, 60]);
       const dur = Math.min(6000, 1600 + final * 1300) * G.speed; const t0 = performance.now(); let done = false, tier = 0;
       UI.coinShower(30); const iv = setInterval(() => UI.coinBurst(innerWidth / 2, innerHeight * 0.92, 8), 450);
-      const setTier = (k) => { tier = k; const t = $('#bwT'); if (!t) return; t.innerHTML = TIERS[k][1]; t.classList.remove('tierup'); void t.offsetWidth; t.classList.add('tierup'); Sound.play('feature'); if (k >= 2) { const j = $('#bwJ'); j.style.opacity = 1; j.style.transform = 'scale(1)'; $('#bwC').style.opacity = 1; } };
+      const setTier = (k) => { tier = k; const t = $('#bwT'); if (!t) return; t.textContent = TIERS[k][1]; t.classList.remove('tierup'); void t.offsetWidth; t.classList.add('tierup'); Sound.play('feature'); };
       const step = (now) => {
         if (done) return; const bn = $('#bwN'); if (!bn) { end(); return; }
         const p = Math.min(1, (now - t0) / dur), cur = win * (1 - Math.pow(1 - p, 2.2)); bn.textContent = fmt(cur);
         const curX = cur / (win / x); while (tier < final && curX >= TIERS[tier + 1][0]) setTier(tier + 1);
-        if (p < 1) requestAnimationFrame(step); else { Sound.play('coin'); setTimeout(end, 1400); }
+        if (p < 1) requestAnimationFrame(step); else { Sound.play('coin'); const n = $('#bwN'); n && n.classList.add('done'); if (G.auto) setTimeout(end, 1600); }
       };
-      const end = () => { if (done) return; done = true; clearInterval(iv); if (tier < final) setTier(final); const n = $('#bwN'); n && (n.textContent = fmt(win)); setTimeout(() => { d.remove(); res(); }, 250); };
-      d.onclick = end; requestAnimationFrame(step);
+      const end = () => { if (done) return; done = true; clearInterval(iv); if (tier < final) setTier(final); const n = $('#bwN'); n && (n.textContent = fmt(win)); setTimeout(() => { d.remove(); res(); }, 200); };
+      // ilk dokunuş sayacı tamamlar, DEVAM ET kapatır
+      d.onclick = (e) => { if (e.target.id === 'bwGo') return end(); const n = $('#bwN'); if (n && !n.classList.contains('done')) { n.textContent = fmt(win); n.classList.add('done'); if (tier < final) setTier(final); } else end(); };
+      requestAnimationFrame(step);
       const gen = G.gen; const chk = setInterval(() => { if (gen !== G.gen) { clearInterval(chk); end(); } else if (done) clearInterval(chk); }, 300);
     });
   }
@@ -394,22 +405,31 @@
       }
       await sleep(340); prev = st.grid;
     }
-    // çarpanlar
+    // çarpanlar: 1) kazanç kombinasyonu tamamlandı  2) şimşek/kristal patlaması  3) X değeri açılır  4) toplam çarpan  5) kazanç bir kez güncellenir
     const mpos = []; for (let i = 0; i < prev.length; i++) if (prev[i] >= 1000) mpos.push(i);
     let seqWin = running;
     if (running > 0 && mpos.length) {
-      const box = $('#mL'); let shownSum = fsAcc != null ? Math.max(0, fsAcc - seq.multSum) : 0;
+      const box = $('#mL'); const base0 = fsAcc != null ? Math.max(0, fsAcc - seq.multSum) : 0; let shownSum = base0;
+      setWin(Math.round(running), 'KAZANÇ'); await sleep(G.skip ? 60 : 350);
       for (const i of mpos) {
-        const cell = G.boxes[i].firstElementChild; const v = prev[i] - 1000;
-        if (G.id === 'zeus') await zeusStrike(i, () => cell && cell.classList.add('zhit'));
-        else { cell && cell.classList.add('zhit'); const c = center(i); fxs('fx_purple', c.x, c.y, G.cell * 2.2, 0.8, { s: 1.7 }); Sound.play('orb'); await sleep(260); }
+        const v = prev[i] - 1000;
+        const reveal = () => { if (!G.boxes[i]) return; G.boxes[i].innerHTML = Sym.symHtml(G.id, 1000 + v, 'open mreveal'); };
+        if (G.id === 'zeus') await zeusStrike(i, reveal);
+        else { const c = center(i); fxs('fx_purple', c.x, c.y, G.cell * 2.2, 0.8, { s: 1.7 }); Sound.play('orb'); reveal(); await sleep(300); }
+        await sleep(G.skip ? 60 : 260); // X değeri sembolün üstünde net görünsün
         if (box) await flyMult(i, v, box);
         shownSum += v; box && sideL('TOPLAM ÇARPAN', 'x' + shownSum);
       }
       const mult = fsAcc != null ? fsAcc : seq.multSum;
       box && sideL('TOPLAM ÇARPAN', 'x' + mult);
       badge('x' + mult, G.id === 'zeus' ? '#8fe3ff' : '#ff9ae8'); Sound.play('bigwin');
-      await sleep(700);
+      // kazanç sunucunun hesapladığı değerle (zincir toplamı × çarpan) tek sefer güncellenir
+      const final = seq.seqWin != null ? seq.seqWin * bet : running * mult;
+      await countWin(running, final, `${fmt(Math.round(running))} × ${mult}`);
+      seqWin = final;
+    } else if (running > 0) {
+      seqWin = seq.seqWin != null ? seq.seqWin * bet : running;
+      if (Math.round(seqWin) !== Math.round(running)) { badge('x' + fsAcc, '#ff9ae8'); await countWin(running, seqWin, `${fmt(Math.round(running))} × ${fsAcc}`); } // Peri FS: zincir başına artan çarpan
     }
     return seqWin;
   }

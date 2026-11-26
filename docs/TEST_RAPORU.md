@@ -89,3 +89,51 @@ Hatalı açış denemesi ceza yerine reddedilir (uygulamalar gibi). Botlar masad
 
 **Jeton:** masa girişi havuza girer (botların payı sanal); tekli 1. %60 · 2. %30 · 3. %10, eşlide kazanan takım paylaşır, eşitlikte paylar bölünür.
 Bekleme sırasında ayrılan iade alır; oyun sırasında ayrılanın yerine bot oynar ve ödül alamaz. Ücretsiz masalarda yalnızca XP verilir.
+
+## 6. Sürüm 3.2 — Kapsamlı güncelleme testleri (26.11.2026)
+
+Ortam: Node.js 22, Chromium (Playwright) mobil taklit 393×873 / 873×393, işlemci 4 kat yavaşlatılmış ("düşük donanımlı telefon").
+
+### 6.1 Slot RTP ve volatilite (oyun başına 10 milyon spin, yeni profil)
+| Oyun | Volatilite | Hedef | Ölçülen | ±%95 | İsabet | Özellik |
+|---|---|---|---|---|---|---|
+| Zeus | Yüksek | 96,5 | 96,55 | 0,60 | 24,4% | 1/356 |
+| Mısır Hazineleri | Orta | 96,0 | 95,96 | 0,42 | 34,2% | 1/195 |
+| Vegas Meyveleri | Düşük | 97,0 | 97,37 | 0,40 | 13,9% | 1/1364 |
+| Kristal Peri | Orta | 96,5 | 96,86 | 0,42 | 28,6% | 1/502 |
+| Ejderha Hazinesi | Orta | 96,0 | 96,05 | 0,55 | 40,5% | 1/120 |
+| Korsan Hazinesi | Yüksek | 96,5 | 96,47 | 0,75 | 23,9% | 1/277 |
+| Altın Şans | Düşük | 97,0 | 96,52 | 0,44 | 47,9% | 1/668 |
+
+Altın Şans bu koşuda aralığın 0,03 puan dışında; aynı seviyenin ayrı 40 milyon spinlik doğrulaması %95 hedefte 95,16 ±0,22 çıktı (7 oyunlu ölçümde bir sapma istatistiksel olarak beklenir).
+Her volatilite seviyesi ayrı kalibre edildi (düşük/yüksek: 8–120 milyon spin) ve %95 hedefte bağımsız tohumla doğrulandı (6–40 milyon spin). Seviye yükseldikçe standart sapma ve özellik sıklığı artar (ör. Zeus SD 7,7 → 8,1 → 9,4).
+
+### 6.2 Zeus / Kristal Peri çarpan sırası (video kareleriyle doğrulandı)
+Çarpan sembolü sayısız enerji küresi olarak düşer → kazanç kombinasyonları patlar, zincir toplamı gösterilir → şimşek küreye çarpar → X değeri açılır, Toplam Çarpan kutusuna uçar → "337 × 3" sayarak kazanç **tek sefer** güncellenir (sunucunun hesapladığı değer). Kazanç ekranı: TEBRİKLER! / KAZANDINIZ / tutar / DEVAM ET.
+
+### 6.3 101 Okey
+| Test | Sonuç |
+|---|---|
+| Sunucu testleri | 33/33 (okey: 9/9 — TOPLA, geri dönüş, başka oyuncunun masaya/taşlara erişememesi dahil) |
+| 16 mod kombinasyonu (tekli/eşli × katlamalı/katlamasız × 1–4 el) × 15 oyun | 240/240: el sayısı doğru, eşik ihlali 0, eşlide kazananlar aynı takım |
+| Butonlar (gerçek oyunda, tarayıcı) | Seri Aç (102 ile açtı) ✓ · Topla (taşlar geri döndü) ✓ · yeniden açış ✓ · Taş İşle (3 işleme) ✓ · Seri Diz / Çift Diz ✓ |
+| Oyun Seçenekleri penceresi | Katlamalı/Katlamasız/Eşli/Tekli, 1–4 El, Odayı Oluştur / Masaya Otur ✓; yöneticinin kapattığı seçenek pasif ve sunucuda da reddediliyor ✓ |
+| Bağlantı kopması (9 sn çevrimdışı) | "Bağlantı koptu" katmanı, ekran donmadı (kare 13 ms), bağlantı gelince otomatik eşitlendi ✓ |
+| Çıkış ve geri dönüş | ÇIK → onay → lobi → "Ayrıldığın masa sürüyor" → GERİ DÖN → aynı koltuk, aynı 22 taş ✓ |
+| Yetki | Oyuncu başka masada hamle yapamaz (403), başkasının taşlarını göremez, yönetici uçlarına erişemez (403) ✓ |
+
+### 6.4 Performans (işlemci 4× yavaş)
+| Ekran | Açılış | FPS | En kötü kare | JS bellek |
+|---|---|---|---|---|
+| Zeus | 117 ms | 59,1 | 67 ms | 10 MB |
+| Mısır | 41 ms | 59,5 | 33 ms | 10 MB |
+| Vegas | 102 ms | 59,7 | 33 ms | 10 MB |
+| Kristal Peri | 70 ms | 59,2 | 33 ms | 10 MB |
+| Ejderha | 58 ms | 59,6 | 33 ms | 10 MB |
+| Korsan | 61 ms | 59,4 | 50 ms | 10 MB |
+| Altın Şans | 99 ms | 59,8 | 33 ms | 10 MB |
+| 101 Okey masası (sürekli taş sürükleme) | 182 ms | 59,7 | 50 ms | 10 MB |
+
+Sunucu yük testi (yerel, tek işlem, PGlite): 80 eşzamanlı oyuncu (40 Okey + 40 slot), 30 sn, 2.974 istek, 5xx hata **0**.
+Okey yoklama p50 7 ms / p95 50 ms · hamle p50 8 ms / p95 38 ms · spin p50 22 ms / p95 118 ms / p99 797 ms.
+İstek azaltma: değişiklik yoksa sunucu küçük "aynı" yanıtı döner; uzun süre değişmeyen masada aralık 1,6 sn'ye çıkar; uygulama arka plandayken yoklama durur; okey yoklaması 10 sn oturum önbelleği kullanır; eski spin yanıtları 1 saat sonra, bitmiş masalar 3 gün sonra temizlenir.

@@ -69,4 +69,13 @@ CREATE INDEX IF NOT EXISTS okey_players_user ON slot.okey_players(user_id, activ
 CREATE TABLE IF NOT EXISTS slot.okey_invites (id BIGSERIAL PRIMARY KEY, table_id BIGINT NOT NULL REFERENCES slot.okey_tables(id) ON DELETE CASCADE, from_id BIGINT NOT NULL, to_id BIGINT NOT NULL, created_at BIGINT NOT NULL);
 CREATE INDEX IF NOT EXISTS okey_invites_to ON slot.okey_invites(to_id, created_at);
 CREATE TABLE IF NOT EXISTS slot.okey_stats (user_id BIGINT PRIMARY KEY REFERENCES slot.users(id) ON DELETE CASCADE, played INT NOT NULL DEFAULT 0, won INT NOT NULL DEFAULT 0, coins_won BIGINT NOT NULL DEFAULT 0, best_score INT);
+-- 3.2: volatilite, çevrim içi sayımı, spin bakım indeksleri
+ALTER TABLE slot.games_config ADD COLUMN IF NOT EXISTS volatility TEXT;
+ALTER TABLE slot.rtp_history ADD COLUMN IF NOT EXISTS old_vol TEXT;
+ALTER TABLE slot.rtp_history ADD COLUMN IF NOT EXISTS new_vol TEXT;
+ALTER TABLE slot.users ADD COLUMN IF NOT EXISTS last_seen_at BIGINT;
+ALTER TABLE slot.spins ADD COLUMN IF NOT EXISTS vol TEXT;
+CREATE INDEX IF NOT EXISTS spins_resp ON slot.spins(created_at) WHERE response IS NOT NULL;
+CREATE INDEX IF NOT EXISTS spins_time ON slot.spins(created_at);
+CREATE INDEX IF NOT EXISTS users_seen ON slot.users(last_seen_at);
 REVOKE ALL ON SCHEMA slot FROM PUBLIC;

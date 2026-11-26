@@ -102,7 +102,13 @@ test('spin: bahis düşer, kazanç eklenir, XP sınırlı, defter tutarlı, tekr
 
 test('oyun bazlı RTP: profiller farklı, yönetici değiştirir, kayıt tutulur, sonuç tohumdan yeniden üretilebilir', async () => {
   const g = (await api('GET', '/api/admin/games', null, adminTok)).body;
-  assert.ok(new Set(g.games.map(x => x.rtp)).size >= 4, 'oyunların RTP değerleri birbirinden bağımsız');
+  assert.ok(new Set(g.games.map(x => x.rtp)).size >= 3, 'oyunların RTP değerleri birbirinden bağımsız');
+  assert.ok(new Set(g.games.map(x => x.vol)).size === 3, 'oyunlar farklı volatilite karakterinde (düşük/orta/yüksek)');
+  assert.equal((await api('PUT', '/api/admin/games/zeus', { vol: 'cok' }, adminTok)).body.error, 'bad_vol');
+  assert.equal((await api('PUT', '/api/admin/games/misir', { vol: 'yuksek', note: 'vol test' }, adminTok)).body.vol, 'yuksek');
+  assert.equal((await api('GET', '/api/games')).body.games.find(x => x.id === 'misir').info.vol, 'yuksek');
+  const hv = (await api('GET', '/api/admin/games', null, adminTok)).body.history[0]; assert.equal(hv.old_vol, 'orta'); assert.equal(hv.new_vol, 'yuksek');
+  await api('PUT', '/api/admin/games/misir', { vol: 'orta' }, adminTok);
   assert.equal((await api('PUT', '/api/admin/games/zeus', { rtp: 0.99 }, adminTok)).body.error, 'bad_rtp');
   assert.equal((await api('PUT', '/api/admin/games/zeus', { rtp: 0.92, note: 'test' }, adminTok)).body.rtp, 0.92);
   const h = (await api('GET', '/api/admin/games', null, adminTok)).body.history; assert.equal(h[0].game, 'zeus'); assert.equal(Number(h[0].new_rtp), 0.92);
@@ -111,6 +117,10 @@ test('oyun bazlı RTP: profiller farklı, yönetici değiştirir, kayıt tutulur
   const done = []; for (const id of ORDER) { const r = await api('POST', '/api/spin', { game: id, bet: 1000 }, token); assert.equal(r.status, 200); done.push(r.body); }
   const rot = (await api('POST', '/api/fair/rotate', {}, token)).body; assert.equal(hashSeed(rot.revealed.serverSeed), fair.serverSeedHash);
   const G = buildGames(cal, { ...DEFAULT_RTP, zeus: 0.92 });
+  const stR = await api('GET', '/api/admin/game-stats?days=0', null, adminTok); assert.equal(stR.status, 200, JSON.stringify(stR.body)); const st = stR.body;
+  assert.ok(st.games.every(x => x.spins >= 1 && x.theoreticalRtp > 0.85), JSON.stringify(st.games.map(x => [x.id, x.spins]))); assert.ok(st.players.total >= 1 && st.players.online5m >= 1, JSON.stringify(st.players));
+  for (const x of st.games) assert.equal(x.house, x.wagered - x.won);
+  assert.equal((await api('GET', '/api/admin/game-stats', null, token)).status, 403);
   for (const s of done) assert.equal(Math.round(G[s.game].play(new FairRng(rot.revealed.serverSeed, s.fair.clientSeed, s.fair.nonce), true).win * 1000), s.win, s.game);
   await api('PUT', '/api/admin/games/vegas', { active: false }, adminTok);
   assert.ok(!(await api('GET', '/api/games')).body.games.some(x => x.id === 'vegas'));

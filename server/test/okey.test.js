@@ -171,7 +171,15 @@ test('özel masa: kod, arkadaş daveti, koltuk seçimi (eşli), masa sahibi baş
   assert.equal((await api('POST', `/api/okey/${id}/chat`, { msg: 0 }, b.token)).status, 200);
   assert.equal((await api('POST', `/api/okey/${id}/leave`, {}, b.token)).status, 200);
   v = (await api('GET', `/api/okey/${id}`, null, a.token)).body; assert.equal(v.seats[2].left, true); assert.equal(v.chat.length, 1);
-  assert.equal((await api('GET', '/api/okey/lobby', null, b.token)).body.active, null);
+  const lb2 = (await api('GET', '/api/okey/lobby', null, b.token)).body; assert.equal(lb2.active, null); assert.equal(lb2.rejoin.id, id);
+  // geri dönüş: aynı koltuk, aynı taşlar; bot yerine tekrar kendisi
+  const rj = await api('POST', '/api/okey/join', { tableId: id }, b.token); assert.equal(rj.status, 200, JSON.stringify(rj.body)); assert.equal(rj.body.rejoined, true);
+  const vb = (await api('GET', `/api/okey/${id}`, null, b.token)).body; assert.equal(vb.me, 2); assert.equal(vb.seats[2].left, false); assert.ok(vb.hand.rack.length >= 21);
+  assert.equal((await api('GET', '/api/me', null, b.token)).body.okeyActive.id, id);
+  // başka bir oyuncu bu masaya oturamaz, hamle yapamaz, taşlarını göremez
+  const vc = (await api('GET', `/api/okey/${id}`, null, c.token)).body; assert.equal(vc.me, null); assert.equal(vc.hand.rack, null);
+  assert.equal((await api('POST', `/api/okey/${id}/act`, { type: 'draw' }, c.token)).status, 403);
+  assert.equal((await api('POST', '/api/okey/join', { tableId: id }, c.token)).status, 409);
 });
 
 test('jeton: yetersiz bakiyeyle yüksek masaya girilemez, beklerken ayrılınca giriş iade edilir', async () => {
@@ -181,4 +189,24 @@ test('jeton: yetersiz bakiyeyle yüksek masaya girilemez, beklerken ayrılınca 
   const q = await api('POST', '/api/okey/quick', { mode: 'esli', stake: 10000, rounds: 1 }, a.token); assert.equal(await bal(a.token), b0 - 10000);
   const l = await api('POST', `/api/okey/${q.body.tableId}/leave`, {}, a.token); assert.equal(l.body.refunded, 10000);
   assert.equal(await bal(a.token), b0);
+});
+
+test('TOPLA: bu tur açılan perler ıstakaya geri döner; 1-4 el seçenekleri; katlamasız eşik sabit 101', () => {
+  const T = TB.newTable({ mode: 'tekli', rounds: 2, katlamali: false }, 0); TB.fillBots(T); TB.startRound(T, 0);
+  const H = T.hand, s = H.turn, K = R.kit(H.okey);
+  // başlayanın eline 101+ açılış hazırla
+  const pick = (c, n) => { for (const cp of [0, 1]) { const id = T_(c, n, cp); for (let o = 0; o < 4; o++) { const i = H.racks[o].indexOf(id); if (i >= 0) { H.racks[o].splice(i, 1); return id; } } const pi = H.pile.indexOf(id); if (pi >= 0) { H.pile.splice(pi, 1); return id; } } return null; };
+  const okeyColor = H.okey.c; const c1 = (okeyColor + 1) % 4, c2 = (okeyColor + 2) % 4;
+  const g1 = [11, 12, 13].map(n => pick(c1, n)), g2 = [11, 12, 13].map(n => pick(c2, n)), g3 = [9, 10, 11].map(n => pick(c1, n));
+  if ([...g1, ...g2, ...g3].some(x => x == null)) return; // nadir: taşlar göstergede
+  H.racks[s].push(...g1, ...g2, ...g3);
+  H.phase = 'draw'; TB.act(T, s, { type: 'draw' }, 1); // gerçek akış: taş çekildiğinde tur yedeği alınır
+  const before = H.racks[s].slice().sort();
+  TB.act(T, s, { type: 'open', route: 'points', groups: [g1, g2, g3] }, 1);
+  assert.ok(H.opened[s] && H.melds.length === 3);
+  assert.equal(TB.openThreshold(T, (s + 1) % 4, 'points'), 101); // katlamasız
+  TB.act(T, s, { type: 'undo' }, 2);
+  assert.equal(H.opened[s], null); assert.equal(H.melds.length, 0); assert.deepEqual(H.racks[s].slice().sort(), before);
+  assert.throws(() => TB.act(T, s, { type: 'undo' }, 3), /koyduğun taş yok/);
+  const K2 = TB.newTable({ mode: 'tekli', rounds: 2, katlamali: true }, 0); K2.hand = { opened: [{ route: 'points', value: 130 }, null, null, null] }; assert.equal(TB.openThreshold(K2, 1, 'points'), 131);
 });

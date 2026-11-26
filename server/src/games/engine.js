@@ -414,24 +414,51 @@ const DEFS = {
 
 export const ORDER = ['zeus', 'misir', 'vegas', 'peri', 'ejderha', 'korsan', 'altin'];
 // Varsayılan teorik RTP profilleri (yönetici panelinden oyun bazında değiştirilebilir, %85–%98)
-export const DEFAULT_RTP = { zeus: 0.965, misir: 0.95, vegas: 0.96, peri: 0.955, ejderha: 0.94, korsan: 0.945, altin: 0.95 };
+export const DEFAULT_RTP = { zeus: 0.965, misir: 0.96, vegas: 0.97, peri: 0.965, ejderha: 0.96, korsan: 0.965, altin: 0.97 };
 export const RTP_MIN = 0.85, RTP_MAX = 0.98;
 export const BASE_RTP = 0.95; // calibration.json katsayıları %95 içindir; ödeme tablosu RTP ile doğrusal ölçeklenir
 
-/** cal: calibration.json içeriği; rtp: { oyun: hedefRTP } (yoksa DEFAULT_RTP) */
-export function buildGames(cal = {}, rtp = {}) {
+/* ---------- VOLATİLİTE ----------
+ * Her oyunun özellik tetikleyicilerinin sıklığı (çarpan, scatter, kitap, yıldız, bonus, inci, sikke) seviyeye göre değişir.
+ * Düşük: özellikler seyrek, RTP'nin büyük kısmı sık ve küçük kazançlardan gelir. Yüksek: özellik/çarpan daha sık, ana oyun daha cimri.
+ * Her seviye için ödeme ölçeği simülasyonla ayrı kalibre edilir (calibration.json → vol), böylece hedef RTP her seviyede tutar. */
+export const VOL_LEVELS = ['dusuk', 'orta', 'yuksek'];
+export const VOL_NAMES = { dusuk: 'Düşük', orta: 'Orta', yuksek: 'Yüksek' };
+export const VOL_FACTOR = { dusuk: 0.55, orta: 1, yuksek: 1.6 };
+export const DEFAULT_VOL = { zeus: 'yuksek', misir: 'orta', vegas: 'dusuk', peri: 'orta', ejderha: 'orta', korsan: 'yuksek', altin: 'dusuk' };
+function volDef(id, def, lvl) {
+  const f = VOL_FACTOR[lvl] || 1; if (f === 1) return def;
+  const d = JSON.parse(JSON.stringify(def));
+  const rw = (idx, pw) => { const k = Math.pow(f, pw); d.reelWeights = d.reelWeights.map(w => w.map((x, i) => (i === idx ? x * k : x))); };
+  switch (DEFS[id].family) {
+    case 'tumble': d.multP *= f; d.multPfs *= f; d.scW *= Math.pow(f, 0.35); break;
+    case 'egypt': rw(def.wild, 0.5); break;           // kitap
+    case 'vegas': rw(def.star, 0.5); break;           // yıldız çarkı
+    case 'ways': rw(def.scatter, 0.5); break;         // inci (FS)
+    case 'pirate': rw(def.coin, 0.22); break;         // sikke (Sandık Altını)
+    case 'gold': rw(def.bonus, 0.5); break;           // bonus çarkı
+  }
+  if (def.lines) d.lines = def.lines; // dizi referansı korunur
+  return d;
+}
+
+/** cal: calibration.json; rtp: { oyun: hedefRTP }; vol: { oyun: 'dusuk'|'orta'|'yuksek' } */
+export function buildGames(cal = {}, rtp = {}, vol = {}) {
   const games = {};
   for (const id of ORDER) {
     const target = rtp[id] != null ? Number(rtp[id]) : DEFAULT_RTP[id];
-    const d = DEFS[id]; const S = ((cal[id] && cal[id].scale) || 1) * (target / BASE_RTP);
-    const g = d.make(d.def, S);
-    const buyCost = {}; for (const k of (g.buyKinds || [])) { const c = cal[id] && cal[id].buy && cal[id].buy[k]; if (c) buyCost[k] = c; }
+    let lvl = VOL_LEVELS.includes(vol[id]) ? vol[id] : DEFAULT_VOL[id];
+    const c = cal[id] || {}; let cv = lvl === 'orta' ? c : (c.vol && c.vol[lvl]);
+    if (!cv || !cv.scale) { lvl = 'orta'; cv = c; } // kalibrasyonu olmayan seviye kullanılmaz
+    const d = DEFS[id]; const S = (cv.scale || 1) * (target / BASE_RTP);
+    const g = d.make(volDef(id, d.def, lvl), S);
+    const buyCost = {}; for (const k of (g.buyKinds || [])) { const b = cv.buy && cv.buy[k]; if (b) buyCost[k] = b; }
     // Bonus satın alma fiyatı RTP'den bağımsız sabit kalır: beklenen kazanç RTP ile birlikte ölçeklendiği için satın alma RTP'si de hedef RTP olur
-    games[id] = { id, name: d.name, family: d.family, rtp: target, volatility: VOL[id], scale: S, play: g.play, buy: g.buy, buyKinds: g.buyKinds || [], buyCost, info: { ...g.info, buyCost, rtp: target, volatility: VOL[id] }, cal: cal[id] || null };
+    const vname = VOL_NAMES[lvl];
+    games[id] = { id, name: d.name, family: d.family, rtp: target, vol: lvl, volatility: vname, scale: S, play: g.play, buy: g.buy, buyKinds: g.buyKinds || [], buyCost, info: { ...g.info, buyCost, rtp: target, volatility: vname, vol: lvl }, cal: cal[id] || null };
   }
   return games;
 }
 
-// Simülasyonla ölçülen standart sapmaya göre volatilite sınıfı (docs/simulation-results.json)
-export const VOL = { zeus: 'yüksek', misir: 'orta-yüksek', vegas: 'yüksek', peri: 'orta-yüksek', ejderha: 'yüksek', korsan: 'çok yüksek', altin: 'yüksek' };
+export const VOL = Object.fromEntries(ORDER.map(id => [id, VOL_NAMES[DEFAULT_VOL[id]]]));
 export { DEFS, MAX_WIN };

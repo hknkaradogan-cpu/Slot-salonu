@@ -129,7 +129,7 @@
   /* ===================== OTURUM / DURUM ===================== */
   async function refresh() {
     const r = await Api.get('/api/me');
-    S.me = r.user; S.daily = r.daily; S.levelRewards = r.levelRewards; S.events = r.events; S.badges = r.badges; S.adminSession = !!r.adminSession;
+    S.me = r.user; S.daily = r.daily; S.levelRewards = r.levelRewards; S.events = r.events; S.badges = r.badges; S.adminSession = !!r.adminSession; S.okeyActive = r.okeyActive || null;
     S.clockSkew = r.serverTime - Date.now();
     renderTop(); renderBadges();
     return r;
@@ -143,6 +143,7 @@
     if (S.daily.available && S.me.role !== 'admin') { const tryDaily = () => { if (!S.me || !S.daily.available) return; if ($('#overlay').classList.contains('show') || Games.isOpen()) return setTimeout(tryDaily, 1500); dailyModal(); }; setTimeout(tryDaily, 900); }
     Sound.startMusic();
     S.afterEnter && S.afterEnter();
+    if (S.okeyActive && window.Okey) setTimeout(() => { if (!$('#overlay').classList.contains('show')) Okey.offerResume(S.okeyActive); }, 700);
   }
   function logout() { Api.post('/api/auth/logout').catch(() => {}); Api.setToken(null); S.me = null; Sound.stopMusic(); login(); }
 
@@ -159,7 +160,7 @@
     const pct = u.maxLevel ? 100 : Math.min(100, u.xpInto / u.xpNeed * 100);
     $$('#tXp').forEach(e => e.style.width = pct + '%');
     $$('#tXpT').forEach(e => e.textContent = u.maxLevel ? 'MAKS SEVİYE' : `${fmt(u.xpInto)} / ${fmt(u.xpNeed)} XP`);
-    $$('#tBal').forEach(e => e.textContent = u.unlimited ? '∞ Sınırsız' : fmt(u.balance));
+    $$('#tBal,#wBal').forEach(e => e.textContent = u.unlimited ? '∞ Sınırsız' : fmt(u.balance));
   }
   function setBalance(b, bump) { if (!S.me) return; S.me.balance = b; renderTop(); if (bump) $$('#tCoins').forEach(e => { e.classList.remove('bump'); void e.offsetWidth; e.classList.add('bump'); }); }
   function renderBadges() {

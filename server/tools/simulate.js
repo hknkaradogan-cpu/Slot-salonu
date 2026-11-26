@@ -18,8 +18,8 @@ const CAL_FILE = path.join(path.dirname(__filename), '../src/games/calibration.j
 const readCal = () => { try { return JSON.parse(fs.readFileSync(CAL_FILE, 'utf8')); } catch { return {}; } };
 
 if (!isMainThread) {
-  const { id, spins, seed, scales, buyKind, rtp } = workerData;
-  const g = buildGames(scales, rtp || { [id]: 0.95 })[id];
+  const { id, spins, seed, scales, buyKind, rtp, vol } = workerData;
+  const g = buildGames(scales, rtp || { [id]: 0.95 }, vol ? { [id]: vol } : {})[id];
   const rng = new FastRng(seed);
   let sum = 0, sumSq = 0, hits = 0, feat = 0, max = 0, featWin = 0;
   const buckets = new Float64Array(9); // 0, <1, 1-2, 2-5, 5-20, 20-100, 100-500, 500-1000, 1000+
@@ -47,10 +47,12 @@ const calibrate = flag('calibrate');
 const baseSeed = opt('seed', String(Date.now()));
 
 const rtpArg = opt('rtp', null); // 'profil' = varsayılan oyun profilleri, sayı = hepsi için
-function runGame(id, scales, buyKind, rtpMap) {
+const volArg = opt('vol', null); // dusuk|orta|yuksek|profil
+function runGame(id, scales, buyKind, rtpMap, vol) {
+  vol = vol || (volArg && volArg !== 'profil' ? volArg : null);
   const per = Math.ceil(spins / threads);
   return Promise.all(Array.from({ length: threads }, (_, t) => new Promise((res, rej) => {
-    const w = new Worker(__filename, { workerData: { id, spins: per, seed: `${baseSeed}:${id}:${t}${buyKind || ''}`, scales, buyKind, rtp: rtpMap } });
+    const w = new Worker(__filename, { workerData: { id, spins: per, seed: `${baseSeed}:${id}:${t}${buyKind || ''}${vol || ''}`, scales, buyKind, rtp: rtpMap, vol } });
     w.on('message', res); w.on('error', rej);
   }))).then(parts => {
     const a = parts.reduce((x, y) => ({ sum: x.sum + y.sum, sumSq: x.sumSq + y.sumSq, hits: x.hits + y.hits, feat: x.feat + y.feat, featWin: x.featWin + y.featWin, max: Math.max(x.max, y.max), buckets: x.buckets.map((v, i) => v + y.buckets[i]) }));
@@ -67,6 +69,21 @@ function runGame(id, scales, buyKind, rtpMap) {
   const results = [];
   for (const id of games) {
     const t1 = Date.now();
+    if (flag('calibrate-vol')) {
+      // düşük / yüksek volatilite seviyeleri için ayrı ölçek + bonus satın alma fiyatı (%95'te)
+      const { VOL_LEVELS } = await import('../src/games/engine.js');
+      for (const lvl of VOL_LEVELS.filter(l => l !== 'orta')) {
+        const tmp = JSON.parse(JSON.stringify(cal)); tmp[id].vol = { ...(tmp[id].vol || {}), [lvl]: { scale: 1 } };
+        const raw = await runGame(id, tmp, null, null, lvl); let scale = 0.95 / raw.rtp;
+        tmp[id].vol[lvl].scale = scale; const chk = await runGame(id, tmp, null, null, lvl); scale = scale * 0.95 / chk.rtp;
+        tmp[id].vol[lvl].scale = scale;
+        const G = buildGames(tmp, { [id]: 0.95 }, { [id]: lvl })[id]; const buy = {};
+        for (const k of G.buyKinds) { const r = await runGame(id, tmp, k, null, lvl); buy[k] = Math.round(r.rtp / 0.95 * 10) / 10; }
+        cal[id].vol = { ...(cal[id].vol || {}), [lvl]: { scale: +scale.toPrecision(8), buy, calibratedWithSpins: raw.spins + chk.spins, date: new Date().toISOString() } };
+        console.log(`${id} ${lvl}: ölçek ${scale.toFixed(5)} (orta ${cal[id].scale.toFixed(5)}) · satın alma ${JSON.stringify(buy)} (${((Date.now() - t1) / 1000).toFixed(0)} s)`);
+      }
+      continue;
+    }
     if (flag('buy')) {
       const G = buildGames(cal)[id];
       for (const k of G.buyKinds) {
@@ -87,12 +104,13 @@ function runGame(id, scales, buyKind, rtpMap) {
       cal[id] = { scale: +scale.toPrecision(8), calibratedWithSpins: raw.spins + chk.spins, date: new Date().toISOString() };
       console.log(`${id}: raw RTP ${(raw.rtp * 100).toFixed(2)}% -> scale ${scale.toFixed(6)} (${((Date.now() - t1) / 1000).toFixed(0)} s)`);
     } else {
-      const r = await runGame(id, cal, null, rtpFor(id)); r.target = rtpFor(id)[id];
+      const { DEFAULT_VOL } = await import('../src/games/engine.js'); const vl = volArg === 'profil' ? DEFAULT_VOL[id] : (volArg || null);
+      const r = await runGame(id, cal, null, rtpFor(id), vl); r.target = rtpFor(id)[id]; r.vol = vl || 'orta';
       results.push(r);
-      console.log(`${r.name.padEnd(18)} hedef ${(r.target * 100).toFixed(1)}% · RTP ${(r.rtp * 100).toFixed(3)}% ±${(r.ci95 * 100).toFixed(3)}  hit ${(r.hitRate * 100).toFixed(1)}%  SD ${r.sd.toFixed(2)}  feature 1/${(1 / r.featureRate).toFixed(0)}  max ${r.maxWin.toFixed(0)}x  (${((Date.now() - t1) / 1000).toFixed(0)} s)`);
+      console.log(`${r.name.padEnd(18)} ${String(r.vol).padEnd(6)} hedef ${(r.target * 100).toFixed(1)}% · RTP ${(r.rtp * 100).toFixed(3)}% ±${(r.ci95 * 100).toFixed(3)}  hit ${(r.hitRate * 100).toFixed(1)}%  SD ${r.sd.toFixed(2)}  feature 1/${(1 / r.featureRate).toFixed(0)}  max ${r.maxWin.toFixed(0)}x  (${((Date.now() - t1) / 1000).toFixed(0)} s)`);
     }
   }
-  if (calibrate || (flag('buy') && flag('set'))) fs.writeFileSync(CAL_FILE, JSON.stringify(cal, null, 2));
+  if (calibrate || flag('calibrate-vol') || (flag('buy') && flag('set'))) fs.writeFileSync(CAL_FILE, JSON.stringify(cal, null, 2));
   else {
     const out = opt('out', null);
     if (out) fs.writeFileSync(out, JSON.stringify({ date: new Date().toISOString(), seed: baseSeed, spinsPerGame: spins, results }, null, 2));

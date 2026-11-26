@@ -69,6 +69,8 @@
     }
     if (code >= 1000) {
       const v = code - 1000; const z = gameId === 'zeus';
+      // Çarpan değeri şimşek/kristal patlamasından ÖNCE görünmez: sembol sayısız enerji küresi olarak düşer
+      if (!(extra && /(^|\s)open(\s|$)/.test(extra))) return `<div class="sym mult mhid ${extra || ''}" data-mult="${v}"><div class="tile"><div class="morb ${z ? 'z' : 'p'}"><span>${z ? '⚡' : '✦'}</span></div></div></div>`;
       const col = v >= 100 ? '#ff2a6a' : v >= 20 ? '#ff8a00' : v >= 10 ? '#c07bff' : v >= 5 ? '#35d6ff' : '#6bff7a';
       const bg = z ? `radial-gradient(circle at 35% 30%,#fff,${col} 45%,${mix(col, -0.55)})` : `radial-gradient(circle at 35% 30%,#fff,${col} 40%,${mix(col, -0.6)})`;
       const img = z ? (B_BADGE[v] || A_BADGE[v]) : (A_BADGE[v] || B_BADGE[v]);

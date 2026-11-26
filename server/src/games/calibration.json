@@ -6,6 +6,26 @@
     "buy": {
       "fs": 51,
       "super": 91.1
+    },
+    "vol": {
+      "dusuk": {
+        "scale": 2.7562296,
+        "buy": {
+          "fs": 41.3,
+          "super": 74.4
+        },
+        "calibratedWithSpins": 8000000,
+        "date": "2026-11-26T11:39:44.512Z"
+      },
+      "yuksek": {
+        "scale": 1.6487146,
+        "buy": {
+          "fs": 55.2,
+          "super": 91.9
+        },
+        "calibratedWithSpins": 8000000,
+        "date": "2026-11-26T11:41:04.437Z"
+      }
     }
   },
   "misir": {
@@ -14,12 +34,44 @@
     "date": "2026-11-25T23:16:14.221Z",
     "buy": {
       "fs": 49.4
+    },
+    "vol": {
+      "dusuk": {
+        "scale": 1.4435705,
+        "buy": {
+          "fs": 64.7
+        },
+        "calibratedWithSpins": 8000000,
+        "date": "2026-11-26T11:41:21.447Z"
+      },
+      "yuksek": {
+        "scale": 0.76081986,
+        "buy": {
+          "fs": 37.8
+        },
+        "calibratedWithSpins": 8000000,
+        "date": "2026-11-26T11:41:40.015Z"
+      }
     }
   },
   "vegas": {
     "scale": 2.4920074,
     "calibratedWithSpins": 120000000,
-    "date": "2026-11-25T23:16:37.527Z"
+    "date": "2026-11-25T23:16:37.527Z",
+    "vol": {
+      "dusuk": {
+        "scale": 2.6366741,
+        "buy": {},
+        "calibratedWithSpins": 8000000,
+        "date": "2026-11-26T11:41:41.938Z"
+      },
+      "yuksek": {
+        "scale": 2.263119,
+        "buy": {},
+        "calibratedWithSpins": 8000000,
+        "date": "2026-11-26T11:41:43.850Z"
+      }
+    }
   },
   "peri": {
     "scale": 1.7563051,
@@ -28,6 +80,26 @@
     "buy": {
       "fs": 71.2,
       "super": 97.8
+    },
+    "vol": {
+      "dusuk": {
+        "scale": 2.2929545,
+        "buy": {
+          "fs": 76.6,
+          "super": 99.6
+        },
+        "calibratedWithSpins": 8000000,
+        "date": "2026-11-26T11:43:08.561Z"
+      },
+      "yuksek": {
+        "scale": 1.3099565,
+        "buy": {
+          "fs": 63.8,
+          "super": 88.1
+        },
+        "calibratedWithSpins": 8000000,
+        "date": "2026-11-26T11:44:32.261Z"
+      }
     }
   },
   "ejderha": {
@@ -36,6 +108,24 @@
     "date": "2026-11-25T23:18:36.467Z",
     "buy": {
       "fs": 44.8
+    },
+    "vol": {
+      "dusuk": {
+        "scale": 4.9288791,
+        "buy": {
+          "fs": 51
+        },
+        "calibratedWithSpins": 8000000,
+        "date": "2026-11-26T11:44:50.192Z"
+      },
+      "yuksek": {
+        "scale": 2.6395924,
+        "buy": {
+          "fs": 37.4
+        },
+        "calibratedWithSpins": 8000000,
+        "date": "2026-11-26T11:45:09.929Z"
+      }
     }
   },
   "korsan": {
@@ -44,11 +134,43 @@
     "date": "2026-11-25T23:19:15.337Z",
     "buy": {
       "fs": 113.8
+    },
+    "vol": {
+      "dusuk": {
+        "scale": 2.2301384,
+        "buy": {
+          "fs": 124.5
+        },
+        "calibratedWithSpins": 120000000,
+        "date": "2026-11-26T11:50:34.501Z"
+      },
+      "yuksek": {
+        "scale": 1.7991816,
+        "buy": {
+          "fs": 100.5
+        },
+        "calibratedWithSpins": 120000000,
+        "date": "2026-11-26T11:52:19.066Z"
+      }
     }
   },
   "altin": {
     "scale": 1.1044674,
     "calibratedWithSpins": 120000000,
-    "date": "2026-11-25T23:19:58.590Z"
+    "date": "2026-11-25T23:19:58.590Z",
+    "vol": {
+      "dusuk": {
+        "scale": 1.26725,
+        "buy": {},
+        "calibratedWithSpins": 120000000,
+        "date": "2026-11-26T11:53:05.093Z"
+      },
+      "yuksek": {
+        "scale": 0.91553302,
+        "buy": {},
+        "calibratedWithSpins": 120000000,
+        "date": "2026-11-26T11:53:52.177Z"
+      }
+    }
   }
 }

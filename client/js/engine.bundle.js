@@ -8,6 +8,26 @@
     "buy": {
       "fs": 51,
       "super": 91.1
+    },
+    "vol": {
+      "dusuk": {
+        "scale": 2.7562296,
+        "buy": {
+          "fs": 41.3,
+          "super": 74.4
+        },
+        "calibratedWithSpins": 8000000,
+        "date": "2026-11-26T11:39:44.512Z"
+      },
+      "yuksek": {
+        "scale": 1.6487146,
+        "buy": {
+          "fs": 55.2,
+          "super": 91.9
+        },
+        "calibratedWithSpins": 8000000,
+        "date": "2026-11-26T11:41:04.437Z"
+      }
     }
   },
   "misir": {
@@ -16,12 +36,44 @@
     "date": "2026-11-25T23:16:14.221Z",
     "buy": {
       "fs": 49.4
+    },
+    "vol": {
+      "dusuk": {
+        "scale": 1.4435705,
+        "buy": {
+          "fs": 64.7
+        },
+        "calibratedWithSpins": 8000000,
+        "date": "2026-11-26T11:41:21.447Z"
+      },
+      "yuksek": {
+        "scale": 0.76081986,
+        "buy": {
+          "fs": 37.8
+        },
+        "calibratedWithSpins": 8000000,
+        "date": "2026-11-26T11:41:40.015Z"
+      }
     }
   },
   "vegas": {
     "scale": 2.4920074,
     "calibratedWithSpins": 120000000,
-    "date": "2026-11-25T23:16:37.527Z"
+    "date": "2026-11-25T23:16:37.527Z",
+    "vol": {
+      "dusuk": {
+        "scale": 2.6366741,
+        "buy": {},
+        "calibratedWithSpins": 8000000,
+        "date": "2026-11-26T11:41:41.938Z"
+      },
+      "yuksek": {
+        "scale": 2.263119,
+        "buy": {},
+        "calibratedWithSpins": 8000000,
+        "date": "2026-11-26T11:41:43.850Z"
+      }
+    }
   },
   "peri": {
     "scale": 1.7563051,
@@ -30,6 +82,26 @@
     "buy": {
       "fs": 71.2,
       "super": 97.8
+    },
+    "vol": {
+      "dusuk": {
+        "scale": 2.2929545,
+        "buy": {
+          "fs": 76.6,
+          "super": 99.6
+        },
+        "calibratedWithSpins": 8000000,
+        "date": "2026-11-26T11:43:08.561Z"
+      },
+      "yuksek": {
+        "scale": 1.3099565,
+        "buy": {
+          "fs": 63.8,
+          "super": 88.1
+        },
+        "calibratedWithSpins": 8000000,
+        "date": "2026-11-26T11:44:32.261Z"
+      }
     }
   },
   "ejderha": {
@@ -38,6 +110,24 @@
     "date": "2026-11-25T23:18:36.467Z",
     "buy": {
       "fs": 44.8
+    },
+    "vol": {
+      "dusuk": {
+        "scale": 4.9288791,
+        "buy": {
+          "fs": 51
+        },
+        "calibratedWithSpins": 8000000,
+        "date": "2026-11-26T11:44:50.192Z"
+      },
+      "yuksek": {
+        "scale": 2.6395924,
+        "buy": {
+          "fs": 37.4
+        },
+        "calibratedWithSpins": 8000000,
+        "date": "2026-11-26T11:45:09.929Z"
+      }
     }
   },
   "korsan": {
@@ -46,12 +136,44 @@
     "date": "2026-11-25T23:19:15.337Z",
     "buy": {
       "fs": 113.8
+    },
+    "vol": {
+      "dusuk": {
+        "scale": 2.2301384,
+        "buy": {
+          "fs": 124.5
+        },
+        "calibratedWithSpins": 120000000,
+        "date": "2026-11-26T11:50:34.501Z"
+      },
+      "yuksek": {
+        "scale": 1.7991816,
+        "buy": {
+          "fs": 100.5
+        },
+        "calibratedWithSpins": 120000000,
+        "date": "2026-11-26T11:52:19.066Z"
+      }
     }
   },
   "altin": {
     "scale": 1.1044674,
     "calibratedWithSpins": 120000000,
-    "date": "2026-11-25T23:19:58.590Z"
+    "date": "2026-11-25T23:19:58.590Z",
+    "vol": {
+      "dusuk": {
+        "scale": 1.26725,
+        "buy": {},
+        "calibratedWithSpins": 120000000,
+        "date": "2026-11-26T11:53:05.093Z"
+      },
+      "yuksek": {
+        "scale": 0.91553302,
+        "buy": {},
+        "calibratedWithSpins": 120000000,
+        "date": "2026-11-26T11:53:52.177Z"
+      }
+    }
   }
 };
 // SLOT SALONU oyun motoru (ES modülü: Node ve Deno/Supabase'de aynen çalışır)
@@ -470,26 +592,53 @@ const DEFS = {
 
 const ORDER = ['zeus', 'misir', 'vegas', 'peri', 'ejderha', 'korsan', 'altin'];
 // Varsayılan teorik RTP profilleri (yönetici panelinden oyun bazında değiştirilebilir, %85–%98)
-const DEFAULT_RTP = { zeus: 0.965, misir: 0.95, vegas: 0.96, peri: 0.955, ejderha: 0.94, korsan: 0.945, altin: 0.95 };
+const DEFAULT_RTP = { zeus: 0.965, misir: 0.96, vegas: 0.97, peri: 0.965, ejderha: 0.96, korsan: 0.965, altin: 0.97 };
 const RTP_MIN = 0.85, RTP_MAX = 0.98;
 const BASE_RTP = 0.95; // calibration.json katsayıları %95 içindir; ödeme tablosu RTP ile doğrusal ölçeklenir
 
-/** cal: calibration.json içeriği; rtp: { oyun: hedefRTP } (yoksa DEFAULT_RTP) */
-function buildGames(cal = {}, rtp = {}) {
+/* ---------- VOLATİLİTE ----------
+ * Her oyunun özellik tetikleyicilerinin sıklığı (çarpan, scatter, kitap, yıldız, bonus, inci, sikke) seviyeye göre değişir.
+ * Düşük: özellikler seyrek, RTP'nin büyük kısmı sık ve küçük kazançlardan gelir. Yüksek: özellik/çarpan daha sık, ana oyun daha cimri.
+ * Her seviye için ödeme ölçeği simülasyonla ayrı kalibre edilir (calibration.json → vol), böylece hedef RTP her seviyede tutar. */
+const VOL_LEVELS = ['dusuk', 'orta', 'yuksek'];
+const VOL_NAMES = { dusuk: 'Düşük', orta: 'Orta', yuksek: 'Yüksek' };
+const VOL_FACTOR = { dusuk: 0.55, orta: 1, yuksek: 1.6 };
+const DEFAULT_VOL = { zeus: 'yuksek', misir: 'orta', vegas: 'dusuk', peri: 'orta', ejderha: 'orta', korsan: 'yuksek', altin: 'dusuk' };
+function volDef(id, def, lvl) {
+  const f = VOL_FACTOR[lvl] || 1; if (f === 1) return def;
+  const d = JSON.parse(JSON.stringify(def));
+  const rw = (idx, pw) => { const k = Math.pow(f, pw); d.reelWeights = d.reelWeights.map(w => w.map((x, i) => (i === idx ? x * k : x))); };
+  switch (DEFS[id].family) {
+    case 'tumble': d.multP *= f; d.multPfs *= f; d.scW *= Math.pow(f, 0.35); break;
+    case 'egypt': rw(def.wild, 0.5); break;           // kitap
+    case 'vegas': rw(def.star, 0.5); break;           // yıldız çarkı
+    case 'ways': rw(def.scatter, 0.5); break;         // inci (FS)
+    case 'pirate': rw(def.coin, 0.22); break;         // sikke (Sandık Altını)
+    case 'gold': rw(def.bonus, 0.5); break;           // bonus çarkı
+  }
+  if (def.lines) d.lines = def.lines; // dizi referansı korunur
+  return d;
+}
+
+/** cal: calibration.json; rtp: { oyun: hedefRTP }; vol: { oyun: 'dusuk'|'orta'|'yuksek' } */
+function buildGames(cal = {}, rtp = {}, vol = {}) {
   const games = {};
   for (const id of ORDER) {
     const target = rtp[id] != null ? Number(rtp[id]) : DEFAULT_RTP[id];
-    const d = DEFS[id]; const S = ((cal[id] && cal[id].scale) || 1) * (target / BASE_RTP);
-    const g = d.make(d.def, S);
-    const buyCost = {}; for (const k of (g.buyKinds || [])) { const c = cal[id] && cal[id].buy && cal[id].buy[k]; if (c) buyCost[k] = c; }
+    let lvl = VOL_LEVELS.includes(vol[id]) ? vol[id] : DEFAULT_VOL[id];
+    const c = cal[id] || {}; let cv = lvl === 'orta' ? c : (c.vol && c.vol[lvl]);
+    if (!cv || !cv.scale) { lvl = 'orta'; cv = c; } // kalibrasyonu olmayan seviye kullanılmaz
+    const d = DEFS[id]; const S = (cv.scale || 1) * (target / BASE_RTP);
+    const g = d.make(volDef(id, d.def, lvl), S);
+    const buyCost = {}; for (const k of (g.buyKinds || [])) { const b = cv.buy && cv.buy[k]; if (b) buyCost[k] = b; }
     // Bonus satın alma fiyatı RTP'den bağımsız sabit kalır: beklenen kazanç RTP ile birlikte ölçeklendiği için satın alma RTP'si de hedef RTP olur
-    games[id] = { id, name: d.name, family: d.family, rtp: target, volatility: VOL[id], scale: S, play: g.play, buy: g.buy, buyKinds: g.buyKinds || [], buyCost, info: { ...g.info, buyCost, rtp: target, volatility: VOL[id] }, cal: cal[id] || null };
+    const vname = VOL_NAMES[lvl];
+    games[id] = { id, name: d.name, family: d.family, rtp: target, vol: lvl, volatility: vname, scale: S, play: g.play, buy: g.buy, buyKinds: g.buyKinds || [], buyCost, info: { ...g.info, buyCost, rtp: target, volatility: vname, vol: lvl }, cal: cal[id] || null };
   }
   return games;
 }
 
-// Simülasyonla ölçülen standart sapmaya göre volatilite sınıfı (docs/simulation-results.json)
-const VOL = { zeus: 'yüksek', misir: 'orta-yüksek', vegas: 'yüksek', peri: 'orta-yüksek', ejderha: 'yüksek', korsan: 'çok yüksek', altin: 'yüksek' };
+const VOL = Object.fromEntries(ORDER.map(id => [id, VOL_NAMES[DEFAULT_VOL[id]]]));
 
 
   window.SlotEngine = { buildGames: function (rtp) { return buildGames(CAL, rtp || {}); }, ORDER: ORDER, DEFAULT_RTP: DEFAULT_RTP };

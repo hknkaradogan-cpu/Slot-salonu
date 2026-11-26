@@ -12,9 +12,18 @@ export class OkeyError extends Error { constructor(code, msg) { super(msg); this
 const fail = (code, msg) => { throw new OkeyError(code, msg); };
 
 export function newTable(cfg, now) {
-  return { cfg: { mode: cfg.mode === 'esli' ? 'esli' : 'tekli', rounds: cfg.rounds || 1, katlamali: cfg.katlamali !== false, stake: cfg.stake || 0, private: !!cfg.private },
+  const bots = cfg.bots !== false, fillMs = cfg.fillMs || FILL_BOTS_MS;
+  return { cfg: { mode: cfg.mode === 'esli' ? 'esli' : 'tekli', rounds: cfg.rounds || 1, katlamali: cfg.katlamali !== false, stake: cfg.stake || 0, private: !!cfg.private, turnMs: cfg.turnMs || TURN_MS, bots },
     status: 'waiting', seats: [null, null, null, null], round: 0, startSeat: Math.floor(Math.random() * 4), totals: [0, 0, 0, 0], history: [], hand: null,
-    createdAt: now, fillAt: cfg.private ? null : now + FILL_BOTS_MS, deadline: null, botAt: null, seq: 0, chat: [] };
+    createdAt: now, fillAt: cfg.private || !bots ? null : now + fillMs, deadline: null, botAt: null, seq: 0, chat: [] };
+}
+/** Masadan ayrılmış (ya da bağlantısı kopmuş) oyuncu aynı koltuğa geri döner; bot yerine tekrar kendisi oynar. */
+export function rejoin(T, uid) {
+  const s = T.seats.findIndex(x => x && x.uid === uid); if (s < 0) fail('no_seat', 'Bu masada koltuğun yok.');
+  if (T.status === 'finished' || T.status === 'abandoned') fail('table_over', 'Bu masadaki oyun bitti.');
+  const x = T.seats[s]; x.left = false; x.away = false; x.timeouts = 0; T.seq++;
+  if (T.status === 'playing' && T.hand.turn === s) T.botAt = null;
+  return s;
 }
 export function seatHuman(T, user, seat) {
   if (T.status !== 'waiting') fail('table_started', 'Oyun başladı.');
@@ -46,9 +55,15 @@ export function startRound(T, now, rnd = Math.random) {
   log(T, { t: 'deal', s: start });
   beginTurn(T, now, rnd);
 }
+/** "Topla" için: oyuncu taş aldıktan sonraki masa/el durumunun kopyası (o tur masaya koyduklarını geri alabilir). */
+function snapshot(T) {
+  const H = T.hand, s = H.turn;
+  H.snap = { rack: H.racks[s].slice(), melds: JSON.parse(JSON.stringify(H.melds)), opened: H.opened[s] ? { ...H.opened[s] } : null, openTurn: H.openTurn[s], penalties: H.penalties.slice(), siler: H.siler.slice(), took: H.took ? { ...H.took } : null, meldSeq: H.meldSeq };
+}
 function beginTurn(T, now, rnd = Math.random) {
+  if (T.hand.phase === 'play') snapshot(T);
   const s = T.seats[T.hand.turn];
-  T.deadline = now + TURN_MS;
+  T.deadline = now + (T.cfg.turnMs || TURN_MS);
   T.botAt = isAuto(s) ? now + BOT_MIN_MS + Math.floor(rnd() * (BOT_MAX_MS - BOT_MIN_MS)) : null;
 }
 const K = (T) => R.kit(T.hand.okey);
@@ -83,14 +98,14 @@ export function act(T, s, a, now, rnd = Math.random) {
     case 'draw': {
       needTurn(T, s, 'draw');
       if (!H.pile.length) return endRound(T, null, now);
-      const id = H.pile.shift(); H.racks[s].push(id); H.phase = 'play'; H.took = null; H.okeyBlocked = false;
+      const id = H.pile.shift(); H.racks[s].push(id); H.phase = 'play'; H.took = null; H.okeyBlocked = false; snapshot(T);
       log(T, { t: 'draw', s }); return { drawn: id };
     }
     case 'take': {
       needTurn(T, s, 'draw');
       const d = H.discards[prev(s)]; if (!d.length) fail('empty', 'Alınacak taş yok.');
       if (H.okeyBlocked) fail('okey_blocked', 'Atılan okey alınamaz.');
-      const id = d.pop(); H.racks[s].push(id); H.phase = 'play'; H.took = { id, from: prev(s) };
+      const id = d.pop(); H.racks[s].push(id); H.phase = 'play'; H.took = { id, from: prev(s) }; snapshot(T);
       log(T, { t: 'take', s, tile: id }); return { taken: id };
     }
     case 'return': {
@@ -99,6 +114,13 @@ export function act(T, s, a, now, rnd = Math.random) {
       if (H.laidThisTurn) fail('already_laid', 'Masaya taş koyduktan sonra geri bırakamazsın.');
       takeFromRack(H.racks[s], [H.took.id]); H.discards[H.took.from].push(H.took.id); H.took = null; H.phase = 'draw';
       log(T, { t: 'return', s }); return {};
+    }
+    case 'undo': { // TOPLA: bu tur masaya koyulan taşlar ıstakaya geri döner (taş atmadan önce)
+      needTurn(T, s, 'play');
+      if (!H.laidThisTurn || !H.snap) fail('nothing_to_undo', 'Bu tur masaya koyduğun taş yok.');
+      const S = H.snap; H.racks[s] = S.rack.slice(); H.melds = JSON.parse(JSON.stringify(S.melds)); H.opened[s] = S.opened; H.openTurn[s] = S.openTurn;
+      H.penalties = S.penalties.slice(); H.siler = S.siler.slice(); H.took = S.took ? { ...S.took } : null; H.meldSeq = S.meldSeq; H.laidThisTurn = false;
+      log(T, { t: 'undo', s }); return {};
     }
     case 'open': {
       needTurn(T, s, 'play');

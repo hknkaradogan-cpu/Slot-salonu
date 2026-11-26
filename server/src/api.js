@@ -4,7 +4,7 @@ import { registerOkey } from './okey/routes.js';
 import crypto from 'node:crypto';
 import { Buffer } from 'node:buffer';
 import * as C from './core.js';
-import { buildGames, ORDER, DEFAULT_RTP, RTP_MIN, RTP_MAX } from './games/engine.js';
+import { buildGames, ORDER, DEFAULT_RTP, DEFAULT_VOL, VOL_LEVELS, VOL_NAMES, RTP_MIN, RTP_MAX } from './games/engine.js';
 import { FairRng, newServerSeed, hashSeed } from './games/rng.js';
 import { createVerifier } from './billing.js';
 import { createMailer } from './mailer.js';
@@ -47,7 +47,7 @@ export async function createApi(cfg) {
     for (const [k, v] of Object.entries(DEFAULT_SETTINGS)) await Q('INSERT INTO slot.settings(key,value) VALUES($1,$2) ON CONFLICT (key) DO NOTHING', [k, JSON.stringify(v)]);
     if (!(await one(Q, 'SELECT 1 x FROM slot.packages LIMIT 1'))) for (const p of PACKAGES) await Q('INSERT INTO slot.packages(product_id,name,coins,price_label,bonus_label,one_time,sort) VALUES($1,$2,$3,$4,$5,$6,$7)', p);
     if (!(await one(Q, 'SELECT 1 x FROM slot.quests LIMIT 1'))) for (const q of QUESTS) await Q('INSERT INTO slot.quests(title,type,target,reward) VALUES($1,$2,$3,$4)', q);
-    for (const id of ORDER) await Q('INSERT INTO slot.games_config(game,active,rtp,updated_at) VALUES($1,TRUE,$2,$3) ON CONFLICT (game) DO NOTHING', [id, DEFAULT_RTP[id], now()]);
+    for (const id of ORDER) await Q('INSERT INTO slot.games_config(game,active,rtp,volatility,updated_at) VALUES($1,TRUE,$2,$3,$4) ON CONFLICT (game) DO NOTHING', [id, DEFAULT_RTP[id], DEFAULT_VOL[id], now()]);
     // Ortam değişkenleriyle ilk yönetici (isteğe bağlı; alternatif: kurulum anahtarıyla uygulama içi kurulum)
     if (cfg.admin && cfg.admin.email && cfg.admin.password) {
       const ex = await one(Q, 'SELECT id FROM slot.users WHERE lower(email)=lower($1) OR lower(username)=lower($2)', [cfg.admin.email, cfg.admin.username]);
@@ -63,13 +63,21 @@ export async function createApi(cfg) {
   let gcache = null, gcacheAt = 0;
   async function games(force) {
     if (!force && gcache && now() - gcacheAt < 15000) return gcache;
-    const rows = await Q('SELECT game, active, rtp FROM slot.games_config');
-    const rtp = {}, active = {}; for (const r of rows) { rtp[r.game] = Number(r.rtp); active[r.game] = r.active; }
-    gcache = { g: buildGames(cfg.calibration, rtp), active }; gcacheAt = now();
+    const rows = await Q('SELECT game, active, rtp, volatility FROM slot.games_config');
+    const rtp = {}, active = {}, vol = {}; for (const r of rows) { rtp[r.game] = Number(r.rtp); active[r.game] = r.active; if (r.volatility) vol[r.game] = r.volatility; }
+    gcache = { g: buildGames(cfg.calibration, rtp, vol), active }; gcacheAt = now();
     return gcache;
   }
 
   /* ---------- yardımcılar ---------- */
+  // Bakım: eski spin yanıtlarını (yalnızca 1 saatlik tekrar koruması için tutulur) ve bitmiş okey masalarını temizle — bellek/disk kullanımını düşük tutar
+  let maintAt = 0;
+  function maintenance() {
+    const t = now(); if (t - maintAt < 10 * 60e3) return; maintAt = t;
+    Q('UPDATE slot.spins SET response=NULL WHERE response IS NOT NULL AND created_at<$1', [t - 3600e3]).catch(() => {});
+    Q("DELETE FROM slot.okey_tables WHERE status IN ('finished','abandoned') AND updated_at<$1", [t - 3 * C.DAY_MS]).catch(() => {});
+    Q("UPDATE slot.okey_tables SET status='abandoned' WHERE status IN ('waiting','playing','round_end') AND updated_at<$1", [t - 6 * 3600e3]).catch(() => {});
+  }
   const rl = new Map();
   function limit(ctx, name, max, win) {
     const o = cfg.limitOverrides && cfg.limitOverrides[name.split(':')[0]]; if (o) max = o;
@@ -118,7 +126,19 @@ export async function createApi(cfg) {
     const u = await getUser(s.user_id);
     if (!u) throw err(401, 'unauthorized');
     if (u.banned) throw err(403, 'banned', 'Hesabınız askıya alınmış. Destek ile iletişime geçin.');
-    ctx.user = u; ctx.session = s;
+    ctx.user = u; ctx.session = s; touch(u.id);
+  }
+  // Çevrim içi sayımı: kullanıcı başına dakikada en fazla bir yazma
+  const seen = new Map();
+  function touch(uid) { const t = now(), p = seen.get(uid) || 0; if (t - p < 60e3) return; seen.set(uid, t); if (seen.size > 20000) seen.clear(); Q('UPDATE slot.users SET last_seen_at=$1 WHERE id=$2', [t, uid]).catch(() => {}); }
+  // Sık yoklanan uçlar (okey masası) için hafif kimlik doğrulama: oturum 10 sn önbellekte (bakiye/para işlemleri bunu kullanmaz)
+  const scache = new Map();
+  async function authLite(ctx) {
+    const h = ctx.req.headers.get('authorization') || ''; const tok = h.startsWith('Bearer ') ? h.slice(7) : null;
+    if (!tok) throw err(401, 'unauthorized', 'Lütfen giriş yapın.');
+    const c = scache.get(tok), t = now();
+    if (c && c.at > t - 10e3) { ctx.user = c.user; touch(c.user.id); return; }
+    await auth(ctx); scache.set(tok, { at: t, user: { id: ctx.user.id, username: ctx.user.username, role: ctx.user.role } }); if (scache.size > 20000) scache.clear();
   }
   // Yönetici: hem rol 'admin' olmalı hem de oturum ayrıca "Yönetici Girişi" ile açılmış olmalı (12 saat geçerli)
   async function admin(ctx) { await auth(ctx); if (ctx.user.role !== 'admin' || !ctx.session.admin) throw err(403, 'forbidden', 'Bu alan yalnızca yönetici girişi yapmış yöneticiye açıktır.'); }
@@ -240,7 +260,8 @@ export async function createApi(cfg) {
     const u = ctx.user;
     const gifts = (await one(Q, 'SELECT COUNT(*)::int c FROM slot.gifts WHERE to_id=$1 AND claimed_at IS NULL', [u.id])).c;
     const reqs = (await one(Q, "SELECT COUNT(*)::int c FROM slot.friends WHERE friend_id=$1 AND status='pending'", [u.id])).c;
-    return { user: pub(u), daily: await dailyState(u), levelRewards: await rewardsState(u), events: await activeEvents(), badges: { gifts, friendRequests: reqs }, serverTime: now(), adminSession: !!ctx.session.admin };
+    const okeyActive = await one(Q, "SELECT t.id, t.status FROM slot.okey_players p JOIN slot.okey_tables t ON t.id=p.table_id WHERE p.user_id=$1 AND p.active AND t.status IN ('waiting','playing','round_end') ORDER BY t.id DESC LIMIT 1", [u.id]);
+    return { user: pub(u), daily: await dailyState(u), levelRewards: await rewardsState(u), events: await activeEvents(), badges: { gifts, friendRequests: reqs }, serverTime: now(), adminSession: !!ctx.session.admin, okeyActive: okeyActive || null };
   });
   r('POST', '/api/me/avatar', auth, async (ctx) => { await Q('UPDATE slot.users SET avatar=$1 WHERE id=$2', [int(ctx.body.avatar, 'avatar', 0, 11), ctx.user.id]); return { ok: true }; });
   r('GET', '/api/levels', async (ctx) => {
@@ -338,7 +359,8 @@ export async function createApi(cfg) {
       const resp = { game: gid, bet, cost, buy: buyKind, win, winX: result.win, result, balance: bal,
         xp: { gained, capped: raw > gained, xp, level, into: li.into, need: li.need, max: li.max, levelUp: level > oldLevel ? level : null },
         fair: { serverSeedHash: s.server_seed_hash, clientSeed: s.client_seed, nonce: s.nonce } };
-      await q('INSERT INTO slot.spins(user_id,game,bet,win,client_key,server_seed_hash,client_seed,nonce,rtp,response,created_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)', [u.id, gid, cost, win, key, s.server_seed_hash, s.client_seed, s.nonce, game.rtp, JSON.stringify(resp), now()]);
+      await q('INSERT INTO slot.spins(user_id,game,bet,win,client_key,server_seed_hash,client_seed,nonce,rtp,vol,response,created_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)', [u.id, gid, cost, win, key, s.server_seed_hash, s.client_seed, s.nonce, game.rtp, game.vol, JSON.stringify(resp), now()]);
+      maintenance();
       return resp;
     });
   });
@@ -518,6 +540,27 @@ export async function createApi(cfg) {
     games: await Q('SELECT game, COUNT(*)::int spins, SUM(bet)::bigint wagered, SUM(win)::bigint won FROM slot.spins GROUP BY game'),
     openTickets: (await one(Q, "SELECT COUNT(*)::int c FROM slot.tickets WHERE status='acik'")).c,
   }));
+  // Kazanç/kayıp istatistikleri: oyun bazında teorik ve gerçekleşen RTP, isabet oranı, oyuncu sayısı, kasa sonucu
+  r('GET', '/api/admin/game-stats', admin, async (ctx) => {
+    const days = Number(ctx.query.get('days') || 7); const since = days > 0 ? now() - days * C.DAY_MS : 0;
+    const G = await games();
+    const rows = await Q('SELECT game, COUNT(*)::int spins, COUNT(DISTINCT user_id)::int players, COALESCE(SUM(bet),0)::bigint wagered, COALESCE(SUM(win),0)::bigint won, COUNT(*) FILTER (WHERE win>0)::int hits, COALESCE(MAX(win),0)::bigint biggest, COALESCE(AVG(bet),0)::float avg_bet, COUNT(*) FILTER (WHERE win>=bet*20)::int bigwins FROM slot.spins WHERE created_at>=$1 GROUP BY game', [since]);
+    const by = Object.fromEntries(rows.map(x => [x.game, x]));
+    const daily = await Q("SELECT floor((created_at + $2::bigint) / 86400000)::bigint AS day, COALESCE(SUM(bet),0)::bigint wagered, COALESCE(SUM(win),0)::bigint won, COUNT(*)::int spins FROM slot.spins WHERE created_at>=$1 GROUP BY 1 ORDER BY 1", [Math.max(since, now() - 30 * C.DAY_MS), tz * 60000]);
+    const t = now();
+    const players = {
+      total: (await one(Q, "SELECT COUNT(*)::int c FROM slot.users WHERE role='player'")).c,
+      online5m: (await one(Q, "SELECT COUNT(*)::int c FROM slot.users WHERE role='player' AND last_seen_at>$1", [t - 5 * 60e3])).c,
+      active24h: (await one(Q, "SELECT COUNT(*)::int c FROM slot.users WHERE role='player' AND last_seen_at>$1", [t - C.DAY_MS])).c,
+      new7d: (await one(Q, "SELECT COUNT(*)::int c FROM slot.users WHERE role='player' AND created_at>$1", [t - 7 * C.DAY_MS])).c,
+      okeyNow: (await one(Q, "SELECT COUNT(DISTINCT p.user_id)::int c FROM slot.okey_players p JOIN slot.okey_tables t ON t.id=p.table_id WHERE p.active AND t.status IN ('waiting','playing','round_end')")).c,
+      okeyTables: await Q("SELECT status, COUNT(*)::int n FROM slot.okey_tables WHERE updated_at>$1 GROUP BY status", [t - C.DAY_MS]),
+    };
+    return { days, players, daily: daily.map(d => ({ day: Number(d.day) * 86400000 - tz * 60000, wagered: d.wagered, won: d.won, spins: d.spins })),
+      games: ORDER.map(id => { const x = by[id] || { spins: 0, players: 0, wagered: 0, won: 0, hits: 0, biggest: 0, avg_bet: 0, bigwins: 0 };
+        return { id, name: G.g[id].name, theoreticalRtp: G.g[id].rtp, vol: G.g[id].vol, volatility: G.g[id].volatility, active: G.active[id] !== false, ...x,
+          observedRtp: x.wagered > 0 ? x.won / x.wagered : null, hitRate: x.spins ? x.hits / x.spins : null, house: x.wagered - x.won }; }) };
+  });
   r('GET', '/api/admin/users', admin, async (ctx) => { const q = ctx.query.get('q') || ''; return { users: await Q("SELECT id,email,username,role,balance,xp,level,banned,unlimited,created_at,last_login_at FROM slot.users WHERE username ILIKE $1 OR email ILIKE $1 OR id::text=$2 ORDER BY id DESC LIMIT 100", ['%' + q.replace(/[%_]/g, '') + '%', q]) }; });
   r('GET', '/api/admin/users/:id', admin, async (ctx) => {
     const u = await getUser(int(ctx.params.id, 'id', 1)); if (!u) throw err(404, 'user_not_found', 'Kullanıcı bulunamadı.');
@@ -553,7 +596,7 @@ export async function createApi(cfg) {
   r('GET', '/api/admin/games', admin, async () => {
     const G = await games(true);
     const obs = Object.fromEntries((await Q('SELECT game, COUNT(*)::int spins, COALESCE(SUM(bet),0)::bigint wagered, COALESCE(SUM(win),0)::bigint won FROM slot.spins GROUP BY game')).map(x => [x.game, x]));
-    return { min: RTP_MIN, max: RTP_MAX, games: ORDER.map(id => ({ id, name: G.g[id].name, rtp: G.g[id].rtp, volatility: G.g[id].volatility, active: G.active[id] !== false, buyCost: G.g[id].buyCost, observed: obs[id] || { spins: 0, wagered: 0, won: 0 } })), history: await Q('SELECT h.*, u.username admin_name FROM slot.rtp_history h LEFT JOIN slot.users u ON u.id=h.admin_id ORDER BY h.id DESC LIMIT 50') };
+    return { min: RTP_MIN, max: RTP_MAX, volLevels: VOL_LEVELS.map(v => ({ id: v, name: VOL_NAMES[v] })), games: ORDER.map(id => ({ id, name: G.g[id].name, rtp: G.g[id].rtp, vol: G.g[id].vol, volatility: G.g[id].volatility, active: G.active[id] !== false, buyCost: G.g[id].buyCost, observed: obs[id] || { spins: 0, wagered: 0, won: 0 } })), history: await Q('SELECT h.*, u.username admin_name FROM slot.rtp_history h LEFT JOIN slot.users u ON u.id=h.admin_id ORDER BY h.id DESC LIMIT 50') };
   });
   r('PUT', '/api/admin/games/:id', admin, (ctx) => db.tx(async (q) => {
     const id = str(ctx.params.id, 'id', 20); if (!ORDER.includes(id)) throw err(404, 'unknown_game');
@@ -561,10 +604,12 @@ export async function createApi(cfg) {
     let rtp = Number(cur.rtp);
     if (ctx.body.rtp != null) { rtp = Number(ctx.body.rtp); if (!(rtp >= RTP_MIN && rtp <= RTP_MAX)) throw err(400, 'bad_rtp', `RTP %${RTP_MIN * 100}–%${RTP_MAX * 100} arasında olmalı.`); rtp = Math.round(rtp * 10000) / 10000; }
     const active = ctx.body.active == null ? cur.active : !!ctx.body.active;
-    await q('UPDATE slot.games_config SET rtp=$1, active=$2, updated_at=$3 WHERE game=$4', [rtp, active, now(), id]);
-    if (rtp !== Number(cur.rtp)) await q('INSERT INTO slot.rtp_history(game,old_rtp,new_rtp,admin_id,note,created_at) VALUES($1,$2,$3,$4,$5,$6)', [id, cur.rtp, rtp, ctx.user.id, String(ctx.body.note || '').slice(0, 200), now()]);
-    await audit(q, ctx, 'game_config', null, { game: id, rtp, active }); gcache = null;
-    return { ok: true, rtp, active };
+    const oldVol = cur.volatility || DEFAULT_VOL[id]; let vol = oldVol;
+    if (ctx.body.vol != null) { vol = String(ctx.body.vol); if (!VOL_LEVELS.includes(vol)) throw err(400, 'bad_vol', 'Volatilite düşük, orta veya yüksek olmalı.'); }
+    await q('UPDATE slot.games_config SET rtp=$1, active=$2, volatility=$3, updated_at=$4 WHERE game=$5', [rtp, active, vol, now(), id]);
+    if (rtp !== Number(cur.rtp) || vol !== oldVol) await q('INSERT INTO slot.rtp_history(game,old_rtp,new_rtp,old_vol,new_vol,admin_id,note,created_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8)', [id, cur.rtp, rtp, oldVol, vol, ctx.user.id, String(ctx.body.note || '').slice(0, 200), now()]);
+    await audit(q, ctx, 'game_config', null, { game: id, rtp, vol, active }); gcache = null;
+    return { ok: true, rtp, vol, active };
   }));
   r('GET', '/api/admin/perf', admin, async () => ({
     api: await Q('SELECT day, route, count, total_ms, max_ms, errors FROM slot.api_metrics WHERE day >= $1 ORDER BY day DESC, count DESC LIMIT 200', [C.dayKey(now() - 7 * C.DAY_MS, tz)]),
@@ -658,6 +703,6 @@ export async function createApi(cfg) {
   }
 
   await migrate();
-  registerOkey({ r, auth, db, Q, one, applyCoins, err, int, str, now, limit, C });
+  registerOkey({ r, auth, authLite, db, Q, one, applyCoins, err, int, str, now, limit, C, setting, setSetting, audit, admin });
   return { handle, db, games, verifier, refreshGames: () => games(true) };
 }
