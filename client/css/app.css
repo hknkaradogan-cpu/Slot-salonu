@@ -316,3 +316,31 @@ h2.title{margin:6px 0 12px;font-size:22px;text-align:center}
 .gscreen .gtop .gtitle{position:absolute;left:0;right:0;bottom:0;text-align:center;margin:0}
 .gbar{margin-top:0}
 .heroimg{animation:none!important}
+
+/* ---- Zeus yıldırımı (GPU dostu: transform/opacity) ---- */
+.bolt{position:fixed;left:0;top:0;z-index:59;pointer-events:none;overflow:visible}
+.bolt path{fill:none;stroke-linecap:round;stroke-linejoin:round}
+.bolt .zglow{stroke:#7fd8ff;stroke-width:16;opacity:.45;animation:zdraw linear forwards}
+.bolt .zcore{stroke:#fff;stroke-width:5;animation:zdraw linear forwards}
+.bolt .zbranch{stroke:#cfefff;stroke-width:2;opacity:0;animation:zbranch .22s ease-out forwards}
+.bolt.zfade{transition:opacity .3s;opacity:0}
+@keyframes zdraw{to{stroke-dashoffset:0}}
+@keyframes zbranch{0%{opacity:0}30%{opacity:1}100%{opacity:.6}}
+.zcharge{position:fixed;z-index:59;width:56px;height:56px;margin:-28px;border-radius:50%;pointer-events:none;background:radial-gradient(circle,#fff 0%,#bff0ff 25%,rgba(80,170,255,.5) 55%,transparent 72%);animation:zcharge .2s ease-out both}
+@keyframes zcharge{from{transform:scale(.2);opacity:0}to{transform:scale(1.15);opacity:1}}
+.heroimg.zflash{filter:brightness(1.6) saturate(1.3)}
+.zimpact{position:fixed;z-index:58;width:var(--sz);height:var(--sz);margin:calc(var(--sz)/-2);border-radius:50%;pointer-events:none;background:radial-gradient(circle,#fff 0%,rgba(200,240,255,.9) 22%,rgba(90,170,255,.45) 50%,transparent 70%);animation:zimp .38s ease-out forwards}
+@keyframes zimp{0%{transform:scale(.2);opacity:1}60%{opacity:.9}100%{transform:scale(1.5);opacity:0}}
+.zring{position:fixed;z-index:58;width:var(--sz);height:var(--sz);margin:calc(var(--sz)/-2);border-radius:50%;pointer-events:none;border:3px solid rgba(200,240,255,.9);animation:zring .45s ease-out forwards}
+@keyframes zring{from{transform:scale(.2);opacity:1}to{transform:scale(1.4);opacity:0}}
+.sym.zhit .tile{animation:zhit .45s cubic-bezier(.2,1.6,.4,1) both}
+@keyframes zhit{0%{transform:scale(1)}40%{transform:scale(1.45);filter:brightness(2)}100%{transform:scale(1.15)}}
+.sym.zpop{animation:zpop calc(.3s*var(--speed)) ease-in forwards}
+@keyframes zpop{0%{transform:scale(1);opacity:1}35%{transform:scale(1.25);filter:brightness(2.6) saturate(.3)}100%{transform:scale(.1);opacity:0}}
+.flymult{position:fixed;z-index:61;pointer-events:none;transform:translate(0,0) scale(1.4);margin:-24px 0 0 -40px;width:80px;text-align:center;font-weight:900;font-size:40px;color:#fff;-webkit-text-stroke:3px #1a3aa8;paint-order:stroke fill;text-shadow:0 0 14px #7fd8ff;transition:transform .42s cubic-bezier(.5,0,.6,1),opacity .42s}
+.sidebox.bump{animation:bump .4s}
+.orb{font-size:calc(var(--cell)*.36)!important}
+.bigwintxt.tierup{animation:tierup .45s cubic-bezier(.2,1.6,.4,1)}
+@keyframes tierup{0%{transform:scale(.4) rotate(-6deg)}100%{transform:none}}
+.ordiv{display:flex;align-items:center;gap:10px;margin:14px 0 6px;color:var(--muted);font-size:12px;font-weight:800}
+.ordiv::before,.ordiv::after{content:"";flex:1;height:1px;background:rgba(255,255,255,.25)}

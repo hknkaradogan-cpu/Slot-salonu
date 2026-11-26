@@ -245,18 +245,55 @@
     document.body.appendChild(e); setTimeout(() => e.remove(), (d + (o.delay || 0)) * 1000 + 150);
   }
   function reelsMid() { const r = $('#reels').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width }; }
-  function bolt(to) {
-    const x0 = to.x + (Math.random() * 120 - 60), pts = [[x0, 0]]; const n = 8;
-    for (let k = 1; k < n; k++) pts.push([x0 + (to.x - x0) * k / n + (Math.random() * 40 - 20), to.y * k / n]);
-    pts.push([to.x, to.y]);
-    const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('class', 'bolt'); s.setAttribute('width', innerWidth); s.setAttribute('height', innerHeight); s.style.cssText = 'left:0;top:0';
-    const p = pts.map(q => q.join(',')).join(' ');
-    s.innerHTML = `<polyline points="${p}" fill="none" stroke="#9fe8ff" stroke-width="9" opacity=".5" style="filter:blur(4px)"/><polyline points="${p}" fill="none" stroke="#fff" stroke-width="3"/>`;
-    document.body.appendChild(s); const f = document.createElement('div'); f.className = 'flash'; document.body.appendChild(f);
-    $('#machine').classList.remove('shake'); void $('#machine').offsetWidth; $('#machine').classList.add('shake');
-    setTimeout(() => { s.remove(); f.remove(); }, 380);
-    UI.burst(to.x, to.y, 30, ['#ffffff', '#9fe8ff', '#5aa0ff']);
+  /* ---------- ZEUS YILDIRIMI: 4 aşama ----------
+   * 1) Yüklenme: Zeus'un elinde enerji topu parlar
+   * 2) Hareket: dallanan şimşek Zeus'tan hedef sembole doğru ilerleyerek çizilir (stroke-dashoffset)
+   * 3) Çarpma: hedefte ışık patlaması + şok dalgası halkası + kıvılcımlar + kısa sarsıntı
+   * 4) Etki: çarpan sembolü büyür, değeri büyük yazıyla TOPLAM ÇARPAN kutusuna uçar
+   * Yalnızca transform/opacity ve hafif SVG kullanır (bulanıklık filtresi yok). */
+  function jag(x0, y0, x1, y1, seg, amp) {
+    const pts = [[x0, y0]];
+    for (let k = 1; k < seg; k++) { const t = k / seg, nx = -(y1 - y0), ny = x1 - x0, L = Math.hypot(nx, ny) || 1, off = (Math.random() * 2 - 1) * amp * Math.sin(Math.PI * t); pts.push([x0 + (x1 - x0) * t + nx / L * off, y0 + (y1 - y0) * t + ny / L * off]); }
+    pts.push([x1, y1]); return pts;
   }
+  const pathD = (pts) => 'M' + pts.map(p => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' L');
+  function heroPoint() { const h = $('.gtop .heroimg'); if (!h) return { x: innerWidth / 2, y: 60 }; const r = h.getBoundingClientRect(); return { x: r.left + r.width * 0.62, y: r.top + r.height * 0.42 }; }
+  async function zeusStrike(i, onImpact) {
+    const to = center(i), from = heroPoint(), sp = G.speed;
+    // 1) yüklenme
+    const orb = document.createElement('div'); orb.className = 'zcharge'; orb.style.cssText = `left:${from.x}px;top:${from.y}px`; document.body.appendChild(orb);
+    const hero = $('.gtop .heroimg'); hero && hero.classList.add('zflash');
+    Sound.play('orb'); await sleep(170);
+    // 2) hareket: ana gövde + 2 dal
+    const main = jag(from.x, from.y, to.x, to.y, 12, 38);
+    const br = [5, 8].map(k => { const p = main[k]; return jag(p[0], p[1], p[0] + (Math.random() * 120 - 60), p[1] + 40 + Math.random() * 50, 5, 14); });
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('class', 'bolt'); svg.setAttribute('width', innerWidth); svg.setAttribute('height', innerHeight);
+    const len = main.reduce((a, p, k) => k ? a + Math.hypot(p[0] - main[k - 1][0], p[1] - main[k - 1][1]) : 0, 0) + 10;
+    svg.innerHTML = `<path class="zglow" d="${pathD(main)}" style="stroke-dasharray:${len};stroke-dashoffset:${len};animation-duration:${.16 * sp}s"/>` +
+      `<path class="zcore" d="${pathD(main)}" style="stroke-dasharray:${len};stroke-dashoffset:${len};animation-duration:${.16 * sp}s"/>` +
+      br.map(b => `<path class="zbranch" d="${pathD(b)}" style="animation-delay:${.1 * sp}s"/>`).join('');
+    document.body.appendChild(svg); Sound.play('thunder');
+    await sleep(160);
+    // 3) çarpma
+    const imp = document.createElement('div'); imp.className = 'zimpact'; imp.style.cssText = `left:${to.x}px;top:${to.y}px;--sz:${G.cell * 2.4}px`; document.body.appendChild(imp);
+    const ring = document.createElement('div'); ring.className = 'zring'; ring.style.cssText = `left:${to.x}px;top:${to.y}px;--sz:${G.cell * 2.8}px`; document.body.appendChild(ring);
+    UI.burst(to.x, to.y, 12, ['#ffffff', '#9fe8ff', '#5aa0ff']);
+    const m = $('#machine'); m.classList.remove('shake'); void m.offsetWidth; m.classList.add('shake');
+    Sound.vibrate(30);
+    onImpact && onImpact();
+    await sleep(240);
+    svg.classList.add('zfade'); orb.remove(); hero && hero.classList.remove('zflash');
+    setTimeout(() => { svg.remove(); imp.remove(); ring.remove(); }, 380);
+  }
+  // 4) çarpan değeri büyük yazıyla hedef kutuya uçar
+  async function flyMult(i, v, target) {
+    const a = center(i), b = target.getBoundingClientRect();
+    const d = document.createElement('div'); d.className = 'flymult'; d.textContent = 'x' + v; d.style.cssText = `left:${a.x}px;top:${a.y}px`;
+    document.body.appendChild(d); await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    d.style.transform = `translate(${b.left + b.width / 2 - a.x}px,${b.top + b.height / 2 - a.y}px) scale(.55)`; d.style.opacity = '.2';
+    await sleep(420); d.remove(); target.classList.remove('bump'); void target.offsetWidth; target.classList.add('bump');
+  }
+  function bolt(to) { /* eski basit şimşek (geri uyumluluk) */ UI.burst(to.x, to.y, 10, ['#fff', '#9fe8ff']); }
   function badge(text, color = '#ffd34d') {
     const d = document.createElement('div'); d.className = 'multbadge gold'; d.textContent = text; d.style.filter = `drop-shadow(0 0 20px ${color})`;
     document.body.appendChild(d); setTimeout(() => d.remove(), 1150);
@@ -278,19 +315,28 @@
       const chk = setInterval(() => { if (gen !== G.gen) { clearInterval(chk); done(); } else if (!d.isConnected) clearInterval(chk); }, 300);
     });
   }
+  // Büyük kazanç: sayaç yükselirken seviye BIG → MEGA → SUPER → EPIC olarak yükselir
   function bigWin(win, x) {
-    const t = x >= 100 ? 'EPIC<br>WIN' : x >= 50 ? 'SUPER<br>WIN' : x >= 25 ? 'MEGA<br>WIN' : 'BIG<br>WIN';
+    const TIERS = [[10, 'BIG<br>WIN'], [25, 'MEGA<br>WIN'], [50, 'SUPER<br>WIN'], [100, 'EPIC<br>WIN']];
+    const final = TIERS.filter(t => x >= t[0]).length - 1;
     return new Promise(res => {
       const d = document.createElement('div'); d.className = 'bigwin';
-      const tier = x >= 50 ? 2 : 1;
       d.innerHTML = `<div class="rays"></div><img class="bwfx sun" src="assets/fx_orange.webp" alt="">
-        ${tier >= 2 ? '<img src="assets/a_jackpot.webp" style="position:relative;width:300px;animation:pulse 1s infinite;filter:drop-shadow(0 0 20px #ff59d6)" alt="">' : ''}
-        <div class="t bigwintxt">${t}</div><div class="n winpill" id="bwN">0</div>${tier >= 2 ? '<img src="assets/b_chest.webp" style="position:relative;width:240px;margin-top:6px;animation:floaty 2s infinite" alt="">' : ''}<div class="s">x${(Math.round(x * 10) / 10)} · Geçmek için dokun</div>`;
+        <img id="bwJ" src="assets/a_jackpot.webp" style="position:relative;width:280px;opacity:0;transform:scale(.6);transition:all .4s" alt="">
+        <div class="t bigwintxt" id="bwT">${TIERS[0][1]}</div><div class="n winpill" id="bwN">0</div>
+        <img src="assets/b_chest.webp" id="bwC" style="position:relative;width:200px;margin-top:6px;opacity:0;transition:opacity .4s" alt="">
+        <div class="s">x${(Math.round(x * 10) / 10)} · Geçmek için dokun</div>`;
       document.body.appendChild(d); Sound.play('bigwin'); Sound.vibrate([60, 40, 60]);
-      const dur = Math.min(5000, 1800 + x * 15) * G.speed; const t0 = performance.now(); let done = false;
-      UI.coinShower(40); const iv = setInterval(() => UI.coinShower(10), 700);
-      const step = (now) => { if (done) return; const bn = $('#bwN'); if (!bn) { end(); return; } const p = Math.min(1, (now - t0) / dur); bn.textContent = fmt(win * (1 - Math.pow(1 - p, 3))); if (p < 1) requestAnimationFrame(step); else { Sound.play('coin'); setTimeout(end, 1300); } };
-      const end = () => { if (done) return; done = true; clearInterval(iv); const n = $('#bwN'); n && (n.textContent = fmt(win)); setTimeout(() => { d.remove(); res(); }, 150); };
+      const dur = Math.min(6000, 1600 + final * 1300) * G.speed; const t0 = performance.now(); let done = false, tier = 0;
+      UI.coinShower(30); const iv = setInterval(() => UI.coinBurst(innerWidth / 2, innerHeight * 0.92, 8), 450);
+      const setTier = (k) => { tier = k; const t = $('#bwT'); if (!t) return; t.innerHTML = TIERS[k][1]; t.classList.remove('tierup'); void t.offsetWidth; t.classList.add('tierup'); Sound.play('feature'); if (k >= 2) { const j = $('#bwJ'); j.style.opacity = 1; j.style.transform = 'scale(1)'; $('#bwC').style.opacity = 1; } };
+      const step = (now) => {
+        if (done) return; const bn = $('#bwN'); if (!bn) { end(); return; }
+        const p = Math.min(1, (now - t0) / dur), cur = win * (1 - Math.pow(1 - p, 2.2)); bn.textContent = fmt(cur);
+        const curX = cur / (win / x); while (tier < final && curX >= TIERS[tier + 1][0]) setTier(tier + 1);
+        if (p < 1) requestAnimationFrame(step); else { Sound.play('coin'); setTimeout(end, 1400); }
+      };
+      const end = () => { if (done) return; done = true; clearInterval(iv); if (tier < final) setTier(final); const n = $('#bwN'); n && (n.textContent = fmt(win)); setTimeout(() => { d.remove(); res(); }, 250); };
       d.onclick = end; requestAnimationFrame(step);
       const gen = G.gen; const chk = setInterval(() => { if (gen !== G.gen) { clearInterval(chk); end(); } else if (done) clearInterval(chk); }, 300);
     });
@@ -326,7 +372,7 @@
       const rem = new Set(st.removed); rem.forEach(i => G.boxes[i].firstElementChild.classList.add('win'));
       running += st.wins.reduce((a, w) => a + w.pay, 0) * bet; setWin(Math.round(running), 'ZİNCİR');
       Sound.play('win'); await sleep(G.skip ? 120 : 480);
-      rem.forEach((i, k) => { const s = G.boxes[i].firstElementChild; s.classList.remove('win'); s.classList.add('pop'); const c = center(i); UI.burst(c.x, c.y, 5); });
+      rem.forEach((i, k) => { const s = G.boxes[i].firstElementChild; s.classList.remove('win'); s.classList.add(G.id === 'zeus' ? 'zpop' : 'pop'); if (k % 2 === 0) { const c = center(i); UI.burst(c.x, c.y, 4, G.id === 'zeus' ? ['#fff', '#9fe8ff'] : undefined); } });
 
       Sound.play('pop'); Sound.vibrate(20); await sleep(300);
       for (let c = 0; c < G.cols; c++) {
@@ -345,18 +391,18 @@
     const mpos = []; for (let i = 0; i < prev.length; i++) if (prev[i] >= 1000) mpos.push(i);
     let seqWin = running;
     if (running > 0 && mpos.length) {
-      const target = G.id === 'zeus' ? $('#winLine') : $('#winLine');
+      const box = $('#mL'); let shownSum = fsAcc != null ? Math.max(0, fsAcc - seq.multSum) : 0;
       for (const i of mpos) {
-        G.boxes[i].firstElementChild.classList.add('win');
-        const c = center(i);
-        if (G.id === 'zeus') { Sound.play('thunder'); bolt(c); fxs('fx_pillarb', c.x, c.y - 40, G.cell * 1.6, 0.7, { s: 1.4, r1: 0 }); await sleep(420); }
-        else { fxs('fx_purple', c.x, c.y, G.cell * 2.2, 0.8, { s: 1.7 }); fxs('fx_swirl', c.x, c.y, G.cell * 2.6, 1, { s: 1.4, r1: 120 }); Sound.play('orb'); await sleep(380); }
+        const cell = G.boxes[i].firstElementChild; const v = prev[i] - 1000;
+        if (G.id === 'zeus') await zeusStrike(i, () => cell && cell.classList.add('zhit'));
+        else { cell && cell.classList.add('zhit'); const c = center(i); fxs('fx_purple', c.x, c.y, G.cell * 2.2, 0.8, { s: 1.7 }); Sound.play('orb'); await sleep(260); }
+        if (box) await flyMult(i, v, box);
+        shownSum += v; box && sideL('TOPLAM ÇARPAN', 'x' + shownSum);
       }
-      const sum = seq.multSum;
-      const mult = fsAcc != null ? fsAcc : sum;
+      const mult = fsAcc != null ? fsAcc : seq.multSum;
+      box && sideL('TOPLAM ÇARPAN', 'x' + mult);
       badge('x' + mult, G.id === 'zeus' ? '#8fe3ff' : '#ff9ae8'); Sound.play('bigwin');
-      { const m = reelsMid(); fxs('fx_pillar', m.x, m.y + 30, m.w * 0.75, 1, { s: 1.3, r1: 0 }); fxs('fx_burstp', m.x, m.y, m.w * 0.9, 1, { s: 1.5, r1: 30 }); }
-      await sleep(900);
+      await sleep(700);
     }
     return seqWin;
   }
@@ -525,5 +571,5 @@
   function demoResp(result, bet) { const me = App.me; return { result, win: Math.round(result.win * bet), balance: me.balance + (me.unlimited ? 0 : bet), xp: { xp: me.xp, level: me.level, into: me.xpInto, need: me.xpNeed, max: me.maxLevel, levelUp: null } }; }
   function queueDemo(list) { if (window.SLOT_CONFIG.demo) G.demo.push(...list); }
   addEventListener('resize', () => { if (G.open && !G.spinning) { sizeGrid(); } });
-  window.Games = { open, close, isOpen: () => G.open, queueDemo, spin: () => spin() };
+  window.Games = { open, close, isOpen: () => G.open, current: () => (G.open ? G.id : ''), queueDemo, spin: () => spin() };
 })();

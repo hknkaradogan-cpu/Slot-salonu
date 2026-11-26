@@ -31,7 +31,9 @@
   function me() { const u = db.users[db.sessions[tokenOf()]]; if (!u) err(401, 'unauthorized', 'Lütfen giriş yapın.'); return u; }
   function pub(u) { const L = lvl(u.xp), mx = L >= MAXL; return { id: u.id, username: u.username, email: u.email, emailVerified: true, role: 'player', unlimited: false, balance: u.balance, level: L, xp: u.xp, xpInto: mx ? 0 : u.xp - cumXp(L), xpNeed: mx ? 0 : cumXp(L + 1) - cumXp(L), maxLevel: mx, avatar: u.avatar || 0, spins: u.spins, totalWagered: u.wagered, totalWon: u.won, biggestWin: u.big, createdAt: u.created, billingAccountId: 'local-' + u.id }; }
   const dailyState = (u) => { const next = u.lastDaily ? u.lastDaily + DAY : 0; return { amount: daily(lvl(u.xp)), available: Date.now() >= next, nextAt: next, serverTime: Date.now() }; };
-  const lr = (u) => Array.from({ length: 10 }, (_, k) => { const L = (k + 1) * 10, c = !!(u.claims || {})[L]; return { level: L, coins: L * 1000, claimed: c, available: lvl(u.xp) >= L && !c }; });
+  const lr = (u) => { const L = lvl(u.xp), up = u.lrUpto || 0, top = Math.floor(L / 10) * 10; let coins = 0, count = 0; for (let k = up + 10; k <= top; k += 10) { coins += k * 1000; count++; }
+    const next = []; for (let k = Math.max(top, up) + 10; next.length < 5 && k <= MAXL; k += 10) next.push({ level: k, coins: k * 1000 });
+    return { every: 10, perLevel: 1000, claimedUpto: up, pending: { coins, count, upto: top }, next, level: L, maxLevel: MAXL }; };
   function qp(u) { const d = dayKey(); if (!u.q || u.q.day !== d) u.q = { day: d, p: {}, c: {}, g: [] }; return u.q; }
   const R = {
     'POST /api/auth/register': async (b) => {
@@ -55,6 +57,10 @@
     'POST /api/auth/resend-verification': () => ({ ok: true, already: true }),
     'POST /api/auth/verify-email': () => ({ ok: true }),
     'POST /api/auth/change-password': async (b) => { const u = me(); if ((await hash(String(b.current || ''), u.salt)) !== u.hash) err(401, 'bad_credentials', 'Mevcut şifre hatalı.'); u.hash = await hash(String(b.password), u.salt); save(); return { ok: true }; },
+    'POST /api/level-rewards/claim': () => { const u = me(), r = lr(u); if (!r.pending.count) err(409, 'nothing_to_claim', 'Alınacak ödül yok.'); u.lrUpto = r.pending.upto; u.balance += r.pending.coins; save(); return { coins: r.pending.coins, count: r.pending.count, balance: u.balance, celebrate: false }; },
+    'GET /api/setup/status': () => ({ needsSetup: false, setupEnabled: false, mailConfigured: false }),
+    'POST /api/telemetry': () => ({ ok: true }),
+    'GET /api/app/version': () => ({ latest: null }),
     'GET /api/me': () => { const u = me(); return { user: pub(u), daily: dailyState(u), levelRewards: lr(u), events: [], badges: { gifts: 0, friendRequests: 0 }, serverTime: Date.now(), local: true }; },
     'POST /api/me/avatar': (b) => { me().avatar = +b.avatar || 0; save(); return { ok: true }; },
     'GET /api/games': () => ({ bets: BETS, games: window.SlotEngine.ORDER.map(id => { const g = G()[id]; return { id, name: g.name, family: g.family, tag: THEME[id][0], rib: THEME[id][1], info: g.info, rtp: 0.95, volatility: 'yüksek' }; }) }),

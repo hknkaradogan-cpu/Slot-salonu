@@ -76,5 +76,57 @@
       }
     }
   }
+  /* ---------- Uygulama içi güncelleme ----------
+   * Sunucu en son APK sürümünü bildirir; daha yeniyse indirilir ve Android yükleyicisi açılır.
+   * Aynı imza anahtarıyla derlendiği için mevcut uygulamanın üzerine kurulur, veriler korunur. */
+  async function checkUpdate(manual) {
+    const U = window.AndroidUpdate; if (!U || !U.enabled()) { manual && toast('Güncelleme yalnızca Android uygulamasında kullanılabilir.'); return; }
+    let v; try { v = await Api.get('/api/app/version'); } catch (e) { manual && toast(e.message, true); return; }
+    const cur = +U.versionCode();
+    if (!v || !v.latest || v.latest.version_code <= cur) { manual && toast('Uygulama güncel (' + U.versionName() + ').'); return; }
+    const L = v.latest, forced = !!L.mandatory;
+    UI.modal(`<h3 class="gold">⬇️ Yeni sürüm: ${UI.esc(L.version_name)}</h3>
+      <p class="small">Yüklü sürüm: ${UI.esc(U.versionName())}. Güncelleme mevcut uygulamanın üzerine kurulur; hesabın, jetonların ve seviyen korunur.</p>
+      ${L.notes ? `<div class="card small" style="white-space:pre-wrap">${UI.esc(L.notes)}</div>` : ''}
+      <div class="xpbar hidden" id="upBar" style="height:14px;margin:8px 0"><i style="width:0%"></i><em>0%</em></div>
+      <div class="small muted" id="upMsg"></div>
+      <button class="btn green block" id="upGo">ŞİMDİ GÜNCELLE</button>
+      ${forced ? '<p class="small err center">Bu sürüm artık desteklenmiyor; devam etmek için güncelleme gerekli.</p>' : '<button class="btn ghost block" id="upLater">Daha sonra</button>'}`, {
+      noClose: !!forced,
+      onOpen() {
+        $('#upLater') && ($('#upLater').onclick = () => UI.closeModal());
+        $('#upGo').onclick = () => { $('#upGo').disabled = true; $('#upBar').classList.remove('hidden'); $('#upMsg').textContent = 'İndiriliyor…'; U.download(L.apk_url); };
+      },
+    });
+  }
+  window.__update = function (type, msg) {
+    const bar = $('#upBar'), m = $('#upMsg'), go = $('#upGo');
+    if (type === 'progress' && bar) { const p = Math.max(0, Math.min(100, +msg)); bar.querySelector('i').style.width = p + '%'; bar.querySelector('em').textContent = p + '%'; }
+    else if (type === 'ready') { m && (m.textContent = 'İndirildi. Açılan ekranda "Güncelle"ye dokun.'); go && (go.disabled = false, go.textContent = 'YÜKLEYİCİYİ TEKRAR AÇ'); }
+    else if (type === 'permission') { m && (m.textContent = 'Ayarlarda "Bu kaynaktan yüklemeye izin ver"i açıp geri dön, sonra tekrar Güncelle\'ye dokun.'); go && (go.disabled = false); }
+    else if (type === 'error') { m && (m.textContent = 'Hata: ' + msg); go && (go.disabled = false); }
+  };
+  App.checkUpdate = checkUpdate;
+
+  /* ---------- FPS telemetrisi: oyun açıkken örnekler, 60 sn'de bir gönderir ---------- */
+  (function fpsTelemetry() {
+    let frames = 0, worst = 0, last = performance.now(), t0 = last, minFps = 999;
+    const tick = (now) => {
+      const dt = now - last; last = now;
+      if (Games.isOpen() && !document.hidden) { frames++; if (dt > worst && dt < 1000) worst = dt; }
+      if (now - t0 >= 5000) { const fps = frames / ((now - t0) / 1000); if (frames > 30 && fps < minFps) minFps = fps; t0 = now; tick.samples.push(fps); frames = 0; }
+      requestAnimationFrame(tick);
+    };
+    tick.samples = []; requestAnimationFrame(tick);
+    setInterval(() => {
+      const s = tick.samples.filter(x => x > 1); tick.samples = [];
+      if (!App.me || s.length < 3 || !Games.isOpen()) { worst = 0; minFps = 999; return; }
+      const avg = s.reduce((a, b) => a + b, 0) / s.length;
+      Api.post('/api/telemetry', { fps: Math.round(Math.min(240, avg)), game: Games.current(), worstMs: Math.round(worst), device: navigator.userAgent.slice(0, 120), appVersion: (window.SLOT_CONFIG && SLOT_CONFIG.appVersion) || '' }).catch(() => {});
+      worst = 0; minFps = 999;
+    }, 60000);
+  })();
+
+  let upChecked = false; App.afterEnter = () => { if (upChecked) return; upChecked = true; const t = () => ($('#overlay').classList.contains('show') || Games.isOpen()) ? setTimeout(t, 3000) : checkUpdate(false); setTimeout(t, 2500); };
   boot();
 })();

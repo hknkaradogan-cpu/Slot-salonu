@@ -11,38 +11,46 @@
       <div class="card">${inner}</div>
       <p class="small muted center">18 yaş ve üzeri içindir. Sanal jetonlar yalnızca eğlence amaçlıdır; gerçek para veya ödül kazandırmaz.</p></div>`;
   }
+  // Giriş ekranı: üstte kullanıcı adı + şifre (Giriş Yap / Kayıt Ol), altta e-posta ile giriş ve Şifremi Unuttum
   function login() {
     screen('auth', authShell(`
-      <div class="authtabs"><button class="on">Giriş Yap</button><button id="tabReg">Kayıt Ol</button></div>
-      <form id="fLogin" autocomplete="on">
-        <label class="field"><span>📧 E-posta adresi veya 👤 kullanıcı adı</span><input name="identifier" autocomplete="username" required></label>
-        <label class="field"><span>Şifre</span><input name="password" type="password" autocomplete="current-password" required></label>
-        <div class="err" id="lErr"></div>
-        <button class="btn green block" type="submit">▶ GİRİŞ</button>
+      <form id="fUser" autocomplete="on">
+        <label class="field"><span>👤 Kullanıcı adı</span><input name="identifier" autocomplete="username" required></label>
+        <label class="field"><span>🔒 Şifre</span><input name="password" type="password" autocomplete="current-password" required></label>
+        <div class="err" id="uErr"></div>
+        <div class="row"><button class="btn green grow" type="submit">▶ GİRİŞ YAP</button><button class="btn gold grow" type="button" id="toReg">KAYIT OL</button></div>
       </form>
-      <div class="row" style="justify-content:space-between;margin-top:10px"><button class="link" id="toForgot">Şifremi unuttum</button><button class="link" id="toReg">Hesap oluştur</button></div>`));
+      <div class="ordiv"><span>VEYA</span></div>
+      <div class="section-t" style="justify-content:center">📧 E-posta ile giriş yap</div>
+      <form id="fMail" autocomplete="on">
+        <label class="field"><span>E-posta adresi</span><input name="identifier" type="email" autocomplete="email" required></label>
+        <label class="field"><span>Şifre</span><input name="password" type="password" autocomplete="current-password" required></label>
+        <div class="err" id="mErr"></div>
+        <button class="btn purple block" type="submit">GİRİŞ YAP</button>
+      </form>
+      <div class="row" style="justify-content:space-between;margin-top:10px"><button class="link" id="toForgot">Şifremi Unuttum</button><button class="link" id="toAdmin">🛡️ Yönetici Girişi</button></div>`));
     show('auth');
-    $('#fLogin').onsubmit = async (e) => {
-      e.preventDefault(); const f = e.target; const b = f.querySelector('button'); $('#lErr').textContent = '';
-      b.disabled = true;
+    const bind = (formId, errId) => { $(formId).onsubmit = async (e) => {
+      e.preventDefault(); const f = e.target; const b = f.querySelector('button[type=submit]'); $(errId).textContent = ''; b.disabled = true;
       try { const r = await Api.post('/api/auth/login', { identifier: f.identifier.value.trim(), password: f.password.value }); Api.setToken(r.token); await enter(); }
-      catch (er) { $('#lErr').textContent = er.message; Sound.play('error'); } finally { b.disabled = false; }
-    };
-    $('#toReg').onclick = register; $('#tabReg').onclick = register; $('#toForgot').onclick = forgot;
+      catch (er) { $(errId).textContent = er.message; Sound.play('error'); } finally { b.disabled = false; }
+    }; };
+    bind('#fUser', '#uErr'); bind('#fMail', '#mErr');
+    $('#toReg').onclick = register; $('#toForgot').onclick = forgot; $('#toAdmin').onclick = adminLogin;
   }
   function register() {
     screen('auth', authShell(`
-      <div class="authtabs"><button id="tabLogin">Giriş Yap</button><button class="on">Kayıt Ol</button></div>
+      <h2 class="title gold">Kayıt Ol</h2>
       <form id="fReg" autocomplete="on">
-        <label class="field"><span>E-posta</span><input name="email" type="email" autocomplete="email" required></label>
-        <label class="field"><span>Kullanıcı adı (3-16 karakter, harf/rakam/_)</span><input name="username" pattern="[A-Za-z0-9_]{3,16}" autocomplete="username" required></label>
-        <label class="field"><span>Şifre (en az 8 karakter, harf ve rakam)</span><input name="password" type="password" minlength="8" autocomplete="new-password" required></label>
+        <label class="field"><span>👤 Kullanıcı adı (3-16 karakter, harf/rakam/_ — benzersiz)</span><input name="username" pattern="[A-Za-z0-9_]{3,16}" autocomplete="username" required></label>
+        <label class="field"><span>📧 E-posta (şifre sıfırlama için)</span><input name="email" type="email" autocomplete="email" required></label>
+        <label class="field"><span>🔒 Şifre (en az 8 karakter, harf ve rakam)</span><input name="password" type="password" minlength="8" autocomplete="new-password" required></label>
         <label class="field"><span>Şifre tekrar</span><input name="password2" type="password" autocomplete="new-password" required></label>
         <label class="check"><input type="checkbox" name="age" required><span>18 yaşından büyüğüm ve <a class="link" data-legal="terms">Kullanım Koşulları</a> ile <a class="link" data-legal="privacy">Gizlilik Politikası</a>'nı kabul ediyorum.</span></label>
         <div class="err" id="rErr"></div>
         <button class="btn green block" type="submit">HESABI OLUŞTUR</button>
       </form>
-      <div class="center" style="margin-top:8px"><button class="link" id="toLogin">Zaten hesabım var</button></div>`));
+      <div class="center" style="margin-top:8px"><button class="link" id="toLogin">◀ Girişe dön</button></div>`));
     show('auth');
     $$('[data-legal]').forEach(a => a.onclick = (e) => { e.preventDefault(); legal(a.dataset.legal); });
     $('#fReg').onsubmit = async (e) => {
@@ -51,42 +59,77 @@
       const b = f.querySelector('button[type=submit]'); b.disabled = true;
       try {
         const r = await Api.post('/api/auth/register', { email: f.email.value.trim(), username: f.username.value.trim(), password: f.password.value });
-        Api.setToken(r.token); await enter(); toast('Hoş geldin! Başlangıç jetonların hesabına yüklendi.'); if (!Api.isLocal()) verifyEmailModal();
+        Api.setToken(r.token); await enter(); toast('Hoş geldin! Başlangıç jetonların hesabına yüklendi.');
       } catch (er) { $('#rErr').textContent = er.message; Sound.play('error'); } finally { b.disabled = false; }
     };
-    $('#toLogin').onclick = login; $('#tabLogin').onclick = login;
+    $('#toLogin').onclick = login;
   }
   function forgot() {
     screen('auth', authShell(`
       <h2 class="title gold">Şifremi Unuttum</h2>
-      <div id="fg1"><label class="field"><span>E-posta veya kullanıcı adı</span><input id="fgId"></label>
-        <button class="btn gold block" id="fgSend">Kod Gönder</button></div>
-      <div id="fg2" class="hidden"><p class="small muted">E-postana 8 haneli bir kod gönderdik (30 dk geçerli).</p>
+      <div id="fg1"><label class="field"><span>Hesabının e-posta adresi</span><input id="fgId" type="email"></label>
+        <button class="btn gold block" id="fgSend">Sıfırlama Kodu Gönder</button></div>
+      <div id="fg2" class="hidden"><p class="small muted">E-postana 8 haneli tek kullanımlık bir kod gönderdik (30 dk geçerli).</p>
         <label class="field"><span>Kod</span><input id="fgCode" maxlength="8" style="text-transform:uppercase;letter-spacing:3px"></label>
         <label class="field"><span>Yeni şifre</span><input id="fgPw" type="password" autocomplete="new-password"></label>
         <button class="btn green block" id="fgReset">Şifreyi Değiştir</button></div>
-      <div class="err" id="fgErr"></div>
-      <div class="center"><button class="link" id="toLogin">Girişe dön</button></div>`));
+      <div class="center"><button class="link" id="toLogin">◀ Girişe dön</button></div>`));
     show('auth');
     $('#fgSend').onclick = () => guard($('#fgSend'), async () => { await Api.post('/api/auth/forgot', { email: $('#fgId').value.trim() }); $('#fg1').classList.add('hidden'); $('#fg2').classList.remove('hidden'); toast('Hesap varsa kod gönderildi.'); });
     $('#fgReset').onclick = () => guard($('#fgReset'), async () => { await Api.post('/api/auth/reset', { code: $('#fgCode').value.trim(), password: $('#fgPw').value }); toast('Şifren değiştirildi. Giriş yapabilirsin.'); login(); });
     $('#toLogin').onclick = login;
   }
-  function verifyEmailModal() {
-    modal(`<h3 class="gold">E-postanı Doğrula</h3><p class="center small">${esc(S.me.email)} adresine bir doğrulama kodu gönderdik. Mağaza ve hediye özellikleri için doğrulama gerekir.</p>
-      <label class="field"><span>Doğrulama kodu</span><input id="vCode" maxlength="8" style="text-transform:uppercase;letter-spacing:3px"></label>
-      <button class="btn green block" id="vGo">Doğrula</button><div class="center"><button class="link" id="vRe">Kodu tekrar gönder</button></div>`, {
-      onOpen() {
-        $('#vGo').onclick = () => guard($('#vGo'), async () => { await Api.post('/api/auth/verify-email', { code: $('#vCode').value.trim() }); toast('E-posta doğrulandı ✓'); closeModal(); await refresh(); });
-        $('#vRe').onclick = () => guard($('#vRe'), async () => { await Api.post('/api/auth/resend-verification'); toast('Kod tekrar gönderildi.'); });
-      },
-    });
+  // Yönetici girişi: ayrı uç nokta; sunucu rolü doğrular ve 12 saatlik ayrı yönetici oturumu açar.
+  // Henüz yönetici yoksa güvenli kurulum (sunucu sahibine verilen tek kullanımlık kurulum anahtarı) gösterilir.
+  async function adminLogin() {
+    let st = { needsSetup: false, setupEnabled: false };
+    try { st = await Api.get('/api/setup/status'); } catch (e) { toast(e.message, true); }
+    if (st.needsSetup) return adminSetup(st);
+    screen('auth', authShell(`
+      <h2 class="title gold">🛡️ Yönetici Girişi</h2>
+      <form id="fAdm" autocomplete="on">
+        <label class="field"><span>Yönetici kullanıcı adı veya e-posta</span><input name="identifier" autocomplete="username" required></label>
+        <label class="field"><span>Şifre</span><input name="password" type="password" autocomplete="current-password" required></label>
+        <div class="err" id="aErr"></div>
+        <button class="btn gold block" type="submit">YÖNETİCİ PANELİNE GİR</button>
+      </form>
+      <p class="small muted center">Yönetici oturumu 12 saat geçerlidir. Normal oyuncu hesapları bu girişi kullanamaz.</p>
+      <div class="center"><button class="link" id="toLogin">◀ Oyuncu girişine dön</button></div>`));
+    show('auth');
+    $('#fAdm').onsubmit = async (e) => {
+      e.preventDefault(); const f = e.target; const b = f.querySelector('button'); $('#aErr').textContent = ''; b.disabled = true;
+      try { const r = await Api.post('/api/auth/admin-login', { identifier: f.identifier.value.trim(), password: f.password.value }); Api.setToken(r.token); await enter(); Admin.open(); }
+      catch (er) { $('#aErr').textContent = er.message; Sound.play('error'); } finally { b.disabled = false; }
+    };
+    $('#toLogin').onclick = login;
+  }
+  function adminSetup(st) {
+    screen('auth', authShell(`
+      <h2 class="title gold">🛡️ İlk Kurulum</h2>
+      <p class="small center">Sunucuda henüz yönetici yok. Sunucu sahibine verilen <b>kurulum anahtarıyla</b> ilk yönetici hesabını oluştur. Kurulum bir kez yapılır; sonra bu ekran kapanır.</p>
+      ${st.setupEnabled ? '' : '<p class="err center">Bu sunucuda kurulum anahtarı tanımlı değil.</p>'}
+      <form id="fSet" autocomplete="off">
+        <label class="field"><span>Kurulum anahtarı</span><input name="setupToken" required autocomplete="off" style="letter-spacing:1px"></label>
+        <label class="field"><span>Yönetici kullanıcı adı</span><input name="username" pattern="[A-Za-z0-9_]{3,16}" required></label>
+        <label class="field"><span>Yönetici e-postası</span><input name="email" type="email" required></label>
+        <label class="field"><span>Güçlü şifre (en az 8 karakter, harf ve rakam)</span><input name="password" type="password" minlength="8" autocomplete="new-password" required></label>
+        <div class="err" id="sErr"></div>
+        <button class="btn gold block" type="submit">YÖNETİCİYİ OLUŞTUR</button>
+      </form>
+      <div class="center"><button class="link" id="toLogin">◀ Geri</button></div>`));
+    show('auth');
+    $('#fSet').onsubmit = async (e) => {
+      e.preventDefault(); const f = e.target; const b = f.querySelector('button'); $('#sErr').textContent = ''; b.disabled = true;
+      try { const r = await Api.post('/api/setup/admin', { setupToken: f.setupToken.value, username: f.username.value.trim(), email: f.email.value.trim(), password: f.password.value }); Api.setToken(r.token); toast('Yönetici hesabı oluşturuldu ✓'); await enter(); Admin.open(); }
+      catch (er) { $('#sErr').textContent = er.message; Sound.play('error'); } finally { b.disabled = false; }
+    };
+    $('#toLogin').onclick = login;
   }
 
   /* ===================== OTURUM / DURUM ===================== */
   async function refresh() {
     const r = await Api.get('/api/me');
-    S.me = r.user; S.daily = r.daily; S.levelRewards = r.levelRewards; S.events = r.events; S.badges = r.badges;
+    S.me = r.user; S.daily = r.daily; S.levelRewards = r.levelRewards; S.events = r.events; S.badges = r.badges; S.adminSession = !!r.adminSession;
     S.clockSkew = r.serverTime - Date.now();
     renderTop(); renderBadges();
     return r;
@@ -97,8 +140,9 @@
     S.games = g.games; S.bets = g.bets;
     buildMain(); go('lobby');
     Billing.init();
-    if (S.daily.available) { const tryDaily = () => { if (!S.me || !S.daily.available) return; if ($('#overlay').classList.contains('show') || Games.isOpen()) return setTimeout(tryDaily, 1500); dailyModal(); }; setTimeout(tryDaily, 900); }
+    if (S.daily.available && S.me.role !== 'admin') { const tryDaily = () => { if (!S.me || !S.daily.available) return; if ($('#overlay').classList.contains('show') || Games.isOpen()) return setTimeout(tryDaily, 1500); dailyModal(); }; setTimeout(tryDaily, 900); }
     Sound.startMusic();
+    S.afterEnter && S.afterEnter();
   }
   function logout() { Api.post('/api/auth/logout').catch(() => {}); Api.setToken(null); S.me = null; Sound.stopMusic(); login(); }
 
@@ -120,7 +164,7 @@
   function setBalance(b, bump) { if (!S.me) return; S.me.balance = b; renderTop(); if (bump) $$('#tCoins').forEach(e => { e.classList.remove('bump'); void e.offsetWidth; e.classList.add('bump'); }); }
   function renderBadges() {
     const n = S.badges || {}; const d = (sel, v) => { const e = $(sel); if (!e) return; e.innerHTML = v ? `<span class="dot">${v}</span>` : ''; };
-    d('#bDaily', S.daily && S.daily.available ? '!' : ''); d('#bLvl', S.levelRewards.filter(x => x.available).length);
+    d('#bDaily', S.daily && S.daily.available ? '!' : ''); d('#bLvl', S.levelRewards && S.levelRewards.pending ? S.levelRewards.pending.count : 0);
     d('#bFriends', (n.gifts || 0) + (n.friendRequests || 0)); d('#bEvents', (S.events || []).length);
   }
 
@@ -194,22 +238,33 @@
     });
   }
   function levelRewardsModal() {
-    const total = S.levelRewards.reduce((a, b) => a + b.coins, 0); // seviye ödülleri
-    modal(`<h3 class="gold">🏆 Seviye Ödülleri</h3><p class="center small muted">Her 10 seviyede bir ödül · Toplam ${fmt(total)} jeton · Her ödül bir kez alınır</p>
-      <div class="list">${S.levelRewards.map(r => `<div class="li"><div class="avatar" style="width:40px;height:40px;font-size:15px;font-weight:900">${r.level}</div><div class="grow"><b>${r.level}. Seviye</b><small>${fmt(r.coins)} jeton</small></div>
-      ${r.claimed ? '<span class="pill ok">ALINDI</span>' : r.available ? `<button class="btn green sm" data-lv="${r.level}">AL</button>` : `<span class="pill">🔒 Sv ${r.level}</span>`}</div>`).join('')}</div>`, {
-      onOpen(m) {
-        $$('[data-lv]', m).forEach(b => b.onclick = () => guard(b, async () => {
-          const r = await Api.post(`/api/level-rewards/${b.dataset.lv}/claim`); setBalance(r.balance, true); Sound.play('bigwin'); UI.coinShower(80);
+    const R = S.levelRewards, u = S.me;
+    modal(`<h3 class="gold">🏆 Seviye Ödülleri</h3>
+      <p class="center small muted">Her ${fmt(R.every)} seviyede bir ödül: seviye × ${fmt(R.perLevel)} jeton · ${fmt(R.maxLevel)} seviyeye kadar · Her ödül bir kez alınır</p>
+      <div class="card center"><div class="small muted">Seviyen</div><div class="gold" style="font-size:34px;font-weight:900">${fmt(u.level)} <small style="font-size:14px">/ ${fmt(R.maxLevel)}</small></div>
+        <div class="xpbar" style="height:14px;margin:6px 0"><i style="width:${u.maxLevel ? 100 : u.xpInto / u.xpNeed * 100}%"></i><em>${u.maxLevel ? 'MAKS' : fmt(u.xpInto) + ' / ' + fmt(u.xpNeed) + ' XP'}</em></div>
+        <div class="small muted">Her 100 jeton bahis = 1 XP · Bir seviye en az ~25 spin sürer</div></div>
+      ${R.pending.count ? `<button class="btn green block" id="lrClaim">${R.pending.count} ödülü al · +${fmt(R.pending.coins)} 🪙</button>` : '<p class="center muted small">Şu an alınacak ödül yok.</p>'}
+      <div class="section-t" style="margin-top:12px">Sıradaki ödüller</div>
+      <div class="list">${R.next.map(x => `<div class="li"><div class="avatar" style="width:52px;height:40px;border-radius:12px;font-size:12px;font-weight:900">${short(x.level)}</div><div class="grow"><b>${fmt(x.level)}. Seviye</b><small>${fmt(x.coins)} jeton</small></div><span class="pill">🔒</span></div>`).join('')}</div>`, {
+      onOpen() {
+        $('#lrClaim') && ($('#lrClaim').onclick = () => guard($('#lrClaim'), async () => {
+          const r = await Api.post('/api/level-rewards/claim'); setBalance(r.balance, true); Sound.play('bigwin'); UI.coinShower(40);
           await refresh(); closeModal();
-          if (r.celebrate) celebrate100(r.coins); else { toast(`+${fmt(r.coins)} jeton!`); levelRewardsModal(); }
+          if (r.celebrate) celebrate100(r.coins); else toast(`+${fmt(r.coins)} jeton (${r.count} ödül)`);
         }));
       },
     });
   }
+  function adminReauth() {
+    modal(`<h3 class="gold">🛡️ Yönetici Doğrulaması</h3><p class="small center">Yönetici paneli için şifreni yeniden gir (yönetici oturumu 12 saat geçerlidir).</p>
+      <label class="field"><span>Şifre</span><input type="password" id="arPw" autocomplete="current-password"></label><button class="btn gold block" id="arGo">Devam</button>`, {
+      onOpen() { $('#arGo').onclick = () => guard($('#arGo'), async () => { const r = await Api.post('/api/auth/admin-login', { identifier: S.me.username, password: $('#arPw').value }); Api.setToken(r.token); S.adminSession = true; closeModal(); Admin.open(); }); },
+    });
+  }
   function celebrate100(coins) {
     const d = document.createElement('div'); d.className = 'bigwin celebrate';
-    d.innerHTML = `<div class="rays"></div><div style="font-size:110px;position:relative;animation:floaty 2s infinite">👑</div><div class="t gold">EFSANE!<br>100. SEVİYE</div><div class="n">+${fmt(coins)}</div><div class="s">Salonun en tepesindesin! Dokun ve devam et</div>`;
+    d.innerHTML = `<div class="rays"></div><div style="font-size:110px;position:relative;animation:floaty 2s infinite">👑</div><div class="t gold">EFSANE!<br>YENİ ZİRVE</div><div class="n">+${fmt(coins)}</div><div class="s">Salonun en tepesindesin! Dokun ve devam et</div>`;
     document.body.appendChild(d); Sound.play('bigwin'); let n = 0; const iv = setInterval(() => { UI.confetti(60); UI.coinShower(40); if (++n > 5) clearInterval(iv); }, 700);
     d.onclick = () => { clearInterval(iv); d.remove(); };
   }
@@ -241,11 +296,10 @@
     try {
       const r = await Api.get('/api/shop'); S.shop = r;
       const prices = Billing.prices();
-      $('#pkList').innerHTML = (r.emailVerified ? '' : `<div class="notice" style="border:1.5px solid var(--red)">Satın alma için e-postanı doğrulamalısın. <button class="link" id="shV">Şimdi doğrula</button></div>`) +
+      $('#pkList').innerHTML =
         r.packages.map(p => `<div class="pk ${p.productId === 'coins_vip' ? 'vip' : ''}"><div class="ic">${PK_IC[p.productId] || '🪙'}</div><div class="grow"><b>${esc(p.name)}</b><div class="amt gold">${fmt(p.coins)}</div>${p.bonusLabel ? `<span class="bl">${esc(p.bonusLabel)}</span>` : ''}</div>
-        <button class="btn green" data-buy="${p.productId}" ${p.available && r.emailVerified ? '' : 'disabled'}>${p.available ? esc(prices[p.productId] || p.priceLabel) : 'Alındı'}</button></div>`).join('') +
+        <button class="btn green" data-buy="${p.productId}" ${p.available ? '' : 'disabled'}>${p.available ? esc(prices[p.productId] || p.priceLabel) : 'Alındı'}</button></div>`).join('') +
         `<div class="notice">${esc(r.notice)}<br>Ödemeler Google Play üzerinden yapılır ve sunucumuzda doğrulanır.</div><button class="btn ghost block" id="shHist">🧾 Satın Alma Geçmişi</button>`;
-      $('#shV') && ($('#shV').onclick = verifyEmailModal);
       $('#shHist').onclick = purchaseHistory;
       $$('[data-buy]').forEach(b => b.onclick = () => { Sound.play('click'); Billing.buy(b.dataset.buy, r.billingAccountId); });
     } catch (e) { $('#pkList').innerHTML = `<p class="center err">${esc(e.message)}</p>`; }
@@ -282,7 +336,7 @@
   function profile(body) {
     const u = S.me;
     body.innerHTML = `<div class="card center"><div class="avatar" style="width:84px;height:84px;font-size:48px;margin:0 auto 8px" id="pAv">${UI.AVATARS[u.avatar]}</div>
-      <div style="font-size:22px;font-weight:900">${esc(u.username)} ${u.role === 'admin' ? '<span class="pill warn">YÖNETİCİ</span>' : ''}</div><div class="small muted">${esc(u.email)} ${u.emailVerified ? '<span class="pill ok">doğrulandı</span>' : '<button class="link" id="pVer">doğrula</button>'}</div>
+      <div style="font-size:22px;font-weight:900">${esc(u.username)} ${u.role === 'admin' ? '<span class="pill warn">YÖNETİCİ</span>' : ''}</div><div class="small muted">${esc(u.email)}</div>
       <div style="margin:10px 0"><span class="lvl" style="font-size:14px">Seviye ${u.level}</span></div><div class="xpbar" style="height:16px"><i style="width:${u.maxLevel ? 100 : u.xpInto / u.xpNeed * 100}%"></i><em>${u.maxLevel ? 'MAKS' : fmt(u.xpInto) + ' / ' + fmt(u.xpNeed) + ' XP'}</em></div>
       <p class="small muted">Her 100 jetonluk bahis = 1 XP</p></div>
       <div class="card"><div class="kv"><b>Bakiye</b><span>${u.unlimited ? '∞' : fmt(u.balance)} 🪙</span><b>Toplam spin</b><span>${fmt(u.spins)}</span><b>Toplam bahis</b><span>${fmt(u.totalWagered)}</span><b>Toplam kazanç</b><span>${fmt(u.totalWon)}</span><b>En büyük kazanç</b><span>${fmt(u.biggestWin)}</span><b>Üyelik</b><span>${new Date(u.createdAt).toLocaleDateString('tr-TR')}</span></div></div>
@@ -294,14 +348,14 @@
         <button class="btn purple block" id="pSet">⚙️ Ayarlar</button>
         <button class="btn purple block" id="pHelp">💬 Yardım ve Destek</button>
         <div class="row"><button class="btn ghost grow sm" id="pPriv">Gizlilik Politikası</button><button class="btn ghost grow sm" id="pTerms">Kullanım Koşulları</button></div>
+        <button class="btn ghost block sm" id="pUpd" style="margin-top:6px">⬇️ Güncellemeleri denetle · ${UI.esc((window.SLOT_CONFIG && SLOT_CONFIG.appVersion) ? 'v' + SLOT_CONFIG.appVersion : 'Web sürümü')}</button>
         <button class="btn ghost block" id="pPw">Şifre Değiştir</button>
         <button class="btn red block" id="pOut">Çıkış Yap</button>
       </div>`;
     $('#pAv').onclick = () => modal(`<h3 class="gold">Avatar Seç</h3><div class="row wrap" style="justify-content:center">${UI.AVATARS.map((a, i) => `<div class="avatar" data-av="${i}" style="width:58px;height:58px;font-size:32px">${a}</div>`).join('')}</div>`, { onOpen(m) { $$('[data-av]', m).forEach(x => x.onclick = async () => { await Api.post('/api/me/avatar', { avatar: +x.dataset.av }).catch(() => {}); S.me.avatar = +x.dataset.av; closeModal(); renderTop(); profile(body); }); } });
-    $('#pVer') && ($('#pVer').onclick = verifyEmailModal);
-    $('#pAdmin') && ($('#pAdmin').onclick = () => Admin.open());
+    $('#pAdmin') && ($('#pAdmin').onclick = () => S.adminSession ? Admin.open() : adminReauth());
     $('#pLvl').onclick = levelRewardsModal; $('#pHist').onclick = purchaseHistory; $('#pFair').onclick = fairModal; $('#pSet').onclick = settings; $('#pHelp').onclick = help;
-    $('#pPriv').onclick = () => legal('privacy'); $('#pTerms').onclick = () => legal('terms'); $('#pOut').onclick = async () => { if (await UI.confirm('Çıkış yapılsın mı?')) logout(); };
+    $('#pUpd').onclick = () => S.checkUpdate && S.checkUpdate(true); $('#pPriv').onclick = () => legal('privacy'); $('#pTerms').onclick = () => legal('terms'); $('#pOut').onclick = async () => { if (await UI.confirm('Çıkış yapılsın mı?')) logout(); };
     $('#pPw').onclick = () => modal(`<h3 class="gold">Şifre Değiştir</h3><label class="field"><span>Mevcut şifre</span><input type="password" id="cp1"></label><label class="field"><span>Yeni şifre</span><input type="password" id="cp2"></label><button class="btn green block" id="cpGo">Kaydet</button>`, { onOpen() { $('#cpGo').onclick = () => guard($('#cpGo'), async () => { await Api.post('/api/auth/change-password', { current: $('#cp1').value, password: $('#cp2').value }); toast('Şifre değiştirildi.'); closeModal(); }); } });
   }
   async function fairModal() {
@@ -349,5 +403,5 @@
     modal(which === 'privacy' ? P : T);
   }
 
-  window.Screens = { login, register, enter, refresh, renderTop, renderBadges, setBalance, go, logout, verifyEmailModal, levelRewardsModal, dailyModal, celebrate100, shop: () => go('shop') };
+  window.Screens = { login, register, enter, refresh, renderTop, renderBadges, setBalance, go, logout, adminLogin, levelRewardsModal, dailyModal, celebrate100, shop: () => go('shop') };
 })();

@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const { $, $$, esc, fmt, toast, modal, closeModal, guard } = UI;
-  const TABS = [['stats', '📊 Özet'], ['users', '👥 Oyuncular'], ['rewards', '🎁 Ödüller'], ['packages', '🛒 Paketler'], ['events', '🎉 Etkinlikler'], ['quests', '📜 Görevler'], ['tickets', '💬 Destek'], ['audit', '🧾 Kayıtlar']];
+  const TABS = [['stats', '📊 Özet'], ['users', '👥 Oyuncular'], ['games', '🎰 Oyunlar & RTP'], ['rewards', '🎁 Ödüller'], ['packages', '🛒 Paketler'], ['purchases', '💳 Satın Almalar'], ['events', '🎉 Etkinlikler'], ['quests', '📜 Görevler'], ['tickets', '💬 Destek'], ['perf', '⚡ Performans'], ['audit', '🧾 İşlem Geçmişi']];
   let tab = 'stats';
   const dt = (t) => t ? new Date(t).toLocaleString('tr-TR') : '—';
   const toLocal = (t) => { const d = new Date(t - new Date().getTimezoneOffset() * 60000); return d.toISOString().slice(0, 16); };
@@ -13,7 +13,7 @@
     UI.show('admin'); $('#aBack').onclick = () => Screens.go('profile');
     $$('[data-t]').forEach(b => b.onclick = () => go(b.dataset.t)); go(tab);
   }
-  function go(t) { tab = t; $$('[data-t]').forEach(b => b.classList.toggle('on', b.dataset.t === t)); const body = $('#aBody'); body.innerHTML = '<p class="center muted">Yükleniyor…</p>'; V[t](body).catch(e => { body.innerHTML = `<p class="err center">${esc(e.message)}</p>`; }); }
+  function go(t) { tab = t; $$('[data-t]').forEach(b => b.classList.toggle('on', b.dataset.t === t)); const body = $('#aBody'); body.innerHTML = '<p class="center muted">Yükleniyor…</p>'; V[t](body).catch(e => { if (e.status === 403) { body.innerHTML = '<p class="center">Yönetici oturumu gerekli.</p>'; Screens.adminLogin(); return; } body.innerHTML = `<p class="err center">${esc(e.message)}</p>`; }); }
   const V = {};
 
   V.stats = async (b) => {
@@ -37,13 +37,13 @@
     const r = await Api.get('/api/admin/users/' + id); const u = r.user;
     const st = { purchased: 'ok', pending: 'warn', canceled: 'bad', refunded: 'bad' };
     modal(`<h3 class="gold">${esc(u.username)} <small class="muted">#${u.id}</small></h3>
-      <div class="kv small"><b>E-posta</b><span>${esc(u.email)} ${u.emailVerified ? '✓' : '✗'}</span><b>Bakiye</b><span>${u.unlimited ? '∞ (sınırsız)' : fmt(u.balance)}</span><b>Seviye / XP</b><span>${u.level} / ${fmt(u.xp)}</span><b>Spin / Bahis / Kazanç</b><span>${fmt(u.spins)} / ${fmt(u.totalWagered)} / ${fmt(u.totalWon)}</span><b>İade borcu</b><span>${fmt(u.refundDebt)}</span><b>Son giriş</b><span>${dt(u.lastLoginAt)}</span><b>Durum</b><span>${u.banned ? 'Askıda' : 'Aktif'}</span></div>
+      <div class="kv small"><b>E-posta</b><span>${esc(u.email)}</span><b>Bakiye</b><span>${u.unlimited ? '∞ (sınırsız)' : fmt(u.balance)}</span><b>Seviye / XP</b><span>${u.level} / ${fmt(u.xp)}</span><b>Spin / Bahis / Kazanç</b><span>${fmt(u.spins)} / ${fmt(u.totalWagered)} / ${fmt(u.totalWon)}</span><b>İade borcu</b><span>${fmt(u.refundDebt)}</span><b>Son giriş</b><span>${dt(u.lastLoginAt)}</span><b>Durum</b><span>${u.banned ? 'Askıda' : 'Aktif'}</span></div>
       <div class="section-t" style="margin-top:12px">Jeton ekle / çıkar</div>
       <div class="row"><input id="cAmt" type="number" placeholder="Miktar (çıkarmak için -)" class="grow" style="padding:10px;border-radius:10px;border:2px solid rgba(255,255,255,.15);background:rgba(10,2,30,.6);color:#fff"><input id="cWhy" placeholder="Sebep" class="grow" style="padding:10px;border-radius:10px;border:2px solid rgba(255,255,255,.15);background:rgba(10,2,30,.6);color:#fff"></div>
       <div class="row" style="margin-top:6px">${[10000, 100000, 1000000].map(v => `<button class="btn ghost sm" data-q="${v}">+${UI.short(v)}</button>`).join('')}<button class="btn green sm grow" id="cGo">Uygula</button></div>
       <div class="section-t" style="margin-top:12px">Seviye / XP düzenle</div>
-      <div class="row"><input id="pLv" type="number" min="1" max="100" placeholder="Seviye" class="grow" style="padding:10px;border-radius:10px;border:2px solid rgba(255,255,255,.15);background:rgba(10,2,30,.6);color:#fff"><input id="pXp" type="number" min="0" placeholder="veya XP" class="grow" style="padding:10px;border-radius:10px;border:2px solid rgba(255,255,255,.15);background:rgba(10,2,30,.6);color:#fff"><button class="btn gold sm" id="pGo">Kaydet</button></div>
-      ${u.role !== 'admin' ? `<div class="row" style="margin-top:12px"><button class="btn ${u.banned ? 'green' : 'red'} sm grow" id="bGo">${u.banned ? 'Askıyı kaldır' : 'Hesabı askıya al'}</button>${u.emailVerified ? '' : '<button class="btn ghost sm grow" id="evGo">E-postayı doğrulanmış yap</button>'}</div>` : ''}
+      <div class="row"><input id="pLv" type="number" min="1" max="1000000" placeholder="Seviye (1-1.000.000)" class="grow" style="padding:10px;border-radius:10px;border:2px solid rgba(255,255,255,.15);background:rgba(10,2,30,.6);color:#fff"><input id="pXp" type="number" min="0" placeholder="veya XP" class="grow" style="padding:10px;border-radius:10px;border:2px solid rgba(255,255,255,.15);background:rgba(10,2,30,.6);color:#fff"><button class="btn gold sm" id="pGo">Kaydet</button></div>
+      ${u.role !== 'admin' ? `<div class="row" style="margin-top:12px"><button class="btn ${u.banned ? 'green' : 'red'} sm grow" id="bGo">${u.banned ? 'Askıyı kaldır' : 'Hesabı askıya al'}</button><button class="btn ghost sm grow" id="pwGo">🔑 Şifre sıfırla</button></div>` : ''}
       <div class="section-t" style="margin-top:12px">Satın almalar</div><table class="tbl">${r.purchases.map(p => `<tr><td>${esc(p.product_id)}<br><small>${dt(p.created_at)}</small></td><td>${fmt(p.coins)}</td><td><span class="pill ${st[p.state]}">${p.state}</span></td><td>${p.state === 'purchased' ? `<button class="btn red sm" data-rf="${p.id}">İade</button>` : ''}</td></tr>`).join('') || '<tr><td class="muted">Yok</td></tr>'}</table>
       <div class="section-t" style="margin-top:12px">Jeton hareketleri</div><table class="tbl"><tr><th>Tarih</th><th>Tür</th><th>Değişim</th><th>Bakiye</th></tr>${r.ledger.map(l => `<tr><td>${dt(l.created_at)}</td><td>${esc(l.type)}</td><td>${l.delta > 0 ? '+' : ''}${fmt(l.delta)}</td><td>${fmt(l.balance_after)}</td></tr>`).join('')}</table>`, {
       onOpen(m) {
@@ -51,7 +51,7 @@
         $('#cGo').onclick = () => guard($('#cGo'), async () => { const d = Math.trunc(+$('#cAmt').value); if (!d) return toast('Miktar girin', true); await Api.post(`/api/admin/users/${id}/coins`, { delta: d, reason: $('#cWhy').value || 'manuel' }); toast('Bakiye güncellendi.'); closeModal(); user(id, reload); reload && reload(); });
         $('#pGo').onclick = () => guard($('#pGo'), async () => { const body = {}; if ($('#pLv').value) body.level = +$('#pLv').value; if ($('#pXp').value) body.xp = +$('#pXp').value; await Api.post(`/api/admin/users/${id}/progress`, body); toast('İlerleme güncellendi.'); closeModal(); user(id, reload); });
         $('#bGo') && ($('#bGo').onclick = () => guard($('#bGo'), async () => { await Api.post(`/api/admin/users/${id}/status`, { banned: !u.banned }); closeModal(); user(id, reload); reload && reload(); }));
-        $('#evGo') && ($('#evGo').onclick = () => guard($('#evGo'), async () => { await Api.post(`/api/admin/users/${id}/status`, { emailVerified: true }); closeModal(); user(id, reload); }));
+        $('#pwGo') && ($('#pwGo').onclick = async () => { const pw = prompt('Oyuncu için yeni geçici şifre (en az 8 karakter, harf ve rakam):'); if (!pw) return; await Api.post(`/api/admin/users/${id}/password`, { password: pw }).then(() => toast('Şifre değiştirildi; oyuncunun tüm oturumları kapatıldı.')).catch(e => toast(e.message, true)); });
         $$('[data-rf]', m).forEach(x => x.onclick = async () => { if (await UI.confirm('Bu satın alma iade edilmiş sayılıp jetonlar geri alınsın mı?')) { await Api.post(`/api/admin/purchases/${x.dataset.rf}/refund`).catch(e => toast(e.message, true)); user(id, reload); } });
       },
     });
@@ -60,15 +60,45 @@
   V.rewards = async (b) => {
     const c = await Api.get('/api/admin/config');
     const inp = (id, v, w = 90) => `<input id="${id}" type="number" value="${v}" style="width:${w}px;padding:7px;border-radius:8px;border:1.5px solid rgba(255,255,255,.2);background:rgba(10,2,30,.6);color:#fff">`;
-    b.innerHTML = `<div class="card"><div class="section-t">Günlük giriş ödülü (seviye → jeton)</div><p class="small muted">Ara seviyeler doğrusal hesaplanır, 10'a yuvarlanır.</p>
-      <table class="tbl">${c.daily.map((a, k) => `<tr><td>Seviye ${inp('dl' + k, a[0], 70)}</td><td>${inp('dc' + k, a[1], 110)} jeton</td></tr>`).join('')}</table><button class="btn green block" id="dSave" style="margin-top:8px">Günlük ödülleri kaydet</button></div>
-      <div class="card"><div class="section-t">Seviye ödülleri (bir kez alınır)</div><table class="tbl">${c.levelRewards.map(r => `<tr><td>Seviye ${r.level}</td><td>${inp('lr' + r.level, r.coins, 120)}</td><td><button class="btn gold sm" data-lr="${r.level}">Kaydet</button></td></tr>`).join('')}
-      <tr><td>${inp('nlL', '', 70)}</td><td>${inp('nlC', '', 120)}</td><td><button class="btn green sm" id="nlGo">Ekle</button></td></tr></table></div>
-      <div class="card"><div class="section-t">Genel</div><div class="kv"><b>Başlangıç jetonu</b><span>${inp('gStart', c.startingCoins, 120)}</span><b>Günlük hediye limiti</b><span>${inp('gLim', c.giftDailyLimit, 70)}</span></div><button class="btn green block" id="gSave" style="margin-top:8px">Kaydet</button></div>`;
-    $('#dSave').onclick = () => guard($('#dSave'), async () => { await Api.put('/api/admin/config/daily', { anchors: c.daily.map((_, k) => [+$('#dl' + k).value, +$('#dc' + k).value]) }); toast('Kaydedildi'); });
-    $$('[data-lr]').forEach(x => x.onclick = () => guard(x, async () => { await Api.put('/api/admin/level-rewards/' + x.dataset.lr, { coins: +$('#lr' + x.dataset.lr).value }); toast('Kaydedildi'); }));
-    $('#nlGo').onclick = () => guard($('#nlGo'), async () => { await Api.put('/api/admin/level-rewards/' + (+$('#nlL').value), { coins: +$('#nlC').value }); go('rewards'); });
+    const lr = c.levelRewards;
+    b.innerHTML = `<div class="card"><div class="section-t">Günlük giriş ödülü (seviye → jeton)</div><p class="small muted">Ara seviyeler doğrusal hesaplanır. Tablonun son seviyesinden sonra her seviye için ek jeton eklenir (üst sınırlı).</p>
+      <table class="tbl">${c.daily.map((a, k) => `<tr><td>Seviye ${inp('dl' + k, a[0], 90)}</td><td>${inp('dc' + k, a[1], 110)} jeton</td></tr>`).join('')}</table>
+      <div class="kv" style="margin-top:8px"><b>Son seviyeden sonra / seviye</b><span>${inp('daP', c.dailyAfter.perLevel, 90)}</span><b>Günlük ödül üst sınırı</b><span>${inp('daM', c.dailyAfter.max, 130)}</span></div>
+      <button class="btn green block" id="dSave" style="margin-top:8px">Günlük ödülleri kaydet</button></div>
+      <div class="card"><div class="section-t">Seviye ödülleri (1.000.000 seviyeye kadar)</div><p class="small muted">Her N seviyede bir: seviye × katsayı jeton. Örn. 10 ve 1.000 → Sv10: 10.000 · Sv100: 100.000 · Sv1.000.000: 1 milyar. Toplu alınır, her ödül bir kez.</p>
+      <div class="kv"><b>Kaç seviyede bir</b><span>${inp('lrE', lr.every, 90)}</span><b>Seviye başına jeton</b><span>${inp('lrP', lr.perLevel, 110)}</span></div>
+      <label class="field" style="margin-top:8px"><span>Özel ödüller (seviye:jeton, virgülle) örn. 1000:5000000,100000:500000000</span><input id="lrS" value="${esc(Object.entries(lr.special || {}).map(([k, v]) => k + ':' + v).join(','))}"></label>
+      <button class="btn green block" id="lrSave">Seviye ödüllerini kaydet</button></div>
+      <div class="card"><div class="section-t">Genel</div><div class="kv"><b>Başlangıç jetonu</b><span>${inp('gStart', c.startingCoins, 120)}</span><b>Günlük hediye limiti</b><span>${inp('gLim', c.giftDailyLimit, 70)}</span><b>E-posta servisi</b><span>${c.mailConfigured ? '<span class="pill ok">yapılandırıldı</span>' : '<span class="pill warn">yapılandırılmadı</span>'}</span></div><button class="btn green block" id="gSave" style="margin-top:8px">Kaydet</button></div>`;
+    $('#dSave').onclick = () => guard($('#dSave'), async () => { await Api.put('/api/admin/config/daily', { anchors: c.daily.map((_, k) => [+$('#dl' + k).value, +$('#dc' + k).value]), after: { perLevel: +$('#daP').value, max: +$('#daM').value } }); toast('Kaydedildi'); });
+    $('#lrSave').onclick = () => guard($('#lrSave'), async () => { const special = {}; $('#lrS').value.split(',').map(x => x.trim()).filter(Boolean).forEach(x => { const [k, v] = x.split(':'); special[+k] = +v; }); await Api.put('/api/admin/config/level-rewards', { every: +$('#lrE').value, perLevel: +$('#lrP').value, special }); toast('Kaydedildi'); });
     $('#gSave').onclick = () => guard($('#gSave'), async () => { await Api.put('/api/admin/config/general', { startingCoins: +$('#gStart').value, giftDailyLimit: +$('#gLim').value }); toast('Kaydedildi'); });
+  };
+
+  // Oyun bazlı teorik RTP / volatilite / aktiflik. Değişiklikler kayıt altına alınır.
+  V.games = async (b) => {
+    const r = await Api.get('/api/admin/games');
+    b.innerHTML = `<p class="small muted">RTP uzun vadeli <b>teorik</b> geri dönüş oranıdır; her oyuncuya veya oturuma garanti değildir. Sonuçlar denetlenebilir RNG ile bağımsız belirlenir; oyuncu geçmişi olasılıkları etkilemez. İzin verilen aralık: %${(r.min * 100).toFixed(0)}–%${(r.max * 100).toFixed(0)}. Ödeme tablosu RTP ile orantılı ölçeklenir; bonus satın alma RTP'si de aynı değere eşit kalır.</p>` +
+      r.games.map(g => { const obs = g.observed.wagered ? (g.observed.won / g.observed.wagered * 100).toFixed(2) + '%' : '—';
+        return `<div class="card" data-g="${g.id}"><div class="row"><b class="grow" style="font-size:17px">${esc(g.name)}</b><label class="check" style="margin:0"><input type="checkbox" data-act ${g.active ? 'checked' : ''}>Aktif</label></div>
+        <div class="kv small" style="margin:6px 0"><b>Teorik RTP</b><span>%${(g.rtp * 100).toFixed(2)}</span><b>Volatilite</b><span>${esc(g.volatility)}</span><b>Gerçekleşen (${fmt(g.observed.spins)} spin)</b><span>${obs}</span><b>Bonus satın alma</b><span>${Object.entries(g.buyCost).map(([k, v]) => `${k === 'super' ? 'Süper' : 'FS'} ${v}x`).join(' · ') || '—'}</span></div>
+        <div class="row"><input type="number" step="0.1" min="${r.min * 100}" max="${r.max * 100}" value="${(g.rtp * 100).toFixed(1)}" data-rtp style="width:90px;padding:8px;border-radius:8px;border:1.5px solid rgba(255,255,255,.2);background:rgba(10,2,30,.6);color:#fff"> %
+        <input placeholder="Not" data-note class="grow" style="min-width:0;width:40px;padding:8px;border-radius:8px;border:1.5px solid rgba(255,255,255,.2);background:rgba(10,2,30,.6);color:#fff"><button class="btn green sm" data-save>Kaydet</button></div></div>`; }).join('') +
+      `<div class="section-t">RTP değişiklik kayıtları</div><table class="tbl"><tr><th>Tarih</th><th>Oyun</th><th>Eski</th><th>Yeni</th><th>Yönetici</th><th>Not</th></tr>${r.history.map(h => `<tr><td>${dt(h.created_at)}</td><td>${esc(h.game)}</td><td>${h.old_rtp ? (h.old_rtp * 100).toFixed(1) + '%' : '—'}</td><td>${(h.new_rtp * 100).toFixed(1)}%</td><td>${esc(h.admin_name || '')}</td><td>${esc(h.note || '')}</td></tr>`).join('')}</table>`;
+    $$('[data-g]', b).forEach(c => {
+      c.querySelector('[data-save]').onclick = () => guard(c.querySelector('[data-save]'), async () => { await Api.put('/api/admin/games/' + c.dataset.g, { rtp: +c.querySelector('[data-rtp]').value / 100, note: c.querySelector('[data-note]').value }); toast('RTP kaydedildi'); go('games'); });
+      c.querySelector('[data-act]').onchange = (e) => guard(null, async () => { await Api.put('/api/admin/games/' + c.dataset.g, { active: e.target.checked }); toast(e.target.checked ? 'Oyun aktif' : 'Oyun pasif'); });
+    });
+  };
+  V.purchases = async (b) => {
+    const r = await Api.get('/api/admin/purchases'); const st = { purchased: 'ok', pending: 'warn', canceled: 'bad', refunded: 'bad' };
+    b.innerHTML = `<table class="tbl"><tr><th>Tarih</th><th>Oyuncu</th><th>Ürün</th><th>Jeton</th><th>Durum</th><th>Sipariş</th></tr>${r.purchases.map(p => `<tr><td>${dt(p.created_at)}</td><td>${esc(p.username)}</td><td>${esc(p.product_id)}</td><td>${fmt(p.coins)}</td><td><span class="pill ${st[p.state]}">${p.state}</span></td><td><small>${esc(p.order_id || '')}</small></td></tr>`).join('') || '<tr><td class="muted">Kayıt yok</td></tr>'}</table>`;
+  };
+  V.perf = async (b) => {
+    const r = await Api.get('/api/admin/perf');
+    b.innerHTML = `<div class="card"><div class="section-t">Oyun içi FPS (son 7 gün, cihazlardan)</div><table class="tbl"><tr><th>Oyun</th><th>Örnek</th><th>Ort. FPS</th><th>En düşük</th><th>En uzun kare</th></tr>${r.clients.map(c => `<tr><td>${esc(c.game)}</td><td>${c.samples}</td><td>${c.avg_fps}</td><td>${c.min_fps}</td><td>${c.worst_ms} ms</td></tr>`).join('') || '<tr><td class="muted">Henüz veri yok</td></tr>'}</table></div>
+      <div class="card"><div class="section-t">Cihazlar</div><table class="tbl"><tr><th>Cihaz</th><th>Örnek</th><th>Ort. FPS</th></tr>${r.devices.map(d => `<tr><td><small>${esc(d.device)}</small></td><td>${d.n}</td><td>${d.avg_fps}</td></tr>`).join('')}</table></div>
+      <div class="card"><div class="section-t">Sunucu yanıt süreleri (son 7 gün)</div><table class="tbl"><tr><th>Gün</th><th>Uç nokta</th><th>İstek</th><th>Ort.</th><th>Maks</th><th>Hata</th></tr>${r.api.map(a => `<tr><td>${a.day.slice(5)}</td><td><small>${esc(a.route)}</small></td><td>${fmt(a.count)}</td><td>${Math.round(a.total_ms / a.count)} ms</td><td>${a.max_ms} ms</td><td>${a.errors}</td></tr>`).join('')}</table></div>`;
   };
 
   V.packages = async (b) => {
