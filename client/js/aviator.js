@@ -13,7 +13,7 @@
     stop(); A.open = true; Platform.setCurrent('aviator');
     try { A.bet = +(localStorage.getItem('av_bet') || 1000); A.autoOn = localStorage.getItem('av_auto_on') === '1'; A.auto = +(localStorage.getItem('av_auto') || 2) || 2; } catch (e) { /* */ }
     UI.screen('aviator', `<div class="av">
-      <div class="avhead"><button class="enback" id="avBack">◀ Salon</button><img class="enlogo" src="assets/spinova_logo.webp" alt=""><div class="entit"><b>AVIATOR</b><small>Uçak uçtukça çarpan artar · patlamadan tahsil et</small></div><div class="grow"></div>
+      <div class="avhead"><button class="enback" id="avBack">◀ Salon</button><img class="enlogo" src="assets/spinova_logo.webp" alt=""><div class="entit"><b>AVIVASOR</b><small>Uçak uçtukça çarpan artar · patlamadan tahsil et</small></div><div class="grow"></div>
         <button class="avinfo" id="avHelp">ⓘ Nasıl oynanır</button><div class="encoin" id="avShop"><i class="hcoin"></i><b id="avBal"></b><span class="hplus">+</span></div></div>
       <div class="avsky"><canvas id="avCv" width="1380" height="792"></canvas>
         <div class="avhist" id="avHist"></div>
@@ -41,7 +41,7 @@
       const d = await Api.get('/api/aviator'); A.cfg = d.config; A.k = d.config.k; A.skew = Date.now() - d.now; A.hist = d.history; A.best = d.best;
       $('#avRtp').textContent = (d.config.rtp * 100).toFixed(0); hist(); stats();
       if (d.active) { A.round = d.active; A.state = 'fly'; waitEnd(); }
-      if (!d.config.enabled) toast('Aviator şu anda bakımda.', true);
+      if (!d.config.enabled) toast('Avivasor şu anda bakımda.', true);
     } catch (e) { toast(e.message, true); }
     button(); A.raf = requestAnimationFrame(frame);
   }
@@ -107,7 +107,7 @@
   function hist() { const h = $('#avHist'); if (!h) return; h.innerHTML = A.hist.slice(0, 16).map(x => `<span class="${x >= 10 ? 'hi' : x >= 2 ? 'mid' : 'lo'}">${x.toFixed(2)}x</span>`).join('') || '<span class="lo">Henüz tur yok</span>'; }
   function stats() { const s = $('#avStats'); if (s && A.best) s.innerHTML = `<span>En iyi tahsil <b>${A.best.mult ? A.best.mult.toFixed(2) + 'x' : '—'}</b></span><span>En büyük kazanç <b>${fmt(A.best.win)}</b></span><span>Tur <b>${A.best.rounds}</b></span>`; }
   function help() {
-    modal(`<h3 class="gold">✈️ Aviator nasıl oynanır?</h3><div class="small okrules">
+    modal(`<h3 class="gold">✈️ Avivasor nasıl oynanır?</h3><div class="small okrules">
       <p><b>1.</b> Bahsini seç ve <b>BAHİS YAP</b>. Uçak kalkar, çarpan 1.00x'ten yükselir.</p>
       <p><b>2.</b> Uçak uçup gitmeden <b>TAHSİL ET</b>'e bas: bahis × o anki çarpan kadar jeton kazanırsın. Uçak senden önce uçarsa bahis kaybedilir.</p>
       <p><b>3. Otomatik tahsil:</b> Hedef çarpanı yaz; uçak o çarpana ulaşırsa sunucu otomatik tahsil eder (bağlantın kopsa bile).</p>

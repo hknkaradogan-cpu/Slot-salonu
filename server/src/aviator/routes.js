@@ -48,7 +48,7 @@ export function registerAviator(A) {
 
   r('POST', '/api/aviator/bet', auth, async (ctx) => {
     limit(ctx, 'avb:' + ctx.user.id, 8, 5000);
-    const c = await cfg(); if (!c.enabled) throw err(503, 'aviator_disabled', 'Aviator şu anda bakımda.');
+    const c = await cfg(); if (!c.enabled) throw err(503, 'aviator_disabled', 'Avivasor şu anda bakımda.');
     const bet = int(ctx.body.bet, 'bet', c.minBet, c.maxBet);
     let auto = ctx.body.auto != null && ctx.body.auto !== '' ? Number(ctx.body.auto) : null;
     if (auto != null) { if (!Number.isFinite(auto) || auto < 1.01 || auto > c.maxMult) throw err(400, 'bad_auto', 'Otomatik tahsil 1,01x ile ' + c.maxMult + 'x arasında olmalı.'); auto = Math.floor(auto * 100) / 100; }

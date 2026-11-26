@@ -51,7 +51,7 @@
       ${b('chat', '💬', 'Sohbet')}${b('quests', '📅', 'Görevler')}</div>`;
   }
   const rail = (id, ic, t, badge) => `<button class="rbtn" data-p="${id}"><span class="i">${ic}</span><span class="t">${t}</span>${badge ? `<span id="${badge}" class="hb"></span>` : ''}</button>`;
-  const GAMES = [['okey101', '101 OKEY', 'g_okey101'], ['duz', 'DÜZ OKEY', 'g_duzokey'], ['tavla', 'TAVLA', 'g_tavla'], ['aviator', 'AVIATOR', 'g_aviator'], ['slots', 'SLOT SALONU', 'g_slot']];
+  const GAMES = [['okey101', '101 OKEY', 'g_okey101'], ['duz', 'DÜZ OKEY', 'g_duzokey'], ['tavla', 'TAVLA', 'g_tavla'], ['aviator', 'AVIVASOR', 'g_aviator'], ['slots', 'SLOT SALONU', 'g_slot']];
   function home() {
     stopPanelTimers(); P.panel = 'home';
     UI.screen('main', `<div class="spbg"><img src="assets/hall_bg.webp" alt=""><i class="spfloor"></i></div>
@@ -169,7 +169,7 @@
 
   async function leaders(body, by) {
     by = by || 'level';
-    tabs([['level', 'Seviye'], ['okey', 'Okey'], ['tavla', 'Tavla'], ['aviator', 'Aviator'], ['slots', 'Slot']], by, (t) => leaders(body, t));
+    tabs([['level', 'Seviye'], ['okey', 'Okey'], ['tavla', 'Tavla'], ['aviator', 'Avivasor'], ['slots', 'Slot']], by, (t) => leaders(body, t));
     const r = await Api.get('/api/leaderboard?by=' + by);
     const val = (x) => by === 'level' ? `Sv${x.level} · ${fmt(x.value)} XP` : by === 'aviator' ? `${x.value.toFixed(2)}x en iyi tahsil` : by === 'slots' ? `${fmt(x.value)} en büyük kazanç` : `${x.value} galibiyet · ${x.played} oyun`;
     body.innerHTML = `<div class="ldr">${r.top.map((x, i) => `<div class="ldrow ${x.me ? 'me' : ''} ${i < 3 ? 'top' + (i + 1) : ''}"><b class="ldn">${i < 3 ? ['🥇', '🥈', '🥉'][i] : i + 1}</b><span class="avatar sm">${AVATARS[x.avatar] || '🙂'}</span><b class="grow">${esc(x.username)}</b><span class="ldv">${val(x)}</span></div>`).join('') || '<p class="center muted">Henüz kayıt yok — ilk sen ol!</p>'}</div>
