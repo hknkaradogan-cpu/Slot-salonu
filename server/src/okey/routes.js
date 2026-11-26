@@ -74,6 +74,7 @@ export function registerOkey(A) {
       const won = T.final.winners.includes(p.seat) && T.final.winners.length < 4;
       await q('INSERT INTO slot.okey_stats(user_id,played,won,coins_won,best_score) VALUES($1,1,$2,$3,$4) ON CONFLICT (user_id) DO UPDATE SET played=slot.okey_stats.played+1, won=slot.okey_stats.won+EXCLUDED.won, coins_won=slot.okey_stats.coins_won+EXCLUDED.coins_won, best_score=LEAST(slot.okey_stats.best_score, EXCLUDED.best_score)', [p.user_id, won ? 1 : 0, coins, T.totals[p.seat]]);
       await q('UPDATE slot.okey_players SET payout=$1, active=FALSE WHERE table_id=$2 AND user_id=$3', [coins, row.id, p.user_id]);
+      if (A.hooks) await A.hooks.onOkey(q, p.user_id, { rank: T.final.ranking.indexOf(p.seat), won, mode: T.cfg.mode });
       T.payouts[p.seat] = coins; T.xpGain[p.seat] = xp[p.seat];
     }
   }
@@ -123,6 +124,11 @@ export function registerOkey(A) {
     await A.setSetting('okey_config', c); await A.audit(Q, ctx, 'okey_config', null, c); ocfg = null;
     return { ok: true, config: c };
   });
+  r('GET', '/api/okey/tables', auth, async () => {
+    const rows = await Q("SELECT id, code, mode, stake, rounds, katlamali, private, state, updated_at FROM slot.okey_tables WHERE status='waiting' AND updated_at>$1 ORDER BY id DESC LIMIT 30", [now() - 10 * 60e3]);
+    return { tables: rows.map(t => { const T = JSON.parse(t.state); return { id: t.id, code: t.private ? null : null, mode: t.mode, stake: Number(t.stake), rounds: t.rounds, katlamali: t.katlamali, private: t.private, locked: !!T.passHash,
+      seats: T.seats.map(x => (x ? { name: x.name, bot: x.bot } : null)), filled: T.seats.filter(Boolean).length }; }) };
+  });
   r('GET', '/api/okey/leaderboard', auth, async () => ({ top: await Q('SELECT u.username, u.avatar, s.played, s.won, s.coins_won FROM slot.okey_stats s JOIN slot.users u ON u.id=s.user_id ORDER BY s.won DESC, s.coins_won DESC LIMIT 20') }));
 
   r('POST', '/api/okey/quick', auth, async (ctx) => { const o = await parseOpts(ctx.body); return db.tx(async (q) => {
@@ -153,6 +159,7 @@ export function registerOkey(A) {
     const T = TB.newTable({ ...o, private: true }, now());
     let row; for (let i = 0; i < 5 && !row; i++) { const code = codeGen(); if (!(await one(q, 'SELECT 1 x FROM slot.okey_tables WHERE code=$1', [code]))) row = await one(q, 'INSERT INTO slot.okey_tables(code,status,mode,stake,rounds,katlamali,private,owner_id,state,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,TRUE,$7,$8,$9,$9) RETURNING id, code', [code, 'waiting', o.mode, o.stake, o.rounds, o.katlamali, u.id, JSON.stringify(T), now()]); }
     T.code = row.code; T.owner = u.id;
+    if (ctx.body.password) { const pw = String(ctx.body.password).slice(0, 20); if (pw.length < 3) throw err(400, 'short_password', 'Masa şifresi en az 3 karakter olmalı.'); T.passHash = C.sha256('okey:' + row.code + ':' + pw); }
     await seatUser(q, row.id, T, u, 0); await save(q, row.id, T);
     return { tableId: row.id, code: row.code };
   }); });;
@@ -176,6 +183,7 @@ export function registerOkey(A) {
     }
     if (ex) throw err(409, 'already_at_table', 'Zaten bir masadasın. Önce o masadan ayrıl.');
     const T = JSON.parse(row.state); if (T.status !== 'waiting') throw err(409, 'table_started', 'Bu masada oyun başladı.');
+    if (T.passHash && !(await one(q, 'SELECT 1 x FROM slot.okey_invites WHERE table_id=$1 AND to_id=$2', [row.id, ctx.user.id])) && C.sha256('okey:' + T.code + ':' + String(ctx.body.password || '')) !== T.passHash) throw err(403, 'bad_password', ctx.body.password ? 'Masa şifresi yanlış.' : 'Bu masa şifreli. Şifreyi gir.');
     const u = await userLite(q, ctx.user.id);
     if (T.cfg.stake && !u.unlimited && u.balance < T.cfg.stake) throw err(402, 'insufficient_funds', 'Bu masa için yeterli jetonun yok.');
     try { await seatUser(q, row.id, T, u, ctx.body.seat != null ? int(ctx.body.seat, 'seat', 0, 3) : null); } catch (e) { wrapErr(e); }
@@ -192,6 +200,7 @@ export function registerOkey(A) {
     if (T.status !== 'waiting') throw err(409, 'table_started', 'Oyun başladı.');
     if (!(await one(Q, "SELECT 1 x FROM slot.friends WHERE user_id=$1 AND friend_id=$2 AND status='accepted'", [ctx.user.id, to]))) throw err(403, 'not_friends', 'Sadece arkadaşlarını davet edebilirsin.');
     await Q('INSERT INTO slot.okey_invites(table_id,from_id,to_id,created_at) VALUES($1,$2,$3,$4)', [id, ctx.user.id, to, now()]);
+    if (A.notify) await A.notify(Q, to, 'okey_invite', `🀄 ${ctx.user.username} seni 101 Okey masasına çağırıyor`, T.code ? `Masa kodu: ${T.code}` : 'Lobideki davetlerden katılabilirsin.', { tableId: id, code: T.code || null });
     return { ok: true };
   });
 
@@ -244,7 +253,7 @@ export function registerOkey(A) {
     const me = seatOf(T, ctx.user.id);
     if (since != null && Number(since) === T.seq && me >= 0) return { same: true, seq: T.seq, now: t, deadline: T.deadline };
     const v = TB.view(T, me >= 0 ? me : null, t); v.id = id; v.code = T.cfg.private ? T.code : null; v.owner = T.owner === ctx.user.id;
-    v.payouts = T.payouts || null; v.xpGain = T.xpGain || null; v.chat = (T.chat || []).slice(-8);
+    v.payouts = T.payouts || null; v.locked = !!T.passHash; v.xpGain = T.xpGain || null; v.chat = (T.chat || []).slice(-8);
     return v;
   });
 

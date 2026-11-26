@@ -1,6 +1,7 @@
 // SLOT SALONU API — Web standardı Request/Response. Aynı kod Node (node-server.js) ve
 // Supabase Edge Function (supabase/functions/slot-api) üzerinde çalışır.
 import { registerOkey } from './okey/routes.js';
+import { registerSocial } from './social.js';
 import crypto from 'node:crypto';
 import { Buffer } from 'node:buffer';
 import * as C from './core.js';
@@ -76,8 +77,12 @@ export async function createApi(cfg) {
     const t = now(); if (t - maintAt < 10 * 60e3) return; maintAt = t;
     Q('UPDATE slot.spins SET response=NULL WHERE response IS NOT NULL AND created_at<$1', [t - 3600e3]).catch(() => {});
     Q("DELETE FROM slot.okey_tables WHERE status IN ('finished','abandoned') AND updated_at<$1", [t - 3 * C.DAY_MS]).catch(() => {});
+    ensureTournaments().catch(() => {});
     Q("UPDATE slot.okey_tables SET status='abandoned' WHERE status IN ('waiting','playing','round_end') AND updated_at<$1", [t - 6 * 3600e3]).catch(() => {});
   }
+  // platform kancaları (social.js doldurur)
+  const hooks = { onSpin: async () => {}, onOkey: async () => {} };
+  let notify = async () => {}, addTickets = async () => 0, ensureTournaments = async () => {};
   const rl = new Map();
   function limit(ctx, name, max, win) {
     const o = cfg.limitOverrides && cfg.limitOverrides[name.split(':')[0]]; if (o) max = o;
@@ -107,7 +112,7 @@ export async function createApi(cfg) {
   function pub(u) {
     const li = C.levelInfo(u.xp);
     return { id: u.id, username: u.username, email: u.email, role: u.role, unlimited: u.unlimited, balance: u.balance, level: li.level, xp: u.xp, xpInto: li.into, xpNeed: li.need, maxLevel: li.max, maxLevelNumber: C.MAX_LEVEL,
-      avatar: u.avatar, spins: u.spins, totalWagered: u.total_wagered, totalWon: u.total_won, biggestWin: u.biggest_win, createdAt: u.created_at, billingAccountId: obfId(u.id) };
+      avatar: u.avatar, tickets: Number(u.tickets || 0), spins: u.spins, totalWagered: u.total_wagered, totalWon: u.total_won, biggestWin: u.biggest_win, createdAt: u.created_at, billingAccountId: obfId(u.id) };
   }
   async function createSession(user, admin = false) {
     const tok = C.randomToken();
@@ -183,6 +188,15 @@ export async function createApi(cfg) {
         if (await one(q, 'SELECT 1 x FROM slot.users WHERE lower(email)=$1', [email])) throw err(409, 'email_taken', 'Bu e-posta ile kayıtlı bir hesap var.');
         const u = await one(q, 'INSERT INTO slot.users(email,username,pass_hash,balance,created_at) VALUES($1,$2,$3,0,$4) RETURNING id', [email, username, hash, now()]);
         if (start > 0) await applyCoins(q, u.id, start, 'welcome', null);
+        // arkadaş daveti: davet edene 10.000 jeton + 2 bilet (davet eden başına en fazla 20 kişi), yeni oyuncuya +2 bilet
+        if (ctx.body.ref) {
+          const ref = await one(q, 'SELECT id, username FROM slot.users WHERE lower(username)=lower($1)', [String(ctx.body.ref).slice(0, 16)]);
+          if (ref) {
+            const n = (await one(q, 'SELECT COUNT(*)::int c FROM slot.users WHERE referred_by=$1', [ref.id])).c;
+            await q('UPDATE slot.users SET referred_by=$1 WHERE id=$2', [ref.id, u.id]); await addTickets(q, u.id, 2, 'referral');
+            if (n < 20) { await applyCoins(q, ref.id, 10000, 'referral', u.id); await addTickets(q, ref.id, 2, 'referral'); await notify(q, ref.id, 'referral', '🎉 Davetin kabul edildi!', `${username} davetinle katıldı: 10.000 jeton + 2 bilet kazandın.`); }
+          }
+        }
         return getUser(u.id, q);
       });
     } catch (e) { if (String(e.code) === '23505') throw err(409, 'username_taken', 'Bu kullanıcı adı veya e-posta alınmış.'); throw e; }
@@ -261,7 +275,7 @@ export async function createApi(cfg) {
     const gifts = (await one(Q, 'SELECT COUNT(*)::int c FROM slot.gifts WHERE to_id=$1 AND claimed_at IS NULL', [u.id])).c;
     const reqs = (await one(Q, "SELECT COUNT(*)::int c FROM slot.friends WHERE friend_id=$1 AND status='pending'", [u.id])).c;
     const okeyActive = await one(Q, "SELECT t.id, t.status FROM slot.okey_players p JOIN slot.okey_tables t ON t.id=p.table_id WHERE p.user_id=$1 AND p.active AND t.status IN ('waiting','playing','round_end') ORDER BY t.id DESC LIMIT 1", [u.id]);
-    return { user: pub(u), daily: await dailyState(u), levelRewards: await rewardsState(u), events: await activeEvents(), badges: { gifts, friendRequests: reqs }, serverTime: now(), adminSession: !!ctx.session.admin, okeyActive: okeyActive || null };
+    return { user: pub(u), daily: await dailyState(u), levelRewards: await rewardsState(u), events: await activeEvents(), badges: { gifts, friendRequests: reqs, notifications: (await one(Q, 'SELECT COUNT(*)::int c FROM slot.notifications WHERE user_id=$1 AND read_at IS NULL', [u.id])).c, messages: (await one(Q, 'SELECT COUNT(*)::int c FROM slot.messages WHERE to_id=$1 AND read_at IS NULL', [u.id])).c }, serverTime: now(), adminSession: !!ctx.session.admin, okeyActive: okeyActive || null };
   });
   r('POST', '/api/me/avatar', auth, async (ctx) => { await Q('UPDATE slot.users SET avatar=$1 WHERE id=$2', [int(ctx.body.avatar, 'avatar', 0, 11), ctx.user.id]); return { ok: true }; });
   r('GET', '/api/levels', async (ctx) => {
@@ -272,8 +286,8 @@ export async function createApi(cfg) {
     const u = await one(q, 'SELECT * FROM slot.users WHERE id=$1 FOR UPDATE', [ctx.user.id]); const st = await dailyState(u, q);
     if (!st.available) throw err(409, 'not_yet', 'Günlük ödül henüz hazır değil.');
     await q('UPDATE slot.users SET last_daily_at=$1 WHERE id=$2', [now(), u.id]);
-    const w = await applyCoins(q, u.id, st.amount, 'daily');
-    return { amount: st.amount, balance: w.balance, daily: await dailyState({ ...u, last_daily_at: now() }, q) };
+    const w = await applyCoins(q, u.id, st.amount, 'daily'); const tickets = await addTickets(q, u.id, 1, 'daily');
+    return { amount: st.amount, tickets: 1, ticketBalance: tickets, balance: w.balance, daily: await dailyState({ ...u, last_daily_at: now() }, q) };
   }));
   r('POST', '/api/level-rewards/claim', auth, (ctx) => db.tx(async (q) => {
     const u = await one(q, 'SELECT * FROM slot.users WHERE id=$1 FOR UPDATE', [ctx.user.id]);
@@ -355,6 +369,7 @@ export async function createApi(cfg) {
       const level = C.levelFromXp(xp);
       await q('UPDATE slot.users SET xp=$1, level=$2, wager_rem=$3, total_wagered=total_wagered+$4, total_won=total_won+$5, spins=spins+1, biggest_win=GREATEST(biggest_win,$5) WHERE id=$6', [xp, level, acc % C.XP_PER_COINS, cost, win, u.id]);
       await questTick(q, u.id, { bet: cost, win: buyKind ? 0 : win, game: gid });
+      await hooks.onSpin(q, u.id, { bet: cost, win, game: gid });
       const li = C.levelInfo(xp);
       const resp = { game: gid, bet, cost, buy: buyKind, win, winX: result.win, result, balance: bal,
         xp: { gained, capped: raw > gained, xp, level, into: li.into, need: li.need, max: li.max, levelUp: level > oldLevel ? level : null },
@@ -390,7 +405,7 @@ export async function createApi(cfg) {
   r('GET', '/api/friends', auth, async (ctx) => {
     const id = ctx.user.id;
     return {
-      friends: await Q("SELECT u.id,u.username,u.level,u.avatar FROM slot.friends f JOIN slot.users u ON u.id=f.friend_id WHERE f.user_id=$1 AND f.status='accepted' ORDER BY u.username", [id]),
+      friends: await Q("SELECT u.id,u.username,u.level,u.avatar,(u.last_seen_at > $2) online FROM slot.friends f JOIN slot.users u ON u.id=f.friend_id WHERE f.user_id=$1 AND f.status='accepted' ORDER BY (u.last_seen_at > $2) DESC, u.username", [id, now() - 5 * 60e3]),
       incoming: await Q("SELECT u.id,u.username,u.level,u.avatar FROM slot.friends f JOIN slot.users u ON u.id=f.user_id WHERE f.friend_id=$1 AND f.status='pending'", [id]),
       outgoing: await Q("SELECT u.id,u.username,u.level,u.avatar FROM slot.friends f JOIN slot.users u ON u.id=f.friend_id WHERE f.user_id=$1 AND f.status='pending'", [id]),
       gifts: await Q('SELECT g.id,g.amount,g.created_at,u.username FROM slot.gifts g JOIN slot.users u ON u.id=g.from_id WHERE g.to_id=$1 AND g.claimed_at IS NULL ORDER BY g.id', [id]),
@@ -410,6 +425,7 @@ export async function createApi(cfg) {
         return { status: 'accepted' };
       }
       const ins = await q("INSERT INTO slot.friends VALUES($1,$2,'pending',$3) ON CONFLICT DO NOTHING RETURNING user_id", [ctx.user.id, t.id, now()]);
+      if (ins.length) await notify(q, t.id, 'friend', '👥 Yeni arkadaşlık isteği', `${ctx.user.username} seni arkadaş olarak eklemek istiyor.`);
       return { status: ins.length ? 'pending' : 'exists' };
     });
   });
@@ -429,6 +445,7 @@ export async function createApi(cfg) {
     if (sent >= await setting('gift_daily_limit', q)) throw err(429, 'gift_limit', 'Günlük hediye limitine ulaştın.');
     const w = await applyCoins(q, ctx.user.id, -amount, 'gift_sent', to);
     await q('INSERT INTO slot.gifts(from_id,to_id,amount,created_at) VALUES($1,$2,$3,$4)', [ctx.user.id, to, amount, now()]);
+    await notify(q, to, 'gift', `🎁 ${ctx.user.username} sana hediye gönderdi`, `${amount.toLocaleString('tr-TR')} jeton — Arkadaşlar bölümünden al.`);
     return { balance: w.balance };
   }));
   r('POST', '/api/gifts/:id/claim', auth, (ctx) => db.tx(async (q) => {
@@ -703,6 +720,8 @@ export async function createApi(cfg) {
   }
 
   await migrate();
-  registerOkey({ r, auth, authLite, db, Q, one, applyCoins, err, int, str, now, limit, C, setting, setSetting, audit, admin });
+  const S = { r, auth, admin, db, Q, one, applyCoins, err, int, str, now, limit, C, audit, hooks };
+  registerSocial(S); notify = S.notify; addTickets = S.addTickets; ensureTournaments = S.ensureTournaments;
+  registerOkey({ r, auth, authLite, db, Q, one, applyCoins, err, int, str, now, limit, C, setting, setSetting, audit, admin, hooks, notify: S.notify });
   return { handle, db, games, verifier, refreshGames: () => games(true) };
 }
