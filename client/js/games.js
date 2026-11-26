@@ -54,7 +54,7 @@
     const bc = () => { const b = App.bets[G.betIdx]; if ($('#buyFsC')) $('#buyFsC').textContent = short(Math.round(b * buyC.fs)); if ($('#buySuperC')) $('#buySuperC').textContent = short(Math.round(b * buyC.super)); }; G.updBuy = bc;
     UI.show('game'); Screens.renderTop();
     meter('L'); meter('R'); sizeGrid(); buildGrid(); fitGrid(); initialFill(); renderBet();
-    $('#gBack').onclick = close; $('#gShop').onclick = () => { close(); Screens.shop(); };
+    { const gb = $('#gBack'); let t = 0; const go = (e) => { e && e.preventDefault(); const n = Date.now(); if (n - t < 400) return; t = n; close(); }; gb.onclick = go; gb.addEventListener('pointerup', go); } $('#gShop').onclick = () => { close(); Screens.shop(); };
     $('#gInfo').onclick = info;
     // SPIN: dokun = döndür, dönerken dokun = STOP (animasyonu hızlandır), basılı tut = otomatik menü
     let pressT = null, longFired = false;
@@ -71,7 +71,14 @@
     $('#gAuto').onclick = autoMenu;
     document.documentElement.style.setProperty('--speed', G.speed);
   }
-  function close() { G.gen++; G.open = false; G.auto = 0; G.skip = true; G.spinning = false; $$('.bigwin,.multbadge,.bolt,.flash').forEach(e => e.remove()); UI.closeModal(); Screens.go(App.tab || 'lobby'); }
+  // Oyundan çıkış her koşulda çalışmalı: animasyon, modal veya hata çıkışı engelleyemez
+  function close() {
+    G.gen++; G.open = false; G.auto = 0; G.skip = true; G.spinning = false;
+    try { $$('.bigwin,.multbadge,.bolt,.flash,.zcharge,.zimpact,.zring,.flymult,.fxi,.flyorb,.expandcol').forEach(e => e.remove()); } catch (e) { /* yoksay */ }
+    try { UI.closeModal(true); } catch (e) { /* yoksay */ }
+    try { Screens.go(App.tab && App.tab !== 'game' ? App.tab : 'lobby'); }
+    catch (e) { window.reportError && window.reportError(e); try { UI.show('main'); } catch (e2) { /* yoksay */ } }
+  }
   function renderBet() {
     const b = App.bets[G.betIdx]; $('#bVal').textContent = short(b); localStorage.setItem('slot_bet_' + G.id, b);
     const inf = G.meta.info; if ($('#jpGrand')) $('#jpGrand').textContent = short(Math.round((G.id === 'korsan' ? inf.grand : Math.max(...inf.wheel.map(w => w.value))) * b));
@@ -571,5 +578,5 @@
   function demoResp(result, bet) { const me = App.me; return { result, win: Math.round(result.win * bet), balance: me.balance + (me.unlimited ? 0 : bet), xp: { xp: me.xp, level: me.level, into: me.xpInto, need: me.xpNeed, max: me.maxLevel, levelUp: null } }; }
   function queueDemo(list) { if (window.SLOT_CONFIG.demo) G.demo.push(...list); }
   addEventListener('resize', () => { if (G.open && !G.spinning) { sizeGrid(); } });
-  window.Games = { open, close, isOpen: () => G.open, current: () => (G.open ? G.id : ''), queueDemo, spin: () => spin() };
+  window.Games = { open, close, isOpen: () => G.open, current: () => (G.open ? G.id : ''), busy: () => G.spinning, queueDemo, spin: () => spin() };
 })();

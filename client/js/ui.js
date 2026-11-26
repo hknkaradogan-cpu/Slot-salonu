@@ -32,7 +32,7 @@
       opts.onOpen && opts.onOpen(o.firstElementChild, modalClose);
     });
   }
-  function closeModal(v) { modalClose && modalClose(v); }
+  function closeModal(v) { if (modalClose) modalClose(v); else { const o = $('#overlay'); o.classList.remove('show'); o.innerHTML = ''; } }
   function confirm(text, yes = 'Evet', no = 'Vazgeç') {
     return modal(`<h3 class="gold">Emin misin?</h3><p class="center">${esc(text)}</p><div class="row"><button class="btn ghost grow" data-close="0">${no}</button><button class="btn green grow" data-close="1">${yes}</button></div>`).then(v => v === '1');
   }

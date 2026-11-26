@@ -54,13 +54,31 @@
 
   // Android geri tuşu
   window.__back = function () {
-    if ($('#overlay').classList.contains('show')) { closeModal(); return true; }
-    if (document.querySelector('.bigwin')) { document.querySelector('.bigwin').click(); return true; }
-    if (Games.isOpen()) { Games.close(); return true; }
+    try {
+      // Okey masası kendi geri davranışını yönetir (ayrılma onayı)
+      if (window.Okey && Okey.isOpen()) return Okey.back();
+      // Slot oyunu açıksa: modal/kazanç ekranı ne olursa olsun tek geri hareketiyle lobiye dön
+      if (Games.isOpen()) { Games.close(); return true; }
+      if ($('#overlay').classList.contains('show')) { closeModal(true); return true; }
+      if (document.querySelector('.bigwin')) { document.querySelectorAll('.bigwin').forEach(e => e.remove()); return true; }
+    } catch (e) { window.reportError && window.reportError(e); if (App.me) { try { UI.show('main'); Screens.go('lobby'); } catch (e2) { /* yoksay */ } return true; } }
     if (App.me && App.tab !== 'lobby') { Screens.go('lobby'); return true; }
     return false;
   };
   document.addEventListener('pointerdown', () => { if (App.me) Sound.startMusic(); }, { once: true });
+
+  /* ---------- Cihaz hata raporu: telefonda oluşan hatalar yönetici paneline düşer ---------- */
+  const sentErr = new Set();
+  window.reportError = function (e) {
+    try {
+      const msg = String((e && (e.message || e.reason && e.reason.message)) || e).slice(0, 300);
+      const stack = String((e && (e.stack || e.reason && e.reason.stack)) || '').slice(0, 900);
+      if (sentErr.has(msg) || sentErr.size > 20 || !App.me) return; sentErr.add(msg);
+      Api.post('/api/telemetry/error', { message: msg, stack, screen: (Games.isOpen() ? 'game:' + Games.current() : App.tab || ''), appVersion: (window.SLOT_CONFIG && SLOT_CONFIG.appVersion) || '', device: navigator.userAgent.slice(0, 120) }).catch(() => {});
+    } catch (x) { /* yoksay */ }
+  };
+  window.addEventListener('error', (ev) => window.reportError(ev.error || ev.message));
+  window.addEventListener('unhandledrejection', (ev) => { const r = ev.reason; if (r && r.status) return; window.reportError(r); });
 
   /* ---------- Açılış ---------- */
   async function boot() {

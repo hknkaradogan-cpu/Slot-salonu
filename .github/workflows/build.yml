@@ -45,6 +45,11 @@ jobs:
           T=$(echo "$R" | jq -r .token)
           curl -fsS -X POST -H "Authorization: Bearer $T" -H 'Content-Type: application/json' -d '{"game":"zeus","bet":100}' "$SLOT_API/api/spin" | jq -c '{win, balance, xp: .xp.xp, level: .xp.level}'
           curl -s -o /dev/null -w "oyuncu -> admin: %{http_code}\n" -H "Authorization: Bearer $T" "$SLOT_API/api/admin/users"
+          curl -fsS -H "Authorization: Bearer $T" "$SLOT_API/api/okey/lobby" | jq -c '{stakes, online}'
+          TID=$(curl -fsS -X POST -H "Authorization: Bearer $T" -H 'Content-Type: application/json' -d '{"mode":"tekli","stake":0,"rounds":1}' "$SLOT_API/api/okey/quick" | jq -r .tableId)
+          curl -fsS -X POST -H "Authorization: Bearer $T" -H 'Content-Type: application/json' -d '{}' "$SLOT_API/api/okey/$TID/start" > /dev/null
+          curl -fsS -H "Authorization: Bearer $T" "$SLOT_API/api/okey/$TID" | jq -c '{status, round, rack: (.hand.rack|length), pile: .hand.pile}'
+          curl -fsS -X POST -H "Authorization: Bearer $T" -H 'Content-Type: application/json' -d '{}' "$SLOT_API/api/okey/$TID/leave" | jq -c .
       - uses: actions/upload-artifact@v4
         with: { name: simulation-report, path: server/sim.json }
 

@@ -1,5 +1,6 @@
 // SLOT SALONU API — Web standardı Request/Response. Aynı kod Node (node-server.js) ve
 // Supabase Edge Function (supabase/functions/slot-api) üzerinde çalışır.
+import { registerOkey } from './okey/routes.js';
 import crypto from 'node:crypto';
 import { Buffer } from 'node:buffer';
 import * as C from './core.js';
@@ -487,6 +488,11 @@ export async function createApi(cfg) {
     await Q('INSERT INTO slot.client_perf(user_id,game,fps,worst_ms,device,app_version,created_at) VALUES($1,$2,$3,$4,$5,$6,$7)', [ctx.user.id, String(ctx.body.game || '').slice(0, 20), fps, Math.min(60000, Math.max(0, Math.round(Number(ctx.body.worstMs) || 0))), String(ctx.body.device || '').slice(0, 120), String(ctx.body.appVersion || '').slice(0, 20), now()]);
     return { ok: true };
   });
+  r('POST', '/api/telemetry/error', auth, async (ctx) => {
+    limit(ctx, 'terr:' + ctx.user.id, 10, 60e3);
+    await Q('INSERT INTO slot.client_errors(user_id,message,stack,screen,device,app_version,created_at) VALUES($1,$2,$3,$4,$5,$6,$7)', [ctx.user.id, str(ctx.body.message || '?', 'message', 300), String(ctx.body.stack || '').slice(0, 900), String(ctx.body.screen || '').slice(0, 40), String(ctx.body.device || '').slice(0, 120), String(ctx.body.appVersion || '').slice(0, 20), now()]);
+    return { ok: true };
+  });
   r('GET', '/api/app/version', async () => { const v = await one(Q, 'SELECT version_code,version_name,apk_url,notes,mandatory,created_at FROM slot.app_versions ORDER BY version_code DESC, id DESC LIMIT 1'); return { latest: v || null }; });
   // CI (GitHub Actions) yalnızca OIDC kimliğiyle sürüm yükleyebilir ve imza anahtarını alabilir — depoda gizli anahtar tutulmaz
   async function ciAuth(ctx) {
@@ -564,6 +570,7 @@ export async function createApi(cfg) {
     api: await Q('SELECT day, route, count, total_ms, max_ms, errors FROM slot.api_metrics WHERE day >= $1 ORDER BY day DESC, count DESC LIMIT 200', [C.dayKey(now() - 7 * C.DAY_MS, tz)]),
     clients: await Q("SELECT COALESCE(NULLIF(game,''),'-') game, COUNT(*)::int samples, ROUND(AVG(fps),1) avg_fps, MIN(fps) min_fps, MAX(worst_ms) worst_ms FROM slot.client_perf WHERE created_at > $1 GROUP BY 1 ORDER BY 1", [now() - 7 * C.DAY_MS]),
     devices: await Q('SELECT device, ROUND(AVG(fps),1) avg_fps, COUNT(*)::int n FROM slot.client_perf WHERE created_at > $1 GROUP BY device ORDER BY n DESC LIMIT 20', [now() - 7 * C.DAY_MS]),
+    errors: await Q('SELECT e.message, e.screen, e.app_version, e.device, COUNT(*)::int n, MAX(e.created_at) last_at, MIN(e.stack) stack FROM slot.client_errors e WHERE e.created_at > $1 GROUP BY 1,2,3,4 ORDER BY last_at DESC LIMIT 50', [now() - 7 * C.DAY_MS]),
   }));
   r('GET', '/api/admin/config', admin, async () => ({ daily: await setting('daily_anchors'), dailyAfter: await setting('daily_after'), levelRewards: await setting('level_rewards'), startingCoins: await setting('starting_coins'), giftAmounts: await setting('gift_amounts'), giftDailyLimit: await setting('gift_daily_limit'), mailConfigured: mailer.configured }));
   r('PUT', '/api/admin/config/daily', admin, async (ctx) => {
@@ -651,5 +658,6 @@ export async function createApi(cfg) {
   }
 
   await migrate();
+  registerOkey({ r, auth, db, Q, one, applyCoins, err, int, str, now, limit, C });
   return { handle, db, games, verifier, refreshGames: () => games(true) };
 }

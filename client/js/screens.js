@@ -198,11 +198,13 @@
         <div class="qbtn" id="qShop"><span class="i">💎</span>Jeton<span class="t">Mağaza</span></div>
       </div>
       <div class="jpbanner"><img src="assets/a_jackpot.webp" alt="JACKPOT"><span>Altın Şans çarkında<br><b style="font-size:16px;color:#ffd34d">1000x JACKPOT</b></span><img src="assets/b_chest.webp" alt=""></div>
+      <div class="okcard" id="okCard"><span class="live">ONLINE</span><div class="tiles"><div class="otile c0"><span>1</span><b class="od"></b></div><div class="otile c1"><span>0</span><b class="od"></b></div><div class="otile c2"><span>1</span><b class="od"></b></div></div><div class="grow"><b>101 OKEY</b><small>Gerçek oyuncularla · Tekli / Eşli · Özel masa</small></div><span style="font-size:26px">▶</span></div>
       <div class="section-t">🔥 <span class="gold">7 EFSANE OYUN</span></div>
       <div class="games">${S.games.map((g, i) => gameCard(g, i === 6)).join('')}</div>`;
     $$('.gcard', body).forEach(c => c.onclick = () => { Sound.play('click'); Games.open(c.dataset.id); });
     $$('.gcard img', body).forEach(im => im.onerror = () => { im.replaceWith(Object.assign(document.createElement('span'), { textContent: im.dataset.emb })); });
     $('#playRand').onclick = () => Games.open(S.games[(Math.random() * S.games.length) | 0].id);
+    $('#okCard').onclick = () => { Sound.play('click'); Okey.lobby(); };
     $('#qDaily').onclick = dailyModal; $('#qLvl').onclick = levelRewardsModal; $('#qEv').onclick = eventsModal; $('#qShop').onclick = () => go('shop');
     tickDaily();
   }

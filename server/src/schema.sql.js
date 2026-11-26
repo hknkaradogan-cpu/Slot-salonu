@@ -61,5 +61,14 @@ CREATE TABLE IF NOT EXISTS slot.client_perf (id BIGSERIAL PRIMARY KEY, user_id B
 CREATE TABLE IF NOT EXISTS slot.server_config (key TEXT PRIMARY KEY, value TEXT NOT NULL); -- gizli sunucu ayarları (yalnızca sunucu okur)
 
 -- Supabase: veriler yalnızca sunucu (Edge Function) üzerinden erişilir; istemci anahtarlarıyla doğrudan erişim kapalıdır.
+CREATE TABLE IF NOT EXISTS slot.client_errors (id BIGSERIAL PRIMARY KEY, user_id BIGINT, message TEXT NOT NULL, stack TEXT, screen TEXT, device TEXT, app_version TEXT, created_at BIGINT NOT NULL);
+CREATE INDEX IF NOT EXISTS client_errors_time ON slot.client_errors(created_at);
+CREATE TABLE IF NOT EXISTS slot.okey_tables (id BIGSERIAL PRIMARY KEY, code TEXT UNIQUE, status TEXT NOT NULL, mode TEXT NOT NULL, stake BIGINT NOT NULL DEFAULT 0, rounds INT NOT NULL DEFAULT 1, katlamali BOOLEAN NOT NULL DEFAULT TRUE, private BOOLEAN NOT NULL DEFAULT FALSE, owner_id BIGINT, state TEXT NOT NULL, version BIGINT NOT NULL DEFAULT 0, created_at BIGINT NOT NULL, updated_at BIGINT NOT NULL);
+CREATE INDEX IF NOT EXISTS okey_tables_match ON slot.okey_tables(status, private, mode, stake, rounds, katlamali);
+CREATE TABLE IF NOT EXISTS slot.okey_players (table_id BIGINT NOT NULL REFERENCES slot.okey_tables(id) ON DELETE CASCADE, user_id BIGINT NOT NULL REFERENCES slot.users(id) ON DELETE CASCADE, seat INT NOT NULL, active BOOLEAN NOT NULL DEFAULT TRUE, paid BIGINT NOT NULL DEFAULT 0, payout BIGINT, joined_at BIGINT NOT NULL, PRIMARY KEY (table_id, user_id));
+CREATE INDEX IF NOT EXISTS okey_players_user ON slot.okey_players(user_id, active);
+CREATE TABLE IF NOT EXISTS slot.okey_invites (id BIGSERIAL PRIMARY KEY, table_id BIGINT NOT NULL REFERENCES slot.okey_tables(id) ON DELETE CASCADE, from_id BIGINT NOT NULL, to_id BIGINT NOT NULL, created_at BIGINT NOT NULL);
+CREATE INDEX IF NOT EXISTS okey_invites_to ON slot.okey_invites(to_id, created_at);
+CREATE TABLE IF NOT EXISTS slot.okey_stats (user_id BIGINT PRIMARY KEY REFERENCES slot.users(id) ON DELETE CASCADE, played INT NOT NULL DEFAULT 0, won INT NOT NULL DEFAULT 0, coins_won BIGINT NOT NULL DEFAULT 0, best_score INT);
 REVOKE ALL ON SCHEMA slot FROM PUBLIC;
 `;
