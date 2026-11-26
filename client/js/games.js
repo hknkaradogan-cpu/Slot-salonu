@@ -30,28 +30,32 @@
     const jpBars = id === 'korsan' ? `<div class="jpbars"><div class="jp major">MAJOR<b id="jpMajor"></b></div><div class="jp grand">GRAND<b id="jpGrand"></b></div></div>` : id === 'altin' ? `<div class="jpbars"><div class="jp grand" style="flex:1">JACKPOT ÇARKI<b id="jpGrand"></b></div></div>` : '';
     const buyC = meta.info.buyCost || {};
     const buyBtns = (buyC.fs ? `<button class="buybtn" id="buyFs"><small>FREE SPIN</small>SATIN AL<b id="buyFsC"></b></button>` : '') + (buyC.super ? `<button class="buybtn super" id="buySuper"><small>SÜPER</small>FREE SPIN<b id="buySuperC"></b></button>` : '');
-    // YATAY DÜZEN: sol = karakter/başlık/çarpan/satın alma · orta = makaralar · sağ = bakiye, kazanç, bahis, SPIN
+    // REFERANS DÜZENİ (Okey Hall): üst bar · solda satın alma + kazanç kaydı · ortada altın çerçeveli makara · sağda tema karakteri · altta kontrol barı
     const s = UI.screen('game', `<div class="bgart"></div><div class="bglayer"></div>${id === 'peri' ? '<div class="pcrys"><i></i><i></i><i></i><i></i><i></i><i></i></div>' : ''}${id === 'zeus' ? '<div class="zclouds"></div>' : ''}
-      <div class="ghead"><button class="iconbtn" id="gBack">◀</button><div class="gtitle gold">${esc(meta.name)}</div><span class="gvol">${esc(meta.info.volatility || '')} volatilite · RTP %${(meta.info.rtp * 100).toFixed(1)}</span><div class="grow"></div>
-        <div class="lvlbox"><div class="nm"><span class="lvl" id="tLvl"></span><span id="tName"></span></div><div class="xpbar"><i id="tXp"></i><em id="tXpT"></em></div></div>
-        <div class="coins" id="tCoins"><span class="c">🪙</span><span id="tBal"></span><span class="plus" id="gShop">+</span></div></div>
-      <div class="gleft"><div class="hero">${hero}${id === 'peri' ? '<i class="wandstar"></i>' : ''}</div>
+      <div class="gtopbar"><button class="gtb back" id="gBack">◀</button>
+        <div class="gcoins" id="tCoins"><i class="hcoin"></i><b id="tBal"></b><span class="plus" id="gShop">+</span></div>
+        <button class="gshop" id="gShop2">MAĞAZA</button>
+        <div class="glvl"><span class="lvl" id="tLvl"></span><div class="xpbar"><i id="tXp"></i><em id="tXpT"></em></div><span class="nm" id="tName"></span></div>
+        <div class="grow"></div><button class="gtb ${G.turbo ? 'on' : ''}" id="gTurbo" title="Hızlı mod">⏩<small>x${G.turbo ? 2 : 1}</small></button><button class="gtb" id="gAuto" title="Otomatik">A<span class="autoN"></span></button><button class="gtb" id="gInfo" title="Bilgi">☰</button></div>
+      <div class="gleftcol">${buyBtns ? `<div class="buycol">${buyBtns}</div>` : ''}
         <div class="gboxes"><div class="sidebox" id="mL"><small>TOPLAM ÇARPAN</small><b>x0</b></div><div class="sidebox" id="mR"><small>KALAN FREE SPIN</small><b>—</b></div></div>
-        ${jpBars}${buyBtns ? `<div class="buyrow">${buyBtns}</div>` : ''}</div>
-      <div class="gcenter"><div class="machine" id="machine"><div class="reels" id="reels"></div><svg class="linesvg" id="lineSvg"></svg><div id="fsBar"></div></div></div>
-      <div class="gright">
-        <div class="winline"><div class="wlbal"><small>BAKİYE</small><b id="wBal"></b></div><div class="wlwin" id="winLine"><span class="muted small">${esc(meta.tag)}</span></div></div>
-        <div class="betgrp"><button class="gb" id="bMinus">−</button><div class="betv"><b id="bVal"></b><small>BAHİS</small></div><button class="gb" id="bPlus">+</button></div>
-        <button class="spinpill" id="gSpin"><span class="t1">SPIN</span><span class="t2">basılı tut: OTO</span></button>
-        <div class="gbar"><button class="gb small" id="gInfo">ℹ</button><button class="gb max" id="bMax">MAKS</button><button class="gb small" id="gAuto">A<span class="autoN"></span></button><button class="gb small ${G.turbo ? 'on' : ''}" id="gTurbo">⚡</button></div>
-      </div>`, 'gscreen land');
+        ${jpBars}<div class="winlog" id="winLog"><span class="wlempty">💬</span></div></div>
+      <div class="gcenter"><div class="machine" id="machine"><div class="reels" id="reels"></div><svg class="linesvg" id="lineSvg"></svg><div id="fsBar"></div></div><div class="twin" id="tWin"><small>TOPLAM KAZANÇ</small><b id="tWinV">0</b></div></div>
+      <div class="gchar"><div class="hero">${hero}${id === 'peri' ? '<i class="wandstar"></i>' : ''}</div><div class="gtitle gold">${esc(meta.name)}</div><span class="gvol">${esc(meta.info.volatility || '')} · RTP %${(meta.info.rtp * 100).toFixed(1)}</span></div>
+      <div class="gbottom">
+        <button class="gbb info" id="gInfo2">OYUN<br>BİLGİ</button>
+        <div class="betgrp"><button class="gb" id="bMinus">−</button><div class="betv"><b id="bVal"></b><small>TOPLAM BAHİS</small></div><button class="gb" id="bPlus">+</button></div>
+        <div class="gplaque"><div class="winline"><div class="wlwin" id="winLine"><span class="muted small">${esc(meta.tag)}</span></div></div><span class="hidden" id="wBal"></span></div>
+        <button class="gbb max" id="bMax">MAX<br>BET</button>
+        <button class="spinpill" id="gSpin"><span class="t1">SPIN</span><span class="t2">OTOMATİK İÇİN BASILI TUT</span></button>
+      </div>`, 'gscreen land ok');
     s.style.cssText = `--b1:${th.b1};--b2:${th.b2};--glow:${th.glow}`; s.dataset.g = id;
     if (G.rows <= 3) s.classList.add('tall');
     const bc = () => { const b = App.bets[G.betIdx]; if ($('#buyFsC')) $('#buyFsC').textContent = short(Math.round(b * buyC.fs)); if ($('#buySuperC')) $('#buySuperC').textContent = short(Math.round(b * buyC.super)); }; G.updBuy = bc;
     UI.show('game'); Screens.renderTop();
     meter('L'); meter('R'); sizeGrid(); buildGrid(); fitGrid(); initialFill(); renderBet();
     { const gb = $('#gBack'); let t = 0; const go = (e) => { e && e.preventDefault(); const n = Date.now(); if (n - t < 400) return; t = n; close(); }; gb.onclick = go; gb.addEventListener('pointerup', go); } $('#gShop').onclick = () => { close(); Screens.shop(); };
-    $('#gInfo').onclick = info;
+    $('#gInfo').onclick = info; $('#gInfo2').onclick = info; $('#gShop2').onclick = () => { close(); Screens.shop(); }; G.log = [];
     // SPIN: dokun = döndür, dönerken dokun = STOP (animasyonu hızlandır), basılı tut = otomatik menü
     let pressT = null, longFired = false;
     const sp = $('#gSpin');
@@ -63,7 +67,7 @@
     if ($('#buySuper')) $('#buySuper').onclick = () => buyBonus('super');
     $('#bMinus').onclick = () => { if (!G.spinning) { G.betIdx = Math.max(0, G.betIdx - 1); renderBet(); Sound.play('click'); } };
     $('#bPlus').onclick = () => { if (!G.spinning) { G.betIdx = Math.min(App.bets.length - 1, G.betIdx + 1); renderBet(); Sound.play('click'); } };
-    $('#gTurbo').onclick = (e) => { G.turbo = !G.turbo; G.speed = G.turbo ? 0.5 : 1; e.currentTarget.classList.toggle('on', G.turbo); document.documentElement.style.setProperty('--speed', G.speed); };
+    $('#gTurbo').onclick = (e) => { G.turbo = !G.turbo; G.speed = G.turbo ? 0.5 : 1; e.currentTarget.classList.toggle('on', G.turbo); const sm = e.currentTarget.querySelector('small'); if (sm) sm.textContent = G.turbo ? 'x2' : 'x1'; document.documentElement.style.setProperty('--speed', G.speed); };
     $('#gAuto').onclick = autoMenu;
     document.documentElement.style.setProperty('--speed', G.speed);
   }
@@ -138,7 +142,21 @@
       requestAnimationFrame(step);
     });
   }
-  function setWin(amount, label) { const el = $('#winLine'); if (!el) return; el.innerHTML = amount > 0 ? `<span class="lb">${label || 'KAZANÇ'}</span><span class="v">${fmt(amount)}</span>` : `<span class="lb">KAZANÇ</span><span class="v dim">0</span>`; }
+  let setWin = function (amount, label) { const el = $('#winLine'); if (!el) return; el.innerHTML = amount > 0 ? `<span class="lb">${label || 'KAZANÇ'}</span><span class="v">${fmt(amount)}</span>` : `<span class="lb">KAZANÇ</span><span class="v dim">0</span>`; };
+  // TOPLAM KAZANÇ şeridi (makaranın üstünde) — her kazançta güncellenir
+  const _setWin = setWin;
+  setWin = function (amount, label) { _setWin(amount, label); const t = $('#tWin'); if (!t) return; if (amount > 0) { $('#tWinV').textContent = fmt(amount); t.classList.add('on'); } else t.classList.remove('on'); };
+  /** Kazanç kaydı (sol kutu): adet × sembol → jeton */
+  function logWin(code, n, amount) {
+    const el = $('#winLog'); if (!el) return; G.log = G.log || []; G.log.unshift({ code, n, amount }); G.log = G.log.slice(0, 4);
+    el.innerHTML = G.log.map(x => `<div class="wlr"><b>${x.n}</b><span class="wls">${Sym.symHtml(G.id, x.code, '')}</span><em>${fmt(x.amount)}</em></div>`).join('');
+  }
+  /** "+kazanç" yazısı kazanan kümenin ortasında belirir ve yükselir */
+  function floatWin(cells, amount) {
+    if (!cells.length) return; let x = 0, y = 0; cells.forEach(i => { const c = center(i); x += c.x; y += c.y; }); x /= cells.length; y /= cells.length;
+    const d = document.createElement('div'); d.className = 'fwin'; d.textContent = '+' + fmt(amount); d.style.cssText = `left:${x}px;top:${y}px`;
+    document.body.appendChild(d); setTimeout(() => d.remove(), 1300);
+  }
   function meter(side, html) {
     const m = $(side === 'L' ? '#mL' : '#mR'); if (!m) return;
     if (!html) { m.innerHTML = side === 'L' ? `<small>${G.meta.family === 'ways' ? 'ÇARPAN' : G.meta.family === 'tumble' ? 'TOPLAM ÇARPAN' : 'BONUS'}</small><b>${G.meta.family === 'ways' ? 'x1' : G.meta.family === 'tumble' ? 'x0' : '—'}</b>` : `<small>KALAN FREE SPIN</small><b>—</b>`; m.classList.remove('lit'); return; }
@@ -236,7 +254,7 @@
   async function showWins(wins, bet, opts = {}) {
     if (!wins || !wins.length) return 0;
     let total = 0; dimAll(true);
-    wins.forEach((w, k) => { markWin(w.pos); if (!opts.noLines && w.line != null) drawLine(w.pos, LINE_COLORS[k % LINE_COLORS.length]); total += w.pay * bet; });
+    wins.forEach((w, k) => { markWin(w.pos); if (!opts.noLines && w.line != null) drawLine(w.pos, LINE_COLORS[k % LINE_COLORS.length]); total += w.pay * bet; if (w.pos && k < 4) floatWin(w.pos, Math.round(w.pay * bet)); if (w.s != null) logWin(w.s, w.n, Math.round(w.pay * bet)); });
     setWin(Math.round(total)); Sound.play('win');
     await sleep(G.skip ? 200 : 1100);
     if (wins.length > 1 && !G.skip && !G.auto) {
@@ -271,12 +289,12 @@
     pts.push([x1, y1]); return pts;
   }
   const pathD = (pts) => 'M' + pts.map(p => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' L');
-  function heroPoint() { const h = $('.gleft .heroimg'); if (!h) return { x: innerWidth / 2, y: 60 }; const r = h.getBoundingClientRect(); return { x: r.left + r.width * 0.62, y: r.top + r.height * 0.42 }; }
+  function heroPoint() { const h = $('.gchar .heroimg'); if (!h) return { x: innerWidth / 2, y: 60 }; const r = h.getBoundingClientRect(); return { x: r.left + r.width * 0.62, y: r.top + r.height * 0.42 }; }
   async function zeusStrike(i, onImpact) {
     const to = center(i), from = heroPoint(), sp = G.speed;
     // 1) yüklenme
     const orb = document.createElement('div'); orb.className = 'zcharge'; orb.style.cssText = `left:${from.x}px;top:${from.y}px`; document.body.appendChild(orb);
-    const hero = $('.gleft .heroimg'); hero && hero.classList.add('zflash');
+    const hero = $('.gchar .heroimg'); hero && hero.classList.add('zflash');
     Sound.play('orb'); await sleep(170);
     // 2) hareket: ana gövde + 2 dal
     const main = jag(from.x, from.y, to.x, to.y, 12, 38);
@@ -303,7 +321,7 @@
   // 4) kristal patlaması 5) çarpan (X) ancak patlamadan SONRA açılır — Zeus şimşeğinden tamamen farklı akış
   async function periStrike(i, onReveal) {
     const to = center(i), from = heroPoint(), sp = G.speed, k = SC();
-    const hero = $('.gleft .hero'); hero && hero.classList.add('pwand');
+    const hero = $('.gchar .hero'); hero && hero.classList.add('pwand');
     Sound.play('orb'); await sleep(260 * sp);
     const shards = [];
     for (let n = 0; n < 5; n++) {
@@ -413,6 +431,7 @@
     for (const st of seq.steps || []) {
       const rem = new Set(st.removed); rem.forEach(i => G.boxes[i].firstElementChild.classList.add('win', ...(G.id === 'peri' ? ['psparkle'] : [])));
       running += st.wins.reduce((a, w) => a + w.pay, 0) * bet; setWin(Math.round(running), 'ZİNCİR');
+      for (const w of st.wins) { const cells = [...rem].filter(i => prev[i] === w.s); floatWin(cells, Math.round(w.pay * bet)); logWin(w.s, w.n, Math.round(w.pay * bet)); }
       Sound.play('win'); await sleep(G.skip ? 120 : 480);
       rem.forEach((i, k) => { const s = G.boxes[i].firstElementChild; s.classList.remove('win', 'psparkle'); s.classList.add(G.id === 'zeus' ? 'zpop' : G.id === 'peri' ? 'ppop' : 'pop'); if (k % 2 === 0) { const c = center(i); UI.burst(c.x, c.y, 4, G.id === 'zeus' ? ['#fff', '#9fe8ff'] : undefined); } });
 

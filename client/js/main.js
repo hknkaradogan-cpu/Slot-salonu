@@ -87,11 +87,12 @@
   async function boot() {
     Platform.initStage();
     const msg = $('#splashMsg');
-    if (!Api.hasToken()) { await new Promise(r => setTimeout(r, 600)); return Screens.login(); }
+    await Intro.run();
+    if (!Api.hasToken()) { await Intro.finish('%100'); return Screens.login(); }
     for (;;) {
-      try { await Screens.enter(); return; }
+      try { Intro.progress(94, 'Salon hazırlanıyor… %94'); await Screens.enter(); await Intro.finish('%100'); return; }
       catch (e) {
-        if (e.status === 401 || e.status === 403) { Api.setToken(null); if (e.status === 403) toast(e.message, true); return Screens.login(); }
+        if (e.status === 401 || e.status === 403) { Api.setToken(null); if (e.status === 403) toast(e.message, true); await Intro.finish(); return Screens.login(); }
         msg.innerHTML = `${UI.esc(e.message)}<br><button class="btn gold sm" id="bootRetry" style="margin-top:10px">Tekrar dene</button>`;
         await new Promise(r => { $('#bootRetry').onclick = r; setTimeout(r, 8000); });
         msg.textContent = 'Bağlanılıyor…';

@@ -25,49 +25,50 @@
   }
   const seatHtml = (pos, x) => `<div class="enseat ${pos} ${x ? '' : 'empty'}" ${x ? '' : 'data-sit="1"'}><span class="enav">${x ? AVATARS[x.avatar] || '🙂' : '+'}</span><b>${x ? esc(x.name) : 'Boş koltuk'}</b><small>${x ? 'Sv' + (x.level || 1) : 'Dokun, otur'}</small></div>`;
 
-  /* ===================== 101 OKEY ===================== */
+  /* ===================== 101 OKEY / DÜZ OKEY — oda lobisi (referans: 101 Plus) ===================== */
+  const ROOMS = [[0, 'KLASİK', 'ODALAR', 'Ücretsiz · XP kazan', 'cl'], [1000, 'ÇAYLAK', 'MASALARI', 'Giriş 1.000', 'cy'], [10000, 'USTA', 'MASALARI', 'Giriş 10.000', 'us'], [100000, 'SALON', 'MASALARI', 'Giriş 100.000', 'sa'], [1000000, 'KRAL', 'MASALARI', 'Giriş 1.000.000', 'kr']];
   async function okey(variant) {
     const duz = variant === 'duz'; Okey.setVariant(duz ? 'duz' : '101');
-    const id = duz ? 'duz' : 'okey101';
-    const rack1 = duz ? [[0, 4], [0, 5], [0, 6], null, [2, 9], [1, 9], [3, 9], null, [1, 11], [1, 12], [1, 13]] : [[0, 7], [1, 7], [3, 7], null, [2, 3], [2, 4], [2, 5], [2, 6], null, [1, 10], [1, 11], [1, 12]];
-    const rack2 = duz ? [[3, 1], [3, 1], null, [2, 8], [2, 8], null, [0, 12], [0, 12], null, [1, 2]] : [[3, 1], [3, 2], [3, 3], null, [0, 13], [1, 13], [2, 13], null, [0, 9], [0, 9]];
-    const row = (r) => r.map(t => (t ? tile(t[0], t[1]) : '<i class="engap"></i>')).join('');
-    const scene = `<div class="enscene ${duz ? 'duz' : 'o101'}">
-        <div class="entable"><div class="enfelt"><img class="enfeltlogo" src="assets/spinova_logo.webp" alt=""><div class="enpile">${'<i></i>'.repeat(4)}</div></div></div>
-        ${seatHtml('top', null)}${seatHtml('left', null)}${seatHtml('right', null)}
-        <div class="enseat me"><span class="enav">${AVATARS[me().avatar] || '🙂'}</span><b>${esc(me().username || '')}</b><small>Sv${me().level || 1}</small></div>
-        <div class="enrack"><div class="enrow">${row(rack1)}</div><div class="enrow">${row(rack2)}</div><em class="rk1">SPINOVA</em><em class="rk2">By-Hkn</em></div>
-        ${duz ? '<div class="entea"><i class="glass"></i><i class="plate"></i></div>' : ''}
-      </div>`;
-    const panel = `<div class="enpanel">
-        <div id="enAct"></div>
-        <button class="enbig green" id="enQuick">⚡ Hızlı Katıl <small>ücretsiz masada anında eşleş</small></button>
-        <div class="ensec">Masa seç <small>jeton miktarına göre</small></div>
-        <div class="entiers">${STAKES.map(([st, nm, sub]) => `<button class="entier" data-st="${st}" ${!st || me().unlimited || me().balance >= st ? '' : 'disabled'}><i class="chip c${STAKES.findIndex(x => x[0] === st)}"></i><span><b>${nm}</b><small>${st ? sub + ' · Havuz ' + fmt(st * 4) : sub}</small></span><em id="enW${st}"></em><span class="go">Otur ▸</span></button>`).join('')}</div>
-        <div class="enrow2"><button class="enbtn purple" id="enPriv">👥 Arkadaşla Oyna</button><button class="enbtn gold" id="enCode">🔑 Kodla Katıl</button></div>
-        <div class="ensec">Açık masalar <small>🔒 = şifreli</small></div><div class="enopen list" id="enOpen"><p class="small muted center">Yükleniyor…</p></div>
-        <div class="enfoot"><button data-y="rules">📖 Kurallar</button><button data-y="top">🏆 Sıralama</button><span id="enStats"></span></div>
-      </div>`;
-    const root = show(id, head(duz ? 'DÜZ OKEY' : '101 OKEY', duz ? 'Klasik kahvehane okeyi · 14 taş · açma yok' : 'Gerçek 101 · katlamalı / katlamasız · eşli / tekli', duz ? 'duz' : '') + (duz ? panel + scene : scene + panel), duz ? 'en-duz' : 'en-okey');
+    const id = duz ? 'duz' : 'okey101', V = duz ? 'duz' : '101';
+    const tiles = (arr) => arr.map(t => tile(t[0], t[1], 'rt')).join('');
+    const art = { cl: tiles([[0, 1], [2, 1]]), cy: tiles([[2, 5], [0, 1]]), us: tiles([[1, 7], [1, 8], [1, 9]]), sa: tiles([[3, 13], [0, 13], [2, 13]]), kr: '<span class="rkcrown">👑</span>' + tiles([[0, 1], [3, 1]]) };
+    const root = show(id, `
+      <div class="olbg ${duz ? 'duz' : ''}"></div>
+      <div class="oltop"><button class="enback" data-x="back">◀</button>
+        <div class="olprof"><span class="enav">${AVATARS[me().avatar] || '🙂'}</span><div><b>${esc(me().username || '')}</b><small>⭐ Seviye: ${me().level || 1}</small></div></div>
+        <div class="olgame"><b>${duz ? 'DÜZ OKEY' : '101 OKEY'}</b><small>${duz ? 'klasik kahvehane okeyi' : 'katlamalı · katlamasız · eşli · tekli'}</small></div>
+        <div class="grow"></div><div class="encoin" data-x="shop"><i class="hcoin"></i><b id="enBal">${balTxt()}</b><span class="hplus">+</span></div><button class="olbuy" data-x="shop">🛒</button></div>
+      <div class="olev">
+        <button class="olbn b1" data-ev="tournaments"><b>OKEY<br>ŞAMPİYONASI</b><small>Sıralamaya gir!</small></button>
+        <button class="olbn b2" data-ev="wheel"><b>ŞANS<br>ÇARKI</b><small>Günlük ücretsiz</small></button>
+        <button class="olbn b3" data-ev="puzzle"><b>BULMACA</b><small>Çöz, jeton kazan</small></button></div>
+      <div class="olrooms">${ROOMS.map(([st, t1, t2, sub, k]) => { const can = !st || me().unlimited || me().balance >= st;
+        return `<div class="orc ${k} ${can ? '' : 'dis'}"><div class="rch"><b>${t1}</b><small>${t2}</small></div><div class="rca">${art[k]}</div><div class="rcn" id="orn${st}">${sub}</div>
+          <div class="rcb"><button class="orbtn" data-st="${st}" ${can ? '' : 'disabled'}>${st ? 'KATIL' : 'OYNA'}</button></div></div>`; }).join('')}
+        <div class="orc vip"><div class="rch"><b>ÖZEL</b><small>ARKADAŞ ODALARI</small></div><div class="rca"><span class="rkstar">★</span></div><div class="rcn">Kodlu · şifreli</div>
+          <div class="rcb two"><button class="orbtn s" id="olCode">KODLA</button><button class="orbtn s" id="olPriv">MASA AÇ</button></div></div></div>
+      <div class="olbot"><button class="olic" data-ev="friends"><span>👥</span>Arkadaş</button><button class="olic" data-ev="messages"><span>✉️</span>Mesaj</button><button class="olic" data-y="top"><span>🏆</span>Sıralama</button>
+        <button class="olplay" id="enQuick"><b>HEMEN OYNA</b><small id="olOnline">çevrim içi oyuncular yükleniyor…</small></button>
+        <button class="olic" id="olOpen"><span>🟢</span>Açık Masa</button><button class="olic" data-y="rules"><span>📖</span>Kurallar</button><button class="olic" data-x="shop"><span>🎁</span>Mağaza</button></div>
+      <div id="enAct" class="olact"></div>`, duz ? 'en-ol duz' : 'en-ol');
     $('#enQuick').onclick = () => guard($('#enQuick'), async () => {
       let o = { mode: 'tekli', rounds: 1, katlamali: true }; try { o = Object.assign(o, JSON.parse(localStorage.getItem('okey_opts')) || {}); } catch (e) { /* */ }
-      const r = await Api.post('/api/okey/quick', { ...o, variant: duz ? 'duz' : '101', stake: 0 }); if (r.existing) toast('Zaten bir masadasın — oraya dönüyorsun.'); Okey.openTable(r.tableId);
+      const r = await Api.post('/api/okey/quick', { ...o, variant: V, stake: 0 }); if (r.existing) toast('Zaten bir masadasın — oraya dönüyorsun.'); Okey.openTable(r.tableId);
     });
-    $$('[data-st]', root).forEach(b => b.onclick = () => Okey.quickOpts(duz ? 'duz' : '101', +b.dataset.st));
-    $$('[data-sit]', root).forEach(b => b.onclick = () => $('#enQuick').click());
-    $('#enPriv').onclick = () => Okey.createPrivate(duz ? 'duz' : '101');
-    $('#enCode').onclick = () => Okey.codeModal();
-    $$('[data-y]', root).forEach(b => b.onclick = () => (b.dataset.y === 'rules' ? Okey.rulesModal() : Okey.topModal()));
-    Okey.openTables($('#enOpen'), duz ? 'duz' : '101');
+    $$('[data-st]', root).forEach(b => b.onclick = (e) => { e.stopPropagation(); Okey.quickOpts(V, +b.dataset.st); });
+    $('#olPriv').onclick = (e) => { e.stopPropagation(); Okey.createPrivate(V); };
+    $('#olCode').onclick = (e) => { e.stopPropagation(); Okey.codeModal(); };
+    $('#olOpen').onclick = (e) => { e.stopPropagation(); UI.modal(`<h3 class="gold">🟢 Açık Masalar</h3><div class="list" id="olOpenL"><p class="small muted center">Yükleniyor…</p></div>`); Okey.openTables($('#olOpenL'), V); };
+    $$('[data-y]', root).forEach(b => b.onclick = (e) => { e.stopPropagation(); b.dataset.y === 'rules' ? Okey.rulesModal() : Okey.topModal(); });
+    $$('[data-ev]', root).forEach(b => b.onclick = (e) => { e.stopPropagation(); Platform.panel(b.dataset.ev); });
     try {
       const d = await Okey.lobbyData(true); if (E.cur !== id) return;
       const act = $('#enAct');
       if (d.active) { act.innerHTML = `<div class="enresume"><b>Devam eden masan var</b><button class="enbtn green" id="enRes">MASAYA DÖN ▸</button></div>`; $('#enRes').onclick = () => Okey.openTable(d.active.id); }
       else if (d.rejoin) { act.innerHTML = `<div class="enresume warn"><b>Ayrıldığın masa sürüyor</b><button class="enbtn gold" id="enRej">GERİ DÖN ▸</button></div>`; $('#enRej').onclick = () => guard($('#enRej'), async () => { const r = await Api.post('/api/okey/join', { tableId: d.rejoin.id }); Okey.openTable(r.tableId); }); }
-      for (const [st] of STAKES) { const n = d.waiting.filter(w => (w.variant || '101') === (duz ? 'duz' : '101') && Number(w.stake) === st).reduce((a, w) => a + w.n, 0); const e = $('#enW' + st); if (e) e.textContent = n ? `⏳ ${n}` : ''; }
-      $('#enStats').textContent = `${d.stats.played || 0} oyun · ${d.stats.won || 0} galibiyet · 🟢 ${d.online.players} kişi masada`;
-      if (d.config && d.config.enabled === false) toast('Okey şu anda bakımda.', true);
-    } catch (e) { /* lobi verisi gelmese de butonlar çalışır */ }
+      for (const [st] of ROOMS) { const n = d.waiting.filter(w => (w.variant || '101') === V && Number(w.stake) === st).reduce((a, w) => a + w.n, 0); const e = $('#orn' + st); if (e && n) e.innerHTML = `⏳ ${n} masada oyuncu bekliyor`; }
+      $('#olOnline').textContent = `${d.online.players} oyuncu masada · ${d.stats.played || 0} oyun oynadın`;
+    } catch (e) { /* */ }
   }
 
   /* ===================== TAVLA ===================== */
@@ -118,14 +119,28 @@
     cat = cat || 'all';
     const games = (App.games || []).filter(g => cat === 'all' || catOf(g).includes(cat));
     const th = (id) => (window.Sym && Sym.THEMES[id]) || {};
-    const root = show('slots', head('SLOT SALONU', 'Her makine ayrı tema, ayrı mekanik · sanal jeton', 'sl') + `
-      <div class="slhall"><i class="sllight"></i></div>
-      <div class="slcats">${CATS.map(([k, n]) => `<button data-c="${k}" class="${k === cat ? 'on' : ''}">${n}</button>`).join('')}</div>
-      <div class="slgrid">${games.map(g => { const t = th(g.id); return `<button class="slm" data-g="${g.id}" style="--b1:${t.b1 || '#2a0d5e'};--b2:${t.b2 || '#5a2bb0'};--gl:${t.glow || '#ffd34d'}">
-        <span class="slcab"><span class="slscreen"><img src="assets/${t.card || 'card_' + g.id}.webp" alt=""></span><span class="slreels">${[0, 1, 2].map(k => `<i>${window.Sym ? Sym.symHtml(g.id, k, 'slsym') : ''}</i>`).join('')}</span></span>
-        <b>${esc(g.name)}</b><small>${esc(g.tag || '')}</small><span class="slmeta"><em>RTP %${(g.info.rtp * 100).toFixed(1)}</em><em>${esc(g.info.volatility || '')}</em></span></button>`; }).join('') || '<p class="center muted">Bu kategoride oyun yok.</p>'}</div>`, 'en-slots');
+    const feat = games.find(g => g.id === 'zeus') || games[0];
+    const last = localStorage.getItem('slot_last') || 'zeus';
+    const poster = (g, big) => { const t = th(g.id); const img = big && g.id === 'zeus' ? 'hero_zeus' : (t.card || 'card_' + g.id);
+      return `<button class="spo ${big ? 'big' : ''}" data-g="${g.id}" style="--b1:${t.b1 || '#2a0d5e'};--b2:${t.b2 || '#5a2bb0'};--gl:${t.glow || '#ffd34d'}"><img src="assets/${img}.webp" alt="">
+        ${big ? '<span class="sporib">YENİ</span>' : ''}<span class="spon"><b>${esc(g.name)}</b><small>RTP %${(g.info.rtp * 100).toFixed(1)} · ${esc(g.info.volatility || '')}</small></span><i class="spoh">♥</i></button>`; };
+    const rest = games.filter(g => g !== feat);
+    const root = show('slots', `<div class="slhall"></div>
+      <div class="sltop"><button class="enback" data-x="back">◀</button><span class="slvip">VIP</span><div class="encoin" data-x="shop"><i class="hcoin"></i><b id="enBal">${balTxt()}</b><span class="hplus">+</span></div>
+        <button class="slshop" data-x="shop">MAĞAZA</button><button class="slpack" data-ev="gifts">HEDİYE</button><div class="grow"></div>
+        <div class="sllvl">⭐<b>Sv.${me().level || 1}</b></div><button class="slic" data-ev="messages">✉️</button><button class="slic" data-ev="settings">⚙️</button></div>
+      <div class="slrail">${CATS.map(([k, n], i) => `<button data-c="${k}" class="${k === cat ? 'on' : ''}" title="${n}">${['🏠', '💧', '🍒', '💰', '🛣️'][i]}<small>${n.split(' ')[0]}</small></button>`).join('')}</div>
+      <div class="slshow">${feat && cat === 'all' ? poster(feat, true) : ''}<div class="slgrid2">${(cat === 'all' ? rest : games).map(g => poster(g)).join('') || '<p class="center muted">Bu kategoride oyun yok.</p>'}</div></div>
+      <div class="slticker">💬 <span id="slTick">Hoş geldin! Büyük kazançlar burada görünür.</span></div>
+      <div class="slbot"><button class="slcoins" data-ev="daily"><img src="assets/fx_coins.webp" alt=""><b>TOPLA</b></button>
+        ${[['quests', '📋', 'Görev'], ['daily', '📅', 'Günlük Giriş'], ['tournaments', '🏆', 'Turnuva'], ['friends', '👥', 'Arkadaşlar'], ['gifts', '🎁', 'Hediye'], ['leaders', '📊', 'Sıralama'], ['wheel', '🎡', 'Şans Çarkı']].map(([k, ic, t]) => `<button class="slb" data-ev="${k}"><span>${ic}</span><small>${t}</small></button>`).join('')}
+        <button class="slgo" data-g="${last}"><b>HEMEN<br>OYNA</b></button></div>`, 'en-slots');
     $$('[data-c]', root).forEach(b => b.onclick = (e) => { e.stopPropagation(); Sound.play('click'); slots(b.dataset.c); });
-    $$('[data-g]', root).forEach(b => b.onclick = (e) => { e.stopPropagation(); Sound.play('click'); Games.open(b.dataset.g); });
+    $$('[data-g]', root).forEach(b => b.onclick = (e) => { e.stopPropagation(); Sound.play('click'); try { localStorage.setItem('slot_last', b.dataset.g); } catch (x) { /* */ } Games.open(b.dataset.g); });
+    $$('[data-ev]', root).forEach(b => b.onclick = (e) => { e.stopPropagation(); Sound.play('click'); const k = b.dataset.ev; if (k === 'daily') return Screens.dailyModal(); if (k === 'settings') return Screens.settings(); Platform.panel(k); });
+    Api.get('/api/winners/recent').then(r => { const t = $('#slTick'); if (!t || !r.winners.length) return; let i = 0; const nm = Object.fromEntries((App.games || []).map(g => [g.id, g.name]));
+      const f = () => { const w = r.winners[i++ % r.winners.length]; const el = $('#slTick'); if (!el) return clearInterval(E.tick); el.textContent = `${w.username} · ${nm[w.game] || w.game} · ${fmt(w.win)} jeton kazandı (${Math.round(w.win / w.bet)}x)`; };
+      f(); clearInterval(E.tick); E.tick = setInterval(f, 4000); }).catch(() => {});
   }
 
   function open(id) {

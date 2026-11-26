@@ -172,3 +172,37 @@ Görevler
 - ✔ 20 Performans: dokunma (arayüz) gecikmesi ≠ ağ gecikmesi; salon ve Aviator uçuşunda FPS — dokunma p50 33/p95 34 ms · ağ p50 13/p95 50 ms (n=200) · Tavla girişi 41 ms · FPS salon 60, Aviator uçuşu 61 · bellek 10 MB
 
 Sayfa hatası: yok
+
+## 5.1 — Referans görünüm (Okey Hall + 101 Plus) (26.11.2026)
+
+Açılış (stüdyo → gerçek yükleme yüzdesi → giriş), slot ekranı, okey masası/lobisi ve Slot Salonu vitrini referans videolara göre yeniden düzenlendi.
+
+### Tarayıcı testleri: 20/20 geçti
+
+- ✔ 01 Dikey tutulunca "yan çevir" uyarısı, yatayda oyun — dikey: uyarı · yatay: oyun
+- ✔ 02 Kayıt → SPINOVA ana salonu; marka, kral, By-Hkn imzası, 5 oyun kartı — okey101, duz, tavla, aviator, slots · alt menü: 👥
+Arkadaşlar, 📊
+Liderlik Tablosu, 🏠
+Ana Sayfa, 💬
+Sohbet, 📅
+Görevler
+- ✔ 03 Salon ve 4 giriş ekranı 4 cihaz boyutunda sahneye sığar (taşma yok) — Telefon küçük 740×360 · Telefon 873×393 · Tablet 1180×820 · Masaüstü 1366×768
+- ✔ 04 Her oyun kartı KENDİ giriş ekranını açar; geri tuşu salona döner — undefined(en-ol) · undefined(duz) · TAVLA(en-tavla) · AVIVASOR(av) · undefined(en-slots)
+- ✔ 05 Salondaki bütün butonlar gerçek bir ekran açar (ölü buton yok) — 23 buton
+- ✔ 06 101 Okey: oda lobisi HEMEN OYNA → desenli zeminli gerçek masa, ıstakada SPINOVA + By-Hkn; ÇIK → 101 giriş ekranı — 21 taş · çuha+logo+imza ✓
+- ✔ 07 101 şifreli özel masa: 6 haneli kod, kopyala/WhatsApp, açık masalarda 🔒 — kod GWSAMS
+- ✔ 08 İkinci oyuncu salondaki KOD kutusuyla, şifreyle masaya oturur — 2/4 gerçek oyuncu
+- ✔ 09 Düz Okey: ayrı renk teması, 101 butonları gizli, BİTİR + gösterge bitirme alanı; hazır değilken bitirme reddedilir — 14 taş · bitirme denemesi: not_your_turn
+- ✔ 10 Tavla: hızlı eşleş → botla başlat; zar sunucudan, pula dokun → hedef → ONAYLA; sunucu kabul eder — insan hamlesi sunucuda kabul edildi
+- ✔ 11 Tavla: kurala aykırı hedefe dokunmak hamle eklemez; yasa dışı dizi sunucuda reddedilir — sunucu yanıtı: bad_phase
+- ✔ 12 Tavla: masadan ÇIK → tavla giriş ekranı "GERİ DÖN" → aynı maça yeniden bağlanır — yeniden bağlandı
+- ✔ 13 Tavla özel masa (şifreli) + ikinci oyuncu salon KOD kutusuyla katılır: 2 gerçek oyuncu — kod SEZJYU · 2/2 insan
+- ✔ 14 Aviator: bahis anında sunucudan düşer; TAHSİL ET sonrası bakiye sunucuyla aynı; sonuç hash ile doğrulanır — 1.14x +1.140 jeton · uçak 6.32x'te uçtu
+- ✔ 15 Aviator otomatik tahsil (1.01x): bağlantısız da sunucu sonuçlandırır — ödendi 1.01x = 101
+- ✔ 16 Slot Salonu: kategori filtresi; makine açılır; geri → Slot Salonu (salon değil) — 7 makine · klasik 1
+- ✔ 17 Liderlik Tablosu 5 sekme (Seviye/Okey/Tavla/Aviator/Slot) gerçek kayıtlardan — level:2 okey:0 tavla:0 aviator:1 slots:1
+- ✔ 18 Yönetici: ayrı kurulum/giriş; Aviator & Tavla sekmesi; RTP sınırı sunucuda; oyuncu 403 — RTP %95,5 kaydedildi · %150 reddedildi (400)
+- ✔ 19 Android geri tuşu zinciri: masa → giriş ekranı → salon; modal önce kapanır — Düz Okey masası → Düz Okey girişi → salon
+- ✔ 20 Performans: dokunma (arayüz) gecikmesi ≠ ağ gecikmesi; salon ve Aviator uçuşunda FPS — dokunma p50 33/p95 35 ms · ağ p50 13/p95 38 ms (n=196) · Tavla girişi 61 ms · FPS salon 60, Aviator uçuşu 59 · bellek 10 MB
+
+Sayfa hatası: yok

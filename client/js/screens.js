@@ -7,34 +7,30 @@
   /* ===================== GİRİŞ / KAYIT ===================== */
   // Yatay giriş ekranı: solda oyun dünyası (Kristal Peri + 101 Okey + Zeus), sağda form
   function authShell(inner) {
-    return `<div class="authw"><div class="authart sp"><img class="aaking" src="assets/king_wave.webp" alt=""><img class="aalogo" src="assets/spinova_logo.webp" alt="SPINOVA 101 OKEY"><span class="byhkn">By-Hkn</span></div>
-      <div class="authform"><div class="card">${inner}</div><p class="small muted center">18 yaş ve üzeri içindir. Sanal jetonlar yalnızca eğlence amaçlıdır; gerçek para veya ödül kazandırmaz.</p></div></div>`;
+    // Tam ekran açılış sahnesi + sol tarafta cam panel; sağda yuvarlak İletişim / Tamirat
+    return `<div class="authbg"></div><div class="ldbokeh"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="ldside"><button class="ldrb" type="button" onclick="Intro.help()"><span>💬</span>İLETİŞİM</button><button class="ldrb" type="button" onclick="Intro.repair()"><span>🛠️</span>TAMİRAT</button></div>
+      <div class="authglass">${inner}</div>
+      <p class="authlegal">18 yaş ve üzeri içindir · Sanal jetonlar yalnızca eğlence amaçlıdır; gerçek para veya ödül kazandırmaz · <a class="link" data-legal="privacy">Gizlilik</a> · <a class="link" data-legal="terms">Kullanım Koşulları</a></p><em class="ldver">By-Hkn</em>`;
   }
   // Giriş ekranı: üstte kullanıcı adı + şifre (Giriş Yap / Kayıt Ol), altta e-posta ile giriş ve Şifremi Unuttum
   function login() {
     screen('auth', authShell(`
+      <div class="authh"><img src="assets/spinova_logo.webp" alt=""><div><b>Hoş geldin!</b><small>Hesabınla giriş yap ya da yeni hesap aç</small></div></div>
       <form id="fUser" autocomplete="on">
-        <label class="field"><span>👤 Kullanıcı adı</span><input name="identifier" autocomplete="username" required></label>
+        <label class="field"><span>👤 Kullanıcı adı veya e-posta</span><input name="identifier" autocomplete="username" required></label>
         <label class="field"><span>🔒 Şifre</span><input name="password" type="password" autocomplete="current-password" required></label>
         <div class="err" id="uErr"></div>
-        <div class="row"><button class="btn green grow" type="submit">▶ GİRİŞ YAP</button><button class="btn gold grow" type="button" id="toReg">KAYIT OL</button></div>
+        <div class="row"><button class="abtn white grow" type="submit">▶ GİRİŞ YAP</button><button class="abtn blue grow" type="button" id="toReg">KAYIT OL</button></div>
       </form>
-      <div class="ordiv"><span>VEYA</span></div>
-      <div class="section-t" style="justify-content:center">📧 E-posta ile giriş yap</div>
-      <form id="fMail" autocomplete="on">
-        <label class="field"><span>E-posta adresi</span><input name="identifier" type="email" autocomplete="email" required></label>
-        <label class="field"><span>Şifre</span><input name="password" type="password" autocomplete="current-password" required></label>
-        <div class="err" id="mErr"></div>
-        <button class="btn purple block" type="submit">GİRİŞ YAP</button>
-      </form>
-      <div class="row" style="justify-content:space-between;margin-top:10px"><button class="link" id="toForgot">Şifremi Unuttum</button><button class="link" id="toAdmin">🛡️ Yönetici Girişi</button></div>`));
+      <div class="row" style="justify-content:space-between;margin-top:8px"><button class="link" id="toForgot">Şifremi Unuttum</button><button class="link" id="toAdmin">🛡️ Yönetici Girişi</button></div>`));
     show('auth');
     const bind = (formId, errId) => { $(formId).onsubmit = async (e) => {
       e.preventDefault(); const f = e.target; const b = f.querySelector('button[type=submit]'); $(errId).textContent = ''; b.disabled = true;
       try { const r = await Api.post('/api/auth/login', { identifier: f.identifier.value.trim(), password: f.password.value }); Api.setToken(r.token); await enter(); }
       catch (er) { $(errId).textContent = er.message; Sound.play('error'); } finally { b.disabled = false; }
     }; };
-    bind('#fUser', '#uErr'); bind('#fMail', '#mErr');
+    bind('#fUser', '#uErr'); $$('[data-legal]').forEach(a => a.onclick = (e) => { e.preventDefault(); legal(a.dataset.legal); });
     $('#toReg').onclick = register; $('#toForgot').onclick = forgot; $('#toAdmin').onclick = adminLogin;
   }
   function register() {
@@ -228,11 +224,10 @@
   /* ===================== GÜNLÜK / SEVİYE / ETKİNLİK ===================== */
   function dailyModal() {
     const d = S.daily;
-    modal(`<h3 class="gold">🎁 Günlük Giriş Ödülü</h3>
-      <div class="center" style="font-size:70px;animation:floaty 2s infinite">🪙</div>
-      <p class="center">Seviye <b>${S.me.level}</b> ödülün:</p><div class="center gold" style="font-size:40px;font-weight:900">${fmt(d.amount)}</div>
+    modal(`<div class="promo"><div class="prays"></div><h2 class="ptitle2">GÜNLÜK ÖDÜL</h2>
+      <div class="pbox"><img class="pchest" src="assets/ic_chest.webp" alt=""><div><small>Seviye ${S.me.level} ödülün</small><b class="pamt">${fmt(d.amount)}</b><small>jeton + 1 bilet</small></div><img class="pcoins" src="assets/fx_coins.webp" alt=""></div></div>
       <p class="center small muted">Ödül seviyene göre artar: Sv1 500 · Sv10 1.000 · Sv50 5.000 · Sv100 10.000 jeton. 24 saatte bir alınır (sunucu saati).</p>
-      <button class="btn green block" id="dClaim" ${d.available ? '' : 'disabled'}>${d.available ? 'TOPLA' : 'Sonraki ödül: <span id="dLeft"></span>'}</button>`, {
+      <button class="pgo" id="dClaim" ${d.available ? '' : 'disabled'}>${d.available ? 'HEMEN TOPLA' : 'Sonraki ödül: <span id="dLeft"></span>'}</button>`, { cls: 'promom',
       onOpen() {
         if (!d.available) { const t = setInterval(() => { const e = $('#dLeft'); if (!e) return clearInterval(t); e.textContent = hms(d.nextAt - Date.now() - (S.clockSkew || 0)); }, 1000); }
         $('#dClaim').onclick = () => guard($('#dClaim'), async () => {

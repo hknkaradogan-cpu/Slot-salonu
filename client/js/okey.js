@@ -245,6 +245,7 @@
     if (v.hand) syncRack();
     events(prev, v);
     render();
+    if (prev && prev.status === 'waiting' && v.status === 'playing') { const b = document.createElement('div'); b.className = 'okgo2'; b.textContent = 'Oyun başlıyor!'; $('#okStage').appendChild(b); Sound.play('orb'); setTimeout(() => b.remove(), 1500); }
     if (v.status === 'round_end' && v.hand && v.hand.result && O.shownRound !== v.round) { O.shownRound = v.round; roundModal(v); }
     if (v.status === 'finished' && !O.shownFinal) { O.shownFinal = true; if (v.hand && v.hand.result && O.shownRound !== v.round) { O.shownRound = v.round; roundModal(v, true); } else finalModal(v); }
     if (v.status === 'abandoned') { toast('Masa kapandı.'); lobby(); }
@@ -441,12 +442,16 @@
     if (v.status !== 'waiting') { el.classList.add('hidden'); return; }
     el.classList.remove('hidden');
     const humans = v.seats.filter(x => x && x.human).length, left = v.fillAt ? Math.max(0, Math.ceil((v.fillAt - (Date.now() - O.skew)) / 1000)) : null;
-    el.innerHTML = `<b class="gold" style="font-size:20px">${v.cfg.private ? '🔒 Özel oda' : '🟢 Oyuncu aranıyor'}</b>
-      <p>${v.cfg.mode === 'esli' ? 'Eşli' : 'Tekli'} · ${v.cfg.katlamali ? 'Katlamalı' : 'Katlamasız'} · ${v.cfg.rounds} el · ${humans} gerçek oyuncu masada${v.cfg.private || !v.cfg.bots ? '' : ` · <span id="okFill">${left != null ? left + ' sn sonra boş koltuklara bot oturur' : ''}</span>`}</p>
-      ${v.code ? `<p>Oda kodu: <b class="okcode">${v.code}</b>${v.locked ? ' 🔒' : ''} <button class="okbtn2 sm" id="okCopy">📋 Kopyala</button> <button class="okbtn2 sm wa" id="okWa">🟢 WhatsApp</button></p>` : ''}
-      <p class="small">Masa doluluğu: <b>${v.seats.filter(Boolean).length}/4</b></p>
-      <div class="row" style="justify-content:center;gap:8px"><button class="okbtn2" id="okInvite">👥 Arkadaş Davet Et</button>${(v.cfg.private && !v.owner) || v.cfg.bots === false ? '' : '<button class="okbtn2 go" id="okStart">🤖 Botlarla Başlat</button>'}</div>
-      ${v.cfg.mode === 'esli' ? '<p class="small">Eşli: karşılıklı oturanlar takım. Boş koltuktaki “Otur” ile yerini seçebilirsin.</p>' : ''}`;
+    const filled = v.seats.filter(Boolean).length, duz = isDuzV();
+    const count = left != null && !v.cfg.private && v.cfg.bots ? `<b>${left}</b> saniye içinde oyun başlayacak…` : filled === 4 ? 'Oyun başlıyor!' : 'Diğer oyuncuların katılması bekleniyor…';
+    el.innerHTML = `<button class="okleave" id="okLeave2">MASADAN<br>AYRIL</button>
+      <div class="okwstake"><i class="okcoin"></i><b>${v.cfg.stake ? fmt(v.cfg.stake) : 'ÜCRETSİZ'}</b></div>
+      <div class="okwchips"><span>${v.cfg.mode === 'esli' ? 'EŞLİ' : 'TEK'}</span><span>${v.cfg.rounds} EL</span><span class="on">${duz ? 'DÜZ OKEY' : '101 OKEY'}</span><span>${duz ? 'AÇMA YOK' : v.cfg.katlamali ? 'KATLAMALI' : 'KATLAMASIZ'}</span></div>
+      <p class="okwinfo">${v.cfg.private ? `Özel masa · ${humans} gerçek oyuncu · doluluk ${filled}/4` : `${humans} gerçek oyuncu masada · doluluk ${filled}/4 · ${v.cfg.stake ? 'havuz ' + fmt(v.cfg.stake * 4) + ' jeton' : 'jeton harcanmaz'}`}</p>
+      <div class="okwcount" id="okFill">${count}</div>
+      ${v.code ? `<div class="okwcode">Masa kodu <b class="okcode">${v.code}</b>${v.locked ? ' 🔒' : ''}<button class="okbtn2 sm" id="okCopy">📋 Kopyala</button><button class="okbtn2 sm wa" id="okWa">WhatsApp</button></div>` : ''}
+      <div class="row" style="justify-content:center;gap:8px;margin-top:6px"><button class="okbtn2 sm" id="okInvite">👥 Davet Et</button>${(v.cfg.private && !v.owner) || v.cfg.bots === false ? '' : '<button class="okbtn2 sm go" id="okStart">🤖 Botlarla Başlat</button>'}</div>`;
+    $('#okLeave2').onclick = leaveTable;
     const inv = () => `101 Okey masama gel! SPINOVA 101 OKEY'de "Kodla Katıl"a ${v.code} yaz.${v.locked ? ' (Şifreyi ayrıca söyleyeceğim.)' : ''} Jetonlar sanaldır.`;
     $('#okCopy') && ($('#okCopy').onclick = () => Platform.copy(v.code)); $('#okWa') && ($('#okWa').onclick = () => Platform.share(inv()));
     $('#okInvite').onclick = inviteModal; $('#okStart') && ($('#okStart').onclick = () => guard($('#okStart'), async () => { await Api.post(`/api/okey/${O.id}/start`, {}); poll(true); }));
@@ -460,7 +465,7 @@
       const ck = $('#okClock'); if (ck) { ck.textContent = Math.ceil(rem / 1000) + ' sn'; ck.parentElement.classList.toggle('hurry', myTurn() && rem < 8000); }
       if (myTurn() && rem < 8000 && rem > 0 && Math.floor(rem / 1000) !== O.lastTick) { O.lastTick = Math.floor(rem / 1000); Sound.play('tick'); }
     } else { const ck = $('#okClock'); if (ck) ck.textContent = v.status === 'waiting' ? 'Bekleniyor' : '—'; }
-    if (v.status === 'waiting' && v.fillAt) { const f = $('#okFill'); if (f) f.textContent = `${Math.max(0, Math.ceil((v.fillAt - t) / 1000))} sn sonra boş koltuklara bot oturur`; }
+    if (v.status === 'waiting' && v.fillAt && !v.cfg.private) { const f = $('#okFill'); if (f) f.innerHTML = `<b>${Math.max(0, Math.ceil((v.fillAt - t) / 1000))}</b> saniye içinde oyun başlayacak…`; }
   }
 
   /* ---------- olaylar (ses, animasyon, sohbet) ---------- */
