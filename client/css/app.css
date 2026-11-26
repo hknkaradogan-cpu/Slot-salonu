@@ -1343,9 +1343,9 @@ body.portrait #okeyRoot{visibility:visible}
 .trans{position:fixed;inset:0;z-index:150;pointer-events:all;overflow:hidden}
 /* okey taşları */
 .t-tiles i{position:absolute;width:22vh;height:17vh;border-radius:2.2vh;background:radial-gradient(120% 80% at 50% 0%,#fff,rgba(255,255,255,0) 60%),linear-gradient(180deg,#fffdf6,#ece4cf);
-  box-shadow:inset 0 .3vh 0 #fff,0 .5vh 0 #d8ceb3,0 .9vh 0 #bfb292,0 1.6vh 2.4vh rgba(0,0,0,.45);transform:translateY(-130vh) rotate(var(--r));transition:transform .46s cubic-bezier(.3,1.25,.5,1) var(--d)}
+  box-shadow:inset 0 .3vh 0 #fff,0 .5vh 0 #d8ceb3,0 .9vh 0 #bfb292,0 1.6vh 2.4vh rgba(0,0,0,.45);transform:translateY(-130vh) rotate(var(--r));transition:transform .3s cubic-bezier(.3,1.25,.5,1) calc(var(--d) * .5)}
 .t-tiles.in i{transform:translateY(0) rotate(var(--r))}
-.t-tiles.out i{transform:translateY(130vh) rotate(calc(var(--r) * -1.5));transition:transform .42s cubic-bezier(.6,0,.9,.5) calc(var(--d) * .6)}
+.t-tiles.out i{transform:translateY(130vh) rotate(calc(var(--r) * -1.5));transition:transform .28s cubic-bezier(.6,0,.9,.5) calc(var(--d) * .2)}
 /* mor kadife perde / ahşap kapak */
 .t-curtain b,.t-wood b{position:absolute;top:0;bottom:0;width:51%;transition:transform .45s cubic-bezier(.5,0,.2,1)}
 .t-curtain b{background:repeating-linear-gradient(90deg,#3a0a6a 0 2.2vw,#7a2acb 2.2vw 3.4vw,#4b0f8a 3.4vw 5vw,#2a0650 5vw 6vw);box-shadow:inset 0 -8vh 10vh rgba(0,0,0,.5),inset 0 4vh 8vh rgba(255,120,255,.15)}
@@ -1552,13 +1552,13 @@ body.portrait #okeyRoot{visibility:visible}
 .cflaunch{position:fixed;inset:0;z-index:160;pointer-events:all}
 .cfdim{position:absolute;inset:0;background:radial-gradient(circle,rgba(30,5,60,.7),rgba(0,0,0,.92));opacity:0;transition:opacity .3s}
 .cflaunch.in .cfdim{opacity:1}
-.cfbig{position:fixed;border-radius:10px;overflow:hidden;box-shadow:0 0 0 2px #ffd34d,0 0 40px rgba(255,200,80,.8);transform-origin:50% 50%;transition:transform .65s cubic-bezier(.6,0,.2,1),border-radius .65s,box-shadow .65s}
+.cfbig{position:fixed;border-radius:10px;overflow:hidden;box-shadow:0 0 0 2px #ffd34d,0 0 40px rgba(255,200,80,.8);transform-origin:50% 50%;transition:transform .3s cubic-bezier(.5,0,.2,1),border-radius .65s,box-shadow .65s}
 .cflaunch.in .cfbig:not(.grow){transform:scale(1.12) translateY(-4px)!important;transition:transform .25s cubic-bezier(.3,1.6,.5,1)}
 .cfbig.grow{border-radius:0;box-shadow:0 0 0 0 transparent}
 .cfring{position:fixed;left:50%;top:50%;width:20px;height:20px;margin:-10px;border-radius:50%;box-shadow:0 0 0 3px rgba(255,230,140,.9),0 0 30px #ffd34d;opacity:0}
-.cflaunch.in .cfring{animation:cfring .9s .5s ease-out}
+.cflaunch.in .cfring{animation:cfring .45s .1s ease-out}
 @keyframes cfring{0%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(60)}}
-.cflaunch.out{opacity:0;transition:opacity .4s}
+.cflaunch.out{opacity:0;transition:opacity .2s}
 /* oyun içi canlı katman */
 .cfamb{position:absolute;inset:0;pointer-events:none;z-index:2}
 .cfart>div{inset:0}
@@ -1591,3 +1591,59 @@ body.portrait #okeyRoot{visibility:visible}
 .kscene .kbarin{height:4.6cqh;min-height:12px}
 .kscene{container-type:size}
 .kscene .kbar span{margin-top:.6cqh;font-size:2.6cqh}
+/* performans: kart katmanlarında karışım modu (blend) ve bulanıklık kullanılmaz — telefonda en pahalı işlemler */
+.cfart *{mix-blend-mode:normal!important}
+.cfart .creel.spin .cstrip{filter:none}
+.cfart .creel.spin img{opacity:.75}
+body.lowfx .cfart .arays,body.lowfx .cfart .zcloud,body.lowfx .cfart .msweep,body.lowfx .krays{display:none}
+/* =================== 5.5 AVİVASOR ORTAK TUR =================== */
+.avmult .avcd{display:block;width:240px;height:8px;margin:10px auto 0;border-radius:5px;background:rgba(255,255,255,.12);overflow:hidden}
+.avmult .avcd i{display:block;height:100%;background:linear-gradient(90deg,#ff4d6d,#f2c14e);border-radius:5px;transition:width .1s linear}
+.avmult small.ok{color:#7dff6b;font-weight:800}
+.avmult.won b{color:#fff;text-shadow:0 0 24px rgba(125,255,107,.55),0 4px 0 rgba(0,0,0,.4)}
+.avgo.cancel{background:linear-gradient(180deg,#ff6a5a,#c0281c);box-shadow:0 5px 0 #7d140c}
+.avgo.done{background:linear-gradient(180deg,#5ad07a,#1f8a3c);box-shadow:0 5px 0 #145a26;opacity:.9}
+.avplh{font-size:11px;color:#b9c0ff;font-weight:800;display:flex;justify-content:space-between;margin-top:2px}
+.avpl{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:3px}
+.avp{display:grid;grid-template-columns:20px 1fr auto;grid-template-rows:auto auto;column-gap:6px;align-items:center;padding:3px 6px;border-radius:8px;background:rgba(255,255,255,.05);font-size:10.5px}
+.avp .avpa{grid-row:1/3;width:20px;height:20px;border-radius:50%;overflow:hidden;display:block}
+.avp b{font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.avp em{font-style:normal;color:#f2c14e;font-weight:800}
+.avp i{grid-column:2/4;font-style:normal;font-size:10px;color:#9aa3d8}
+.avp.cashed{background:rgba(60,200,90,.16)}.avp.cashed i{color:#7dff6b;font-weight:800}.avp.lost{opacity:.55}
+.avpe{font-size:10.5px;color:#8f97c8;text-align:center;margin:6px 0}
+.avstats{flex:none}
+/* =================== 5.5 GERÇEKÇİ SPINOVA TAŞLARI ===================
+ * Fildişi/kemik gövde, yanlarda hafif bombe, üstte doğal ışık parlaması, kabartma rakam,
+ * altta oyuk daire, 4 katmanlı taş kalınlığı ve yumuşak gölge. Tüm boyutlar aynı oranla ölçeklenir. */
+.otile{border-radius:8px / 7px;overflow:visible;
+  background:
+    linear-gradient(90deg,rgba(150,125,80,.16) 0,rgba(255,255,255,0) 9%,rgba(255,255,255,0) 91%,rgba(150,125,80,.2) 100%),
+    radial-gradient(140% 85% at 50% -8%,#fffffb 0,#fffcf1 38%,rgba(255,252,240,0) 70%),
+    linear-gradient(180deg,#fffaf0 0%,#f8f0dc 48%,#efe3c6 86%,#e6d6b3 100%)!important;
+  box-shadow:inset 0 1.5px 0 rgba(255,255,255,.95),inset 0 -2px 3px rgba(170,140,90,.28),inset 0 0 0 1px rgba(170,145,100,.32),
+    0 2px 0 #eadcbc,0 3px 0 #ddcca5,0 4px 0 #cbb68b,0 5px 0 #b29b6f,0 7px 6px rgba(40,20,0,.45),0 10px 12px rgba(0,0,0,.22)!important}
+/* üst parlama (vernikli kemik yüzeyi) */
+.otile:not(.back)::before{content:"";position:absolute;left:12%;right:12%;top:5%;height:28%;border-radius:50% / 60%;background:linear-gradient(180deg,rgba(255,255,255,.85),rgba(255,255,255,0));pointer-events:none}
+/* kabartma rakam: üstten ışık, alttan gölge */
+.otile span{position:relative;z-index:1;text-shadow:0 -1px 0 rgba(255,255,255,.9),0 1px 0 rgba(0,0,0,.28),0 2px 2px rgba(0,0,0,.18)!important;filter:saturate(1.12)}
+.otile.c0{color:#d8141d}.otile.c1{color:#e9a200}.otile.c2{color:#1468cf}.otile.c3{color:#121212}
+/* alt daire: gerçek taşlardaki oyuk */
+.otile .od{position:relative;z-index:1;background:radial-gradient(circle at 50% 35%,#f3ead6 0 28%,#d8c9a6 36% 55%,#fbf5e7 62% 72%,#b9a57c 78%)!important;box-shadow:inset 0 1px 2px rgba(90,60,10,.35),0 1px 0 rgba(255,255,255,.9)!important}
+.otile.sel{transform:translateY(-10px)!important;box-shadow:inset 0 1.5px 0 #fff,0 0 0 3px #7dff6b,0 2px 0 #eadcbc,0 4px 0 #cbb68b,0 5px 0 #b29b6f,0 14px 14px rgba(0,0,0,.45)!important}
+.otile.jok{box-shadow:inset 0 1.5px 0 #fff,0 0 0 2px #ffcf3a,0 2px 0 #eadcbc,0 4px 0 #cbb68b,0 5px 0 #b29b6f,0 0 14px rgba(255,200,40,.85)!important}
+.otile.sm,.otile.xs{box-shadow:inset 0 1px 0 #fff,inset 0 0 0 1px rgba(170,145,100,.3),0 1px 0 #ddcca5,0 2px 0 #b29b6f,0 3px 3px rgba(0,0,0,.35)!important}
+.otile.sm::before,.otile.xs::before{top:4%;height:24%}
+/* sürüklenen taş: havaya kalkar, gölgesi uzar */
+.otile.drag,.okdrag .otile,.otile.dragging{transform:scale(1.1) rotate(-2deg);box-shadow:inset 0 1.5px 0 #fff,0 2px 0 #eadcbc,0 4px 0 #cbb68b,0 5px 0 #b29b6f,0 18px 18px rgba(0,0,0,.45)!important}
+/* ===== ISTAKA: gerçek ahşap, damar, vernik ve taş oluğu ===== */
+.okrack{background:
+    linear-gradient(180deg,rgba(255,255,255,.28) 0,rgba(255,255,255,.06) 6%,rgba(0,0,0,0) 46%,rgba(0,0,0,.18) 50%,rgba(255,255,255,.18) 52%,rgba(0,0,0,0) 56%,rgba(0,0,0,.22) 100%),
+    url(../assets/wood_light.webp) center/cover!important;
+  box-shadow:0 0 0 2px #6b3d0c,0 0 0 4px #a5692a,0 7px 0 #5a3208,0 12px 20px rgba(0,0,0,.6),inset 0 2px 0 rgba(255,240,200,.55),inset 0 -3px 6px rgba(60,30,0,.45)!important}
+.okstage.duz .okrack{background:
+    linear-gradient(180deg,rgba(255,255,255,.28) 0,rgba(255,255,255,.06) 6%,rgba(0,0,0,0) 46%,rgba(0,0,0,.18) 50%,rgba(255,255,255,.18) 52%,rgba(0,0,0,0) 56%,rgba(0,0,0,.22) 100%),
+    url(../assets/wood_maple.webp) center/cover!important}
+.okghost .otile{transform:rotate(-3deg);box-shadow:inset 0 1.5px 0 #fff,0 2px 0 #eadcbc,0 4px 0 #cbb68b,0 5px 0 #b29b6f,0 20px 18px rgba(0,0,0,.5)!important}
+.otile.seat{animation:tseat .22s cubic-bezier(.3,1.6,.5,1)}
+@keyframes tseat{0%{transform:translateY(-8px) scale(1.06)}100%{transform:none}}
+.okrack .otile span{font-size:33px}

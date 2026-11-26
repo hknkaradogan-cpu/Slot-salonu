@@ -210,9 +210,9 @@
     if (v && (v.status === 'playing' || v.status === 'game_end') && !(await UI.confirm(`Masadan ayrılırsan yerine bot oynar${v.cfg.stake ? ' ve giriş jetonun iade edilmez' : ''}. Maç sürdükçe geri dönebilirsin. Ayrılmak istiyor musun?`, 'Ayrıl'))) return;
     const id = T.id; stop();
     if (v && v.status !== 'finished') { try { const r = await Api.post(`/api/tavla/${id}/leave`, {}); if (r.refunded) toast(`Giriş jetonu iade edildi: ${fmt(r.refunded)}`); } catch (e) { /* */ } }
-    Screens.refresh && Screens.refresh().catch(() => {}); Entry.open('tavla');
+    Screens.refresh && Screens.refresh().catch(() => {}); Screens.go('home');
   }
-  function exit() { stop(); Entry.open('tavla'); }
+  function exit() { stop(); Screens.go('home'); }
   function menu() {
     modal(`<h3 class="gold">Menü</h3><div class="list"><button class="btn ghost block" data-x="rules">📖 Kurallar</button><button class="btn ghost block" data-x="sound">${Sound.get().sound ? '🔇 Sesi Kapat' : '🔊 Sesi Aç'}</button><button class="btn red block" data-x="leave">⟵ Masadan Çık</button></div>`, {
       onOpen(m) { $$('[data-x]', m).forEach(b => b.onclick = () => { const x = b.dataset.x; closeModal(); if (x === 'rules') rulesModal(); if (x === 'sound') Sound.set('sound', !Sound.get().sound); if (x === 'leave') leave(); }); } });

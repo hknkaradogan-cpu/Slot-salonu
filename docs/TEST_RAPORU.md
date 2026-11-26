@@ -206,3 +206,10 @@ Görevler
 - ✔ 20 Performans: dokunma (arayüz) gecikmesi ≠ ağ gecikmesi; salon ve Aviator uçuşunda FPS — dokunma p50 33/p95 35 ms · ağ p50 13/p95 38 ms (n=196) · Tavla girişi 61 ms · FPS salon 60, Aviator uçuşu 59 · bellek 10 MB
 
 Sayfa hatası: yok
+
+## 5.0.25 — kritik düzeltmeler (27.11.2026)
+- Oyundan çıkış: tüm oyunlarda ÇIK/SALON/geri → ana salon. Sebep: çıkış düğmesi parmak kalkınca çalışıyor, aynı dokunuşun "click" olayı salondaki aynı noktada duran profil düğmesine düşüyordu (hayalet dokunuş). Salona dönüşten önce başlamış dokunuşun tıklaması artık yutuluyor. 12 oyunda gerçek işaretçiyle test edildi: hepsi main/home.
+- Açılış süresi (CPU 4× yavaşlatılmış): ~1,8 sn → ~0,6 sn; salona dönüş ≤15 ms (salon önbellekte). Okey masası 1,4 sn → 0,67 sn.
+- 101 Okey: (1) ortada taş bitince el kendiliğinden biter ve puanlanır; (2) açarken/koyarken/işlerken son taşın masaya konması engellendi (eskiden el 0 taşa düşüp oyun kilitleniyordu); (3) bozuk durumdaki masalar sunucuda otomatik kapanır. Yeni test: test/okeyend.test.js (100 bot oyunu dahil).
+- Avivasor: ortak sunucu turu. Tahsil yalnızca oyuncunun bahsini kapatır; uçak patlama noktasına kadar uçar; geri sayım + yeni tur; uçuşta yapılan bahis sıradaki tura; kalkıştan önce iptal; masadaki gerçek oyuncular listesi.
+- Sunucu testleri 56/56, uçtan uca 20/20.

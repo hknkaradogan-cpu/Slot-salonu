@@ -3,7 +3,8 @@
 (function () {
   'use strict';
   const $ = (s) => document.querySelector(s);
-  const ASSETS = ['splash_king', 'splash_logo', 'intro_bg', 'hall_bg', 'king_logo', 'spinova_logo', 'g_okey101', 'g_duzokey', 'g_tavla', 'g_aviator', 'g_slot', 'ic_chest', 'felt_green', 'felt_burgundy', 'wood_light', 'wood_dark', 'wood_maple', 'damask', 'hero_zeus', 'menu_fairy', 'card_zeus', 'card_egypt', 'card_vegas', 'card_dragon', 'card_pirate', 'card_gold', 'b_fairy'];
+  // Açılışta yalnızca salonun ihtiyaç duyduğu görseller indirilir; oyunların görselleri oyun açılınca yüklenir
+  const ASSETS = ['splash_king', 'splash_logo', 'intro_bg', 'hall_bg', 'king_logo', 'ic_chest', 'av0', ...['okey101', 'duzokey', 'tavla', 'avivasor', 'slot', 'zeus', 'misir', 'peri', 'korsan', 'vegas', 'ejderha', 'altin'].map(k => 'cv_' + k)];
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
   function set(p, text) { const f = $('#ldFill'), m = $('#splashMsg'), k = document.querySelector('.kspark'); if (f) f.style.width = Math.round(p) + '%'; if (k) k.style.left = Math.round(p) + '%'; if (m && text) m.textContent = text; }
   function version() { try { if (window.AndroidUpdate && AndroidUpdate.enabled()) return AndroidUpdate.versionName(); } catch (e) { /* */ } return 'web 5.1'; }

@@ -215,20 +215,30 @@
     return { inst: I, boost: () => boost(I), event: (n) => D.event && D.event.call(D, I, n), destroy: () => live.delete(I) };
   }
   function size(I) {
-    const r = I.host.getBoundingClientRect(), d = Math.min(2, window.devicePixelRatio || 1);
+    const r = I.host.getBoundingClientRect(), d = I.amb ? 1 : Math.min(low ? 1 : 1.5, window.devicePixelRatio || 1);
     const w = Math.max(1, Math.round(I.cv.clientWidth * d)), h = Math.max(1, Math.round(I.cv.clientHeight * d));
     if (w !== I.W || h !== I.H) { I.cv.width = I.W = w; I.cv.height = I.H = h; } I.s = Math.max(0.6, I.W / 300); return r;
   }
   function boost(I) { I.boost = true; I.k = 2.4; I.host.classList.add('boost'); I.def.event && I.def.event.call(I.def, I); }
   function kick() { if (!raf) { last = performance.now(); raf = requestAnimationFrame(loop); } }
+  /* Performans: kartlar 30 kare/sn çizilir (göz farkı yok, işlemci yükü yarıya iner).
+   * Telefon yavaşsa (ortalama kare > 30 ms) otomatik "hafif mod": parçacıklar azalır, 20 kare/sn. */
+  let acc = 0, avg = 16.7, low = false;
   function loop(now) {
     raf = 0; if (document.hidden) return; // görünür olunca visibilitychange yeniden başlatır
-    const dt = Math.min(3, (now - last) / 16.7); last = now; let any = false;
+    const ms = now - last; last = now; avg = avg * 0.95 + Math.min(100, ms) * 0.05;
+    if (!low && avg > 30) { low = true; document.body.classList.add('lowfx'); }
+    acc += ms; const step = low ? 50 : 33;
+    if (acc < step - 2) { raf = requestAnimationFrame(loop); return; }
+    const dt = Math.min(4, acc / 16.7); acc = 0; let any = false;
     live.forEach(I => {
       if (!I.host.isConnected) { live.delete(I); return; }
       if (!I.host.offsetParent && !I.opts.fixed) return; // gizli ekran: çizme
       any = true; if ((I.fr = (I.fr || 0) + 1) % 30 === 1) size(I);
-      I.x.clearRect(0, 0, I.W, I.H); I.def.tick && I.def.tick.call(I.def, I, dt); drawP(I, dt);
+      if (I.P.length || I.B.length || I.dirty) I.x.clearRect(0, 0, I.W, I.H);
+      I.def.tick && I.def.tick.call(I.def, I, dt);
+      if (low && I.P.length > 40) I.P.splice(0, I.P.length - 40); // hafif mod: parçacık sınırı
+      I.dirty = I.P.length > 0 || I.B.length > 0; drawP(I, dt);
     });
     if (any || live.size) raf = requestAnimationFrame(loop);
   }
@@ -240,7 +250,7 @@
     if (launching) return open(); launching = true;
     const sleep = (ms) => new Promise(r => setTimeout(r, ms));
     try {
-      const r = fromEl ? fromEl.getBoundingClientRect() : { left: innerWidth * 0.35, top: innerHeight * 0.35, width: innerWidth * 0.3, height: innerWidth * 0.145 };
+      const r = fromEl && fromEl.isConnected ? fromEl.getBoundingClientRect() : { left: innerWidth * 0.35, top: innerHeight * 0.35, width: innerWidth * 0.3, height: innerWidth * 0.145 };
       const ov = document.createElement('div'); ov.className = 'cflaunch';
       ov.innerHTML = '<div class="cfdim"></div><div class="cfbig"></div><div class="cfring"></div>';
       document.body.appendChild(ov);
@@ -248,17 +258,17 @@
       Object.assign(big.style, { left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px' });
       const c = mount(big, id, { fixed: true }); if (c) setTimeout(() => c.boost(), 60);
       if (fromEl) fromEl.classList.add('cfpressed');
-      await sleep(30); ov.classList.add('in');
-      // kartı ekranı dolduracak şekilde büyüt (en-boy korunur, taşan kısım kırpılır)
+      // Oyun HEMEN arkada açılmaya başlar; animasyon yalnızca bu süreyi doldurur, beklemeye eklenmez
+      const t0 = performance.now();
+      const p = Promise.resolve().then(open);
+      await sleep(16); ov.classList.add('in');
       const sc = Math.max(innerWidth / r.width, innerHeight / r.height) * 1.02;
       const tx = innerWidth / 2 - (r.left + r.width / 2), ty = innerHeight / 2 - (r.top + r.height / 2);
-      await sleep(260);
+      await sleep(90);
       big.style.transform = `translate(${tx}px,${ty}px) scale(${sc})`; big.classList.add('grow');
-      await sleep(650);
-      const p = Promise.resolve().then(open);
-      await Promise.race([p.catch(() => {}), sleep(1500)]);
-      await sleep(250);
-      ov.classList.add('out'); await sleep(420); ov.remove(); if (fromEl) fromEl.classList.remove('cfpressed'); c && c.destroy();
+      await Promise.race([p.catch(() => {}), sleep(2500)]);
+      const left = 380 - (performance.now() - t0); if (left > 0) await sleep(left); // kart büyümesi tamamlansın (en fazla ~0,4 sn)
+      ov.classList.add('out'); await sleep(200); ov.remove(); if (fromEl) fromEl.classList.remove('cfpressed'); c && c.destroy();
       return p;
     } finally { launching = false; }
   }

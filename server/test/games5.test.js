@@ -138,22 +138,48 @@ test('Aviator: dağılım RTP/x, kriptografik çarpan, bahis–tahsil–kayıp s
   let n = 200000, ge2 = 0, ge10 = 0; for (let i = 0; i < n; i++) { const c = crashPoint(0.96, 1000); if (c >= 2) ge2++; if (c >= 10) ge10++; }
   assert.ok(Math.abs(ge2 / n - 0.48) < 0.006, 'P(≥2x)=' + ge2 / n); assert.ok(Math.abs(ge10 / n - 0.096) < 0.004, 'P(≥10x)=' + ge10 / n);
   assert.equal(multAt(0.09, timeOf(0.09, 2) + 1), 2);
-  const a = await reg('av_a'); const b0 = await bal(a.token);
-  const r = await api('POST', '/api/aviator/bet', { bet: 1000 }, a.token); assert.equal(r.status, 200, JSON.stringify(r.body)); assert.equal(r.body.balance, b0 - 1000);
-  assert.equal(r.body.round.crash, undefined, 'patlama çarpanı tur bitmeden gönderilmez');
-  assert.equal((await api('POST', '/api/aviator/bet', { bet: 1000 }, a.token)).body.error, 'round_active');
-  clock += 1500 + 10; // kalkış
-  const c = await api('POST', `/api/aviator/${r.body.round.id}/cashout`, {}, a.token); assert.equal(c.status, 200);
-  const R2 = c.body.round; assert.ok(['cashed', 'lost'].includes(R2.status));
-  const { createHash } = await import('node:crypto'); assert.equal(createHash('sha256').update(R2.crash.toFixed(2) + ':' + R2.salt).digest('hex'), R2.hash);
-  if (R2.status === 'cashed') assert.equal(c.body.balance, b0 - 1000 + Math.floor(1000 * R2.cashMult));
-  // kayıp: süre patlamayı geçtiyse tahsil edilemez
-  const r2 = await api('POST', '/api/aviator/bet', { bet: 500, auto: 1000 }, a.token); clock += 1500 + 200000;
-  const w = await api('GET', `/api/aviator/${r2.body.round.id}/wait`, null, a.token); assert.notEqual(w.body.round.status, 'flying');
-  if (w.body.round.status === 'lost') assert.equal((await api('POST', `/api/aviator/${r2.body.round.id}/cashout`, {}, a.token)).body.round.status, 'lost');
-  const h = (await api('GET', '/api/aviator', null, a.token)).body; assert.ok(h.history.length >= 2);
-  // otomatik tahsil: hedef patlamadan önceyse tam hedefle ödenir
-  let paid = false; for (let i = 0; i < 25 && !paid; i++) { const x = await api('POST', '/api/aviator/bet', { bet: 100, auto: 1.1 }, a.token); clock += 1500 + 60000; const y = (await api('GET', `/api/aviator/${x.body.round.id}/wait`, null, a.token)).body.round; if (y.status === 'cashed') { assert.equal(y.cashMult, 1.1); assert.equal(y.win, 110); paid = true; } else assert.ok(y.crash < 1.1); }
+  const { createHash } = await import('node:crypto');
+  const a = await reg('av_a'), b = await reg('av_b'); const a0 = await bal(a.token);
+  // ORTAK TUR: ikisi de aynı tura bahis yapar (bahis süresi)
+  let st = (await api('GET', '/api/aviator', null, a.token)).body; assert.equal(st.game.phase, 'betting'); assert.equal(st.game.crash, undefined, 'çarpan tur bitmeden açıklanmaz');
+  const ra = await api('POST', '/api/aviator/bet', { bet: 1000 }, a.token); assert.equal(ra.status, 200, JSON.stringify(ra.body)); assert.equal(ra.body.balance, a0 - 1000);
+  const rb = await api('POST', '/api/aviator/bet', { bet: 2000 }, b.token); assert.equal(rb.status, 200);
+  assert.equal(ra.body.round.game, rb.body.round.game, 'aynı tur'); assert.equal(ra.body.round.crash, undefined);
+  assert.equal((await api('POST', '/api/aviator/bet', { bet: 1000 }, a.token)).body.error, 'round_active', 'aynı tura ikinci bahis yok');
+  const gid = ra.body.round.game, startAt = ra.body.round.startAt;
+  // kalkıştan sonra A tahsil eder → yalnız A'nın bahsi kapanır; tur (uçak) devam eder, B uçmaya devam eder
+  clock = startAt + 20;
+  const c = await api('POST', `/api/aviator/${ra.body.round.id}/cashout`, {}, a.token); assert.equal(c.status, 200, JSON.stringify(c.body));
+  const ca = c.body.round;
+  st = (await api('GET', '/api/aviator', null, b.token)).body;
+  if (ca.status === 'cashed') {
+    assert.equal(ca.crash, undefined, 'tahsil eden oyuncu bile patlama çarpanını tur bitmeden göremez');
+    assert.equal(c.body.balance, a0 - 1000 + Math.floor(1000 * ca.cashMult));
+    assert.equal(st.game.id, gid); assert.equal(st.game.phase, 'flying', 'A tahsil etti diye uçak durmaz');
+    assert.equal(st.mine[0].status, 'flying', 'B hâlâ uçuşta');
+    assert.ok(st.players.some(p => p.status === 'cashed') && st.players.some(p => p.status === 'flying'), 'masadaki oyuncular listesi');
+    // uçuş sırasında yapılan bahis sıradaki tura yazılır
+    const nb = await api('POST', '/api/aviator/bet', { bet: 300 }, a.token); assert.equal(nb.status, 200); assert.equal(nb.body.round.game, gid + 1);
+  }
+  // patlama anına kadar bekle (uzun bekleme patlamada döner)
+  clock += 3600 * 1000;
+  const w = (await api('GET', `/api/aviator/game/${gid}/wait`, null, b.token)).body; assert.equal(w.game.phase, 'crashed'); assert.ok(w.game.crash >= 1);
+  assert.equal(createHash('sha256').update(w.game.crash.toFixed(2) + ':' + w.game.salt).digest('hex'), w.game.hash, 'taahhüt doğrulanır');
+  assert.equal(w.mine.status, 'lost', 'B tahsil etmedi → kayıp'); assert.equal(w.mine.crash, w.game.crash);
+  // yeni tur: bahis süresiyle başlar, geçmişte son patlama görünür
+  st = (await api('GET', '/api/aviator', null, a.token)).body; assert.ok(st.game.id > gid); assert.ok(st.history.includes(w.game.crash));
+  // bahis süresinde geri çekme (iade)
+  const bB = await bal(b.token); const cx = await api('POST', '/api/aviator/bet', { bet: 700 }, b.token); assert.equal(cx.status, 200);
+  if (clock < cx.body.round.startAt - 200) { const q = await api('POST', `/api/aviator/${cx.body.round.id}/cancel`, {}, b.token); assert.equal(q.status, 200, JSON.stringify(q.body)); assert.equal(q.body.balance, bB); }
+  // otomatik tahsil: hedef patlamadan önceyse tam hedefle ödenir (yalnız o oyuncu)
+  let paid = false;
+  for (let i = 0; i < 30 && !paid; i++) {
+    clock += 3600 * 1000; await api('GET', '/api/aviator', null, a.token);
+    const x = await api('POST', '/api/aviator/bet', { bet: 100, auto: 1.1 }, a.token); assert.equal(x.status, 200, JSON.stringify(x.body));
+    clock = x.body.round.startAt + 3600 * 1000;
+    const y = (await api('GET', `/api/aviator/game/${x.body.round.game}/wait`, null, a.token)).body;
+    if (y.mine.status === 'cashed') { assert.equal(y.mine.cashMult, 1.1); assert.equal(y.mine.win, 110); paid = true; } else assert.ok(y.game.crash < 1.1);
+  }
   assert.ok(paid, '1.1x otomatik tahsil en az bir kez ödenmeli');
 });
 

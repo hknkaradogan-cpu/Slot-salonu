@@ -24,13 +24,13 @@
     if (busy || reduce() || (window.CardFX && CardFX.busy())) return swap();
     busy = true; const o = build(kind);
     try {
-      Sound.play(kind === 'tiles' ? 'stop' : 'click');
+      Sound.play(kind === 'tiles' ? 'tileDrop' : 'whoosh');
+      // yeni ekran geçişle AYNI ANDA hazırlanır; geçiş bekleme eklemez, sadece hazırlanma süresini kaplar
+      const t0 = performance.now(); const p = Promise.resolve().then(swap);
       void o.offsetWidth; o.classList.add('in');
-      await sleep(kind === 'tiles' ? 640 : 460);
-      const p = swap(); // yeni ekran perdenin arkasında hazırlanır
-      await Promise.race([Promise.resolve(p).catch(() => {}), sleep(1400)]);
-      await sleep(120);
-      o.classList.add('out'); await sleep(kind === 'tiles' ? 560 : 520);
+      await Promise.race([p.catch(() => {}), sleep(2500)]);
+      const left = 330 - (performance.now() - t0); if (left > 0) await sleep(left);
+      o.classList.add('out'); await sleep(300);
       return p;
     } finally { o.remove(); busy = false; }
   }

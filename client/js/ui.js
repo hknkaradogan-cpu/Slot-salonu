@@ -13,6 +13,15 @@
   function show(id) {
     $$('#app > .screen').forEach(s => s.classList.toggle('active', s.id === id));
   }
+  // Hayalet dokunuş koruması: oyundan çıkış düğmesi parmak kalkınca (pointerup) çalışır; aynı dokunuşun
+  // ardından gelen "click" olayı yeni açılan salonda aynı noktadaki düğmeye (sol üstteki profil) düşüyordu.
+  // Salona dönüşten (Platform.home) sonraki 400 ms içinde gelen tıklamalar yutulur.
+  // Yalnızca salona dönüşten ÖNCE başlamış dokunuşun tıklaması yutulur; yeni dokunuşlar hemen çalışır.
+  let downAt = 0;
+  document.addEventListener('pointerdown', () => { downAt = Date.now(); }, true);
+  document.addEventListener('click', (e) => {
+    if (window.__navAt && Date.now() - window.__navAt < 600 && downAt <= window.__navAt && !e.target.closest('#overlay')) { e.stopPropagation(); e.preventDefault(); }
+  }, true);
   function screen(id, html, cls = '') {
     let s = document.getElementById(id);
     if (!s) { s = document.createElement('div'); s.id = id; $('#app').appendChild(s); }

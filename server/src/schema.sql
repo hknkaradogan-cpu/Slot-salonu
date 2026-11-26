@@ -110,3 +110,9 @@ CREATE TABLE IF NOT EXISTS slot.tavla_stats (user_id BIGINT PRIMARY KEY REFERENC
 CREATE TABLE IF NOT EXISTS slot.aviator_rounds (id BIGSERIAL PRIMARY KEY, user_id BIGINT NOT NULL REFERENCES slot.users(id) ON DELETE CASCADE, bet BIGINT NOT NULL, auto NUMERIC(10,2), crash NUMERIC(10,2) NOT NULL, salt TEXT NOT NULL, hash TEXT NOT NULL, start_at BIGINT NOT NULL, status TEXT NOT NULL, cash_mult NUMERIC(10,2), win BIGINT NOT NULL DEFAULT 0, ended_at BIGINT, created_at BIGINT NOT NULL);
 CREATE INDEX IF NOT EXISTS aviator_rounds_user ON slot.aviator_rounds(user_id, id DESC);
 CREATE INDEX IF NOT EXISTS aviator_rounds_time ON slot.aviator_rounds(created_at);
+
+-- 5.5 Avivasor ortak turlar: herkes aynı uçağı izler; bahis satırları tura bağlanır
+CREATE TABLE IF NOT EXISTS slot.aviator_games (id BIGINT PRIMARY KEY, crash NUMERIC(10,2) NOT NULL, salt TEXT NOT NULL, hash TEXT NOT NULL, open_at BIGINT NOT NULL, start_at BIGINT NOT NULL, crash_at BIGINT NOT NULL, created_at BIGINT NOT NULL);
+ALTER TABLE slot.aviator_rounds ADD COLUMN IF NOT EXISTS game_id BIGINT;
+CREATE UNIQUE INDEX IF NOT EXISTS aviator_rounds_game_user ON slot.aviator_rounds(game_id, user_id) WHERE game_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS aviator_rounds_open ON slot.aviator_rounds(start_at) WHERE status='flying';

@@ -58,8 +58,13 @@
   const GAMES = [['okey101', '101 Okey'], ['duz', 'Düz Okey'], ['tavla', 'Tavla'], ['aviator', 'Avivasor'], ['slots', 'Slot Salonu'], ['zeus', 'Zeus'],
     ['misir', 'Mısır Hazineleri'], ['peri', 'Kristal Peri'], ['korsan', 'Korsan Hazinesi'], ['vegas', 'Vegas Meyveleri'], ['ejderha', 'Ejderha Hazinesi'], ['altin', 'Altın Şans']];
   function home() {
-    Sound.theme('hall');
+    Sound.theme('hall'); window.__navAt = Date.now();
     stopPanelTimers(); P.panel = 'home';
+    // Salon önbelleği: salon DOM'u zaten hazırsa yeniden kurma (12 canlı kart, görseller, dinleyiciler korunur) — anında açılır
+    const m = $('#main');
+    if (m && m.dataset.hall === '1' && m.querySelector('.g12')) {
+      UI.show('main'); Screens.renderTop(); renderBadges(); return;
+    }
     UI.screen('main', `<div class="spbg"><img src="assets/hall_bg.webp" alt=""><i class="spfloor"></i></div>
       ${topHtml(true)}
       <img class="spking" src="assets/king_logo.webp" alt="SPINOVA 101 OKEY — Şansın En Eğlenceli Hali!">
@@ -71,6 +76,7 @@
       ${bottomHtml('home')}`);
     UI.show('main'); bind($('#main')); Screens.renderTop(); renderBadges();
     if (window.CardFX) $$('#main .gc').forEach(c => { if (!c.__fx) c.__fx = CardFX.mount(c.querySelector('.gcart'), c.dataset.card); });
+    $('#main').dataset.hall = '1';
     $('#hJoin').onclick = () => joinCode($('#hCode').value);
     $('#hCode').onkeydown = (e) => { if (e.key === 'Enter') joinCode(e.target.value); };
     Api.get('/api/wheel').then(w => { const e = $('#bWheel'); if (e) e.innerHTML = w.freeAvailable ? '<span class="dot">!</span>' : ''; }).catch(() => {});
@@ -161,7 +167,7 @@
     gifts: '🎁 Hediyeler ve Bildirimler', wheel: '🎡 Şans Çarkı', puzzle: '🧩 Bulmaca', others: '🎰 Diğer Oyunlar', shop: '💎 Mağaza', friends: '👥 Arkadaşlar', quests: '📜 Günlük Görevler' };
   function stopPanelTimers() { clearInterval(P.chatTimer); clearInterval(P.threadTimer); clearInterval(P.winTimer); P.chatTimer = P.threadTimer = P.winTimer = null; }
   function panel(id, arg) {
-    stopPanelTimers(); P.panel = id;
+    stopPanelTimers(); P.panel = id; const mm = $('#main'); if (mm) mm.dataset.hall = '0';
     UI.screen('main', `<div class="pbg"></div>${topHtml(false)}
       <div class="phead"><button class="pback" data-p="home">◀ Ana Sayfa</button><b class="ptitle">${TITLES[id] || ''}</b><div class="ptabs" id="pTabs"></div></div>
       <div class="pbody" id="pBody"><p class="center muted">Yükleniyor…</p></div>${bottomHtml(id)}`);

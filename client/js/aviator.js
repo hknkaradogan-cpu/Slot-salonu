@@ -1,10 +1,11 @@
-/* SPINOVA — AVIATOR (sanal jeton).
- * Patlama çarpanı bahis anında SUNUCUDA belirlenir ve hash ile taahhüt edilir; istemci yalnızca uçuşu çizer.
- * TAHSİL ET basıldığında çarpan sunucu saatine göre hesaplanır. Tur sonunda çarpan + tuz açıklanır (doğrulanabilir). */
+/* SPINOVA — AVIVASOR (sanal jeton) · ORTAK TURLAR
+ * Turu SUNUCU yönetir: bahis süresi (geri sayım) → kalkış → çarpan yükselir → sunucunun önceden belirlediği noktada patlama.
+ * TAHSİL ET yalnızca senin bahsini kapatır; uçak uçmaya ve çarpan yükselmeye devam eder, diğer oyuncular da tahsil edebilir.
+ * Patlama anı herkes için aynıdır (uzun bekleme isteği patlama anında döner). İstemci sonucu değiştiremez; yalnızca çizer. */
 (function () {
   'use strict';
   const { $, $$, esc, fmt, toast, modal, guard } = UI;
-  const A = { open: false, cfg: null, round: null, k: 0.09, skew: 0, raf: 0, state: 'idle', result: null, hist: [], best: null, bet: 1000, auto: null, autoOn: false, stars: [], clouds: [], t0: 0, crashShown: 0 };
+  const A = { open: false, cfg: null, k: 0.09, skew: 0, raf: 0, game: null, my: null, next: null, players: [], hist: [], best: null, bet: 1000, auto: null, autoOn: false, stars: [], clouds: [], gen: 0, boom: null, waiting: 0 };
   const CHIPS = [100, 500, 1000, 10000, 100000];
   const now = () => Date.now() - A.skew;
   const multAt = (ms) => Math.max(1, Math.floor(Math.exp(A.k * Math.max(0, ms) / 1000) * 100) / 100);
@@ -32,6 +33,7 @@
         <label class="avauto"><input type="checkbox" id="avAutoOn"><span>Otomatik tahsil</span><input id="avAuto" type="number" min="1.01" step="0.01"><em>x</em></label>
         <button class="avgo" id="avGo"></button>
         <div class="avstats" id="avStats"></div>
+        <div class="avplh">Bu turdaki oyuncular <b id="avPlN">0</b></div><div class="avpl" id="avPl"></div>
         <p class="avnote">Sanal jeton · nakde çevrilemez · RTP %<span id="avRtp">—</span></p>
       </div></div>`, 'avscreen');
     UI.show('aviator');
@@ -44,67 +46,133 @@
     $('#avGo').onclick = go;
     sceneInit(); paintBal(); setBet(A.bet); button();
     try {
-      const d = await Api.get('/api/aviator'); A.cfg = d.config; A.k = d.config.k; A.skew = Date.now() - d.now; A.hist = d.history; A.best = d.best;
-      $('#avRtp').textContent = (d.config.rtp * 100).toFixed(0); hist(); stats();
-      if (d.active) { A.round = d.active; A.state = 'fly'; waitEnd(); }
+      const d = await Api.get('/api/aviator'); A.cfg = d.config; A.k = d.config.k; A.best = d.best;
+      $('#avRtp').textContent = (d.config.rtp * 100).toFixed(0); applyState(d); stats();
       if (!d.config.enabled) toast('Avivasor şu anda bakımda.', true);
     } catch (e) { toast(e.message, true); }
-    button(); A.raf = requestAnimationFrame(frame);
+    button(); A.raf = requestAnimationFrame(frame); syncLoop(++A.gen);
   }
-  function stop() { Sound.theme('hall'); Sound.loopStop('engine'); A.open = false; cancelAnimationFrame(A.raf); }
-  function back() { if ($('#overlay').classList.contains('show')) { UI.closeModal(); return true; } if (A.state === 'fly' && A.round && A.round.status === 'flying') toast('Uçuşun sürüyor — sonucu kaybetmezsin: döndüğünde tur kapanmış olur, otomatik tahsil hedefin geçerliyse ödenir.'); stop(); Platform.home(); return true; }
+  function stop() { A.cvS = 0; Sound.theme('hall'); Sound.loopStop('engine'); A.open = false; A.gen++; cancelAnimationFrame(A.raf); }
+  function back() { if ($('#overlay').classList.contains('show')) { UI.closeModal(); return true; } if (A.my && A.my.status === 'flying') toast('Bahsin uçuşta — sonucu kaybetmezsin: tur sunucuda sürer, otomatik tahsil hedefin geçerliyse ödenir.'); stop(); Platform.home(); return true; }
   const stepBet = (d) => { const L = [100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000]; let i = L.findIndex(x => x >= A.bet); if (i < 0) i = L.length - 1; return L[Math.max(0, Math.min(L.length - 1, i + d))]; };
   function setBet(v) { A.bet = v; localStorage.setItem('av_bet', v); $('#avBetV').textContent = fmt(v); $$('[data-c]').forEach(b => b.classList.toggle('on', +b.dataset.c === v)); button(); }
   function paintBal() { const b = $('#avBal'); if (b && App.me) b.textContent = App.me.unlimited ? '∞' : fmt(App.me.balance); }
-  function button() {
-    const b0 = $('#avGo'); if (!b0) return; const fly = A.state === 'fly' && A.round, t = fly ? now() - A.round.startAt : 0;
-    const b = { set className(v) { this.c = v; }, set innerHTML(v) { this.h = v; } };
-    const out = () => { if (b0.className !== b.c) b0.className = b.c; if (A.bh !== b.h) { b0.innerHTML = b.h; A.bh = b.h; } };
-    try { return button2(b, fly, t); } finally { out(); }
+  /* ---------- tur durumu (sunucu) ---------- */
+  const phaseOf = (g) => { if (!g) return 'none'; if (g.crash != null && g.phase === 'crashed') return 'crashed'; const t = now(); return t < g.startAt ? 'betting' : 'flying'; };
+  function applyState(d) {
+    A.skew = Date.now() - d.now; A.k = d.k || A.k;
+    const prev = A.game;
+    // patlamış turu ekranda tutarken yeni turu hemen alma (patlama gösterisi bitsin)
+    if (!(prev && A.boom && d.game.id !== prev.id && performance.now() - A.boom.at < 1400)) A.game = d.game;
+    A.players = d.players || []; A.hist = d.history || A.hist; hist(); players();
+    const mine = d.mine || [];
+    A.my = mine.find(x => x.game === A.game.id) || (A.my && A.my.game === A.game.id ? A.my : null);
+    A.next = mine.find(x => x.game === A.game.id + 1) || null;
+    if (d.balance != null && App.me) { App.me.balance = d.balance; Screens.setBalance && Screens.setBalance(d.balance); paintBal(); }
+    $('#avFair').innerHTML = A.game.crash != null ? fairDone(A.game) : `Tur #${A.game.id} · taahhüt <code>${esc(A.game.hash.slice(0, 16))}…</code>`;
+    if (A.game.crash != null) bindVerify(A.game);
+    if (d.game.phase === 'crashed' && prev && prev.id === d.game.id && prev.crash == null && !A.boom) { crashNow({ game: d.game, mine: mine.find(x => x.game === d.game.id) || null, now: d.now, balance: d.balance }); return; }
+    if (phaseOf(A.game) === 'flying' && (!prev || prev.id !== A.game.id || phaseOf(prev) === 'betting') && !A.boom) { Sound.loopStart('engine'); }
+    button();
   }
-  function button2(b, fly, t) {
-    if (A.busy) { b.className = 'avgo wait'; b.innerHTML = '<b>…</b>'; return; }
-    if (!fly) { b.className = 'avgo bet'; b.innerHTML = `<b>BAHİS YAP</b><small>${fmt(A.bet)} jeton${A.autoOn ? ' · oto ' + A.auto.toFixed(2) + 'x' : ''}</small>`; return; }
-    if (t < 0) { b.className = 'avgo wait'; b.innerHTML = `<b>KALKIŞ ${Math.ceil(-t / 1000)}</b><small>bahsin alındı</small>`; return; }
-    const m = multAt(t); b.className = 'avgo cash'; b.innerHTML = `<b>TAHSİL ET</b><small>${fmt(Math.floor(A.round.bet * m))} jeton</small>`;
+  const fairDone = (g) => `Tur #${g.id} · çarpan ${g.crash.toFixed(2)}x · tuz <code>${esc(g.salt)}</code> · <a href="#" id="avVer">doğrula</a>`;
+  function bindVerify(g) { const v = $('#avVer'); if (v) v.onclick = (e) => { e.preventDefault(); verify(g); }; }
+  /** Senkron döngüsü: bahis süresinde kalkışa, uçuşta patlamaya kadar bekler; oyuncu listesini tazeler */
+  async function syncLoop(gen) {
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+    while (A.open && gen === A.gen) {
+      const g = A.game; if (!g) { await sleep(1000); await refresh(); continue; }
+      const ph = phaseOf(g);
+      if (ph === 'betting') { const left = g.startAt - now(); await sleep(Math.max(60, Math.min(1500, left + 40))); if (gen !== A.gen) return; if (now() >= g.startAt) takeoff(); else refresh(); continue; }
+      if (ph === 'flying') {
+        if (A.waiting !== g.id) { A.waiting = g.id; waitCrash(g.id, gen); }
+        await sleep(1500); if (gen !== A.gen) return; if (phaseOf(A.game) === 'flying') refresh(); continue;
+      }
+      // patladı: ara bitince yeni tura geç
+      const wait = (A.cfg ? A.cfg.endMs : 3000) - (now() - (g.crashAt || now()));
+      await sleep(Math.max(300, Math.min(4000, wait + 80))); if (gen !== A.gen) return; await refresh();
+    }
+  }
+  async function refresh() { try { const d = await Api.get('/api/aviator/state'); if (A.open) applyState(d); } catch (e) { /* ağ: bir sonraki turda tekrar */ } }
+  function takeoff() { Sound.play('takeoff'); Sound.loopStart('engine'); A.boom = null; A.trail = []; button(); }
+  /** Uzun bekleme: sunucu patlama anında döner → herkes patlamayı aynı anda görür */
+  async function waitCrash(id, gen) {
+    for (let i = 0; i < 60 && A.open && gen === A.gen; i++) {
+      try {
+        const r = await Api.get(`/api/aviator/game/${id}/wait`);
+        if (!A.open || gen !== A.gen || !A.game || A.game.id !== id) return;
+        if (r.game.phase === 'crashed') { crashNow(r); return; }
+      } catch (e) { await new Promise(r => setTimeout(r, 1200)); }
+    }
+  }
+  function crashNow(r) {
+    A.skew = Date.now() - r.now;
+    A.game = { ...A.game, ...r.game };
+    const was = A.my; if (r.mine) A.my = r.mine;
+    Sound.loopStop('engine'); Sound.play('crash'); Sound.vibrate && Sound.vibrate(was && was.status === 'flying' ? 80 : 30);
+    A.boom = { at: performance.now(), x: A.px, y: A.py };
+    A.hist.unshift(r.game.crash); A.hist = A.hist.slice(0, 24); hist();
+    if (r.balance != null && App.me) { App.me.balance = r.balance; Screens.setBalance && Screens.setBalance(r.balance); paintBal(); Entry.setBal && Entry.setBal(); }
+    if (A.my && A.my.status === 'cashed' && was && was.status === 'flying') { Sound.play('cashout'); UI.coinBurst && UI.coinBurst(12); } // otomatik tahsil patlamadan önce ödendi
+    if (A.my && A.best) { A.best.rounds++; if ((A.my.cashMult || 0) > A.best.mult) A.best.mult = A.my.cashMult; if (A.my.win > A.best.win) A.best.win = A.my.win; stats(); }
+    $('#avFair').innerHTML = fairDone(A.game); bindVerify(A.game);
+    button(); refresh();
+  }
+
+  /* ---------- düğme ---------- */
+  function button() {
+    const b0 = $('#avGo'); if (!b0) return;
+    const b = { c: '', h: '' }; button2(b);
+    if (b0.className !== b.c) b0.className = b.c; if (A.bh !== b.h) { b0.innerHTML = b.h; A.bh = b.h; }
+  }
+  function button2(b) {
+    const g = A.game, ph = phaseOf(g), t = g ? now() - g.startAt : 0;
+    if (A.busy) { b.c = 'avgo wait'; b.h = '<b>…</b>'; return; }
+    if (ph === 'betting' && A.my) { b.c = 'avgo cancel'; b.h = `<b>İPTAL</b><small>bahsin alındı · kalkış ${Math.max(0, Math.ceil(-t / 1000))} sn</small>`; return; }
+    if (ph === 'flying' && A.my && A.my.status === 'flying') {
+      const m = multAt(t);
+      if (A.my.auto && m >= A.my.auto) { b.c = 'avgo done'; b.h = `<b>${A.my.auto.toFixed(2)}x</b><small>otomatik tahsil ediliyor…</small>`; return; }
+      b.c = 'avgo cash'; b.h = `<b>TAHSİL ET</b><small>${fmt(Math.floor(A.my.bet * m))} jeton</small>`; return;
+    }
+    if (A.next) { b.c = 'avgo cancel'; b.h = `<b>İPTAL</b><small>sonraki tura bahsin alındı · ${fmt(A.next.bet)}</small>`; return; }
+    const lbl = ph === 'betting' ? 'BAHİS YAP' : 'BAHİS YAP'; const sub = ph === 'betting' ? `${fmt(A.bet)} jeton${A.autoOn ? ' · oto ' + A.auto.toFixed(2) + 'x' : ''}` : `sonraki tur · ${fmt(A.bet)} jeton`;
+    b.c = 'avgo bet' + (A.my && A.my.status === 'cashed' && ph === 'flying' ? ' after' : ''); b.h = `<b>${lbl}</b><small>${sub}</small>`;
   }
   async function go() {
-    if (A.busy) return;
-    if (A.state === 'fly' && A.round) return cashout();
+    if (A.busy || !A.game) return;
+    const ph = phaseOf(A.game);
+    if (ph === 'flying' && A.my && A.my.status === 'flying') return cashout();
+    if (ph === 'betting' && A.my) return cancel(A.my);
+    if (A.next) return cancel(A.next);
     A.busy = true; button(); Sound.play('click');
     try {
       const r = await Api.post('/api/aviator/bet', { bet: A.bet, ...(A.autoOn ? { auto: A.auto } : {}) });
-      A.skew = Date.now() - r.now; A.k = r.k; A.round = r.round; A.state = 'fly'; A.result = null; App.me.balance = r.balance; Screens.setBalance && Screens.setBalance(r.balance); paintBal();
-      $('#avFair').innerHTML = `Tur #${r.round.id} · taahhüt <code>${r.round.hash.slice(0, 16)}…</code>`;
-      Sound.play('takeoff'); Sound.loopStart('engine'); waitEnd();
+      A.skew = Date.now() - r.now; App.me.balance = r.balance; Screens.setBalance && Screens.setBalance(r.balance); paintBal();
+      if (r.round.game === A.game.id) A.my = r.round; else A.next = r.round;
+      Sound.play('coin');
     } catch (e) { toast(e.message, true); } finally { A.busy = false; button(); }
   }
-  async function cashout() {
-    if (A.busy || !A.round) return; if (now() < A.round.startAt) return toast('Uçak henüz kalkmadı.', true);
+  async function cancel(row) {
     A.busy = true; button();
-    try { const r = await Api.post(`/api/aviator/${A.round.id}/cashout`, {}); finish(r); } catch (e) { toast(e.message, true); } finally { A.busy = false; button(); }
+    try { const r = await Api.post(`/api/aviator/${row.id}/cancel`, {}); App.me.balance = r.balance; Screens.setBalance && Screens.setBalance(r.balance); paintBal(); if (A.my === row) A.my = null; if (A.next === row) A.next = null; toast('Bahsin geri alındı, jetonun iade edildi.'); }
+    catch (e) { toast(e.message, true); refresh(); } finally { A.busy = false; button(); }
   }
-  /** Tur bitene kadar uzun bekleme (tur başına tek istek) */
-  async function waitEnd() {
-    const id = A.round && A.round.id; if (!id) return;
-    for (let i = 0; i < 12 && A.round && A.round.id === id && A.round.status === 'flying'; i++) {
-      try { const r = await Api.get(`/api/aviator/${id}/wait`); if (A.round && A.round.id === id && r.round.status !== 'flying') { finish(r); return; } }
-      catch (e) { await new Promise(r => setTimeout(r, 1500)); }
-    }
+  async function cashout() {
+    if (A.busy || !A.my) return;
+    A.busy = true; button();
+    try {
+      const r = await Api.post(`/api/aviator/${A.my.id}/cashout`, {});
+      A.my = r.round; App.me.balance = r.balance; Screens.setBalance && Screens.setBalance(r.balance); paintBal(); Entry.setBal && Entry.setBal();
+      if (r.round.status === 'cashed') { Sound.play('cashout'); UI.coinBurst && UI.coinBurst(12); A.cashFx = { at: performance.now(), m: r.round.cashMult, win: r.round.win }; }
+      // UÇAK DURMAZ: tur sürüyor, çarpan yükselmeye devam eder; patlama anı sunucudan gelir
+    } catch (e) { toast(e.message, true); } finally { A.busy = false; button(); }
   }
-  function finish(r) {
-    if (!A.round || A.round.id !== r.round.id || A.round.status !== 'flying') return;
-    A.round = r.round; A.state = 'end'; A.result = r.round; A.endAt = performance.now(); Sound.loopStop('engine');
-    App.me.balance = r.balance; Screens.setBalance && Screens.setBalance(r.balance); paintBal(); Entry.setBal && Entry.setBal();
-    A.hist.unshift(r.round.crash); A.hist = A.hist.slice(0, 24); hist();
-    const m = $('#avMult');
-    if (r.round.status === 'cashed') { Sound.play('cashout'); UI.coinBurst && UI.coinBurst(12); m.className = 'avmult win'; m.innerHTML = `<b>${r.round.cashMult.toFixed(2)}x</b><small>+${fmt(r.round.win)} jeton · uçak ${r.round.crash.toFixed(2)}x'te uçtu</small>`; }
-    else { Sound.play('crash'); Sound.vibrate && Sound.vibrate(60); m.className = 'avmult lost'; m.innerHTML = `<b>UÇTU! ${r.round.crash.toFixed(2)}x</b><small>bu tur kaybedildi</small>`; }
-    $('#avFair').innerHTML = `Tur #${r.round.id} · çarpan ${r.round.crash.toFixed(2)}x · tuz <code>${esc(r.round.salt)}</code> · <a href="#" id="avVer">doğrula</a>`;
-    $('#avVer').onclick = (e) => { e.preventDefault(); verify(r.round); };
-    if (A.best) { A.best.rounds++; if (r.round.cashMult > A.best.mult) A.best.mult = r.round.cashMult; if (r.round.win > A.best.win) A.best.win = r.round.win; stats(); }
-    setTimeout(() => { if (A.state === 'end') { A.state = 'idle'; A.round = null; button(); } }, 2200);
-    button();
+  function players() {
+    const el = $('#avPl'); if (!el) return;
+    const L = A.players || [];
+    const html = L.length ? L.map(p => `<div class="avp ${p.status}"><span class="avpa">${UI.AVATARS[p.avatar] || UI.AVATARS[0]}</span><b>${esc(p.name)}</b><em>${fmt(p.bet)}</em><i>${p.status === 'cashed' ? p.cashMult.toFixed(2) + 'x · +' + fmt(p.win) : p.status === 'lost' ? '—' : ''}</i></div>`).join('') : '<p class="avpe">Bu turda henüz bahis yok</p>';
+    if (A.plh !== html) { el.innerHTML = html; A.plh = html; }
+    const n = $('#avPlN'); if (n) n.textContent = L.length;
   }
   async function verify(r) {
     let ok = '—'; try { const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(r.crash.toFixed(2) + ':' + r.salt)); const hex = [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join(''); ok = hex === r.hash ? '✅ Eşleşti: sonuç bahisten ÖNCE belirlenmişti.' : '❌ Eşleşmedi'; } catch (e) { ok = 'Bu cihaz doğrulamayı desteklemiyor.'; }
@@ -144,9 +212,12 @@
   }
   function frame(ts) {
     if (!A.open) return; A.raf = requestAnimationFrame(frame);
-    const cv = $('#avCv'); if (!cv) return; const c = cv.getContext('2d'), W = cv.width, H = cv.height;
-    const fly = A.round && A.state === 'fly', t = fly ? now() - A.round.startAt : -1, m = fly && t > 0 ? multAt(t) : 1;
-    const speed = fly && t > 0 ? Math.min(3, 0.4 + Math.log(m) * 0.6) : 0.15; if (fly) Sound.loopSet('engine', m);
+    const cv = $('#avCv'); if (!cv) return; const c = cv.getContext('2d'), W = 1380, H = 792;
+    // performans: tuval çözünürlüğü ekrana göre (en çok 1,5 kat); çizim koordinatları sabit 1380×792
+    if (!A.cvS) { const r = cv.getBoundingClientRect(); A.cvS = Math.min(1, Math.max(0.5, (r.width * Math.min(1.5, devicePixelRatio || 1)) / 1380)); cv.width = Math.round(1380 * A.cvS); cv.height = Math.round(792 * A.cvS); }
+    c.setTransform(A.cvS, 0, 0, A.cvS, 0, 0);
+    const fly = A.game && phaseOf(A.game) === 'flying', t = fly ? now() - A.game.startAt : -1, m = fly && t > 0 ? multAt(t) : 1;
+    const speed = fly && t > 0 ? Math.min(3, 0.4 + Math.log(m) * 0.6) : 0.15;
     // gökyüzü
     const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#05061a'); g.addColorStop(0.55, '#141a4a'); g.addColorStop(1, '#3a1a52'); c.fillStyle = g; c.fillRect(0, 0, W, H);
     for (const s of A.stars) { c.globalAlpha = 0.4 + 0.6 * Math.abs(Math.sin(ts / 900 + s.t)); c.fillStyle = '#fff'; c.beginPath(); c.arc(s.x * W, s.y * H, s.r, 0, 7); c.fill(); }
@@ -160,29 +231,60 @@
     for (const [x0, sp] of [[W * 0.25, 1], [W * 0.7, -1.3]]) { const ang = Math.sin(ts / 2600 * sp) * 0.5; c.save(); c.translate(x0, H - 70); c.rotate(ang); const lg = c.createLinearGradient(0, 0, 0, -H); lg.addColorStop(0, 'rgba(170,200,255,.30)'); lg.addColorStop(1, 'rgba(170,200,255,0)'); c.fillStyle = lg; c.beginPath(); c.moveTo(-8, 0); c.lineTo(8, 0); c.lineTo(70, -H); c.lineTo(-70, -H); c.closePath(); c.fill(); c.restore(); }
     // şehir
     const gyc = H - 70; c.fillStyle = '#120a2c';
-    for (const b of A.city || []) { c.fillStyle = '#120a2c'; c.fillRect(b.x, gyc - b.h, b.w, b.h); for (const w of b.win) { if (!w[2]) continue; c.fillStyle = (Math.sin(ts / 900 + b.ph + w[0]) > -0.6) ? 'rgba(255,210,110,.85)' : 'rgba(255,210,110,.25)'; c.fillRect(b.x + w[0], gyc - b.h + w[1], 5, 6); } }
+    // performans: şehir silueti bir kez ayrı tuvale çizilir, her karede tek resim olarak basılır (yüzlerce pencere yerine 1 çizim)
+    if (!A.cityCv) {
+      A.cityCv = document.createElement('canvas'); A.cityCv.width = W; A.cityCv.height = H; const cc = A.cityCv.getContext('2d');
+      for (const b of A.city || []) { cc.fillStyle = '#120a2c'; cc.fillRect(b.x, gyc - b.h, b.w, b.h); for (const w of b.win) { if (!w[2]) continue; cc.fillStyle = Math.random() < 0.8 ? 'rgba(255,210,110,.85)' : 'rgba(255,210,110,.3)'; cc.fillRect(b.x + w[0], gyc - b.h + w[1], 5, 6); } }
+    }
+    c.drawImage(A.cityCv, 0, 0);
     // pist
     const gy = H - 70; c.fillStyle = '#0c0a1e'; c.fillRect(0, gy, W, 70); c.fillStyle = '#1f1a3a'; c.fillRect(0, gy + 18, W, 34);
     const off = (ts / 8 * speed) % 80; c.fillStyle = '#f2c14e'; for (let x = -off; x < W; x += 80) c.fillRect(x, gy + 33, 40, 4);
     for (let x = (-off * 0.5) % 120; x < W; x += 120) { c.fillStyle = (Math.floor(ts / 400) % 2) ? '#ff4d6d' : '#7fd8ff'; c.beginPath(); c.arc(x, gy + 12, 3, 0, 7); c.fill(); }
     c.fillStyle = 'rgba(255,255,255,.08)'; c.font = 'bold 54px sans-serif'; c.fillText('SPINOVA', 40, gy + 60);
-    // uçuş eğrisi + uçak
+    // uçuş eğrisi + uçak (tur sunucuda sürer: senin tahsilin uçağı durdurmaz)
+    const G = A.game, ph = phaseOf(G), tt = G ? now() - G.startAt : -1;
+    const crashM = G && G.crash != null ? G.crash : null;
+    const mNow = ph === 'flying' ? multAt(tt) : crashM || 1;
     let px = 140, py = gy - 6, ang = 0;
-    if (fly && t > 0) {
-      const p = Math.min(1, Math.log(m) / Math.log(20)); px = 140 + p * (W - 420); py = gy - 6 - Math.pow(p, 0.8) * (H * 0.62); ang = -0.35 * Math.min(1, p * 3) + Math.sin(ts / 300) * 0.03;
+    const pathAt = (mm) => { const p = Math.min(1, Math.log(mm) / Math.log(20)); return [140 + p * (W - 420), gy - 6 - Math.pow(p, 0.8) * (H * 0.62), p]; };
+    if (ph === 'flying' || (ph === 'crashed' && crashM)) {
+      const [x1, y1, p] = pathAt(mNow); px = x1; py = y1; ang = -0.35 * Math.min(1, p * 3) + Math.sin(ts / 300) * 0.03;
       const grad = c.createLinearGradient(140, gy, px, py); grad.addColorStop(0, 'rgba(212,32,44,0)'); grad.addColorStop(1, 'rgba(255,80,90,.85)');
       c.strokeStyle = grad; c.lineWidth = 6; c.beginPath(); c.moveTo(140, gy - 6); for (let i = 1; i <= 30; i++) { const q = p * i / 30; c.lineTo(140 + q * (W - 420), gy - 6 - Math.pow(q, 0.8) * (H * 0.62)); } c.stroke();
       c.fillStyle = 'rgba(212,32,44,.12)'; c.lineTo(px, gy); c.lineTo(140, gy); c.fill();
-    } else if (A.state === 'end' && A.result && A.result.status === 'lost') {
-      const dt = (performance.now() - A.endAt) / 1000; px = W * 0.7 + dt * 900; py = H * 0.25 - dt * 400; ang = -0.5;
-    } else if (fly && t <= 0) { px = 140 + Math.sin(ts / 200) * 2; }
-    plane(c, px, py, ang, 1.15);
+      // motor dumanı
+      if (ph === 'flying') { (A.trail = A.trail || []).push({ x: px - 70, y: py + 4, a: 0.5, r: 4 }); if (A.trail.length > 40) A.trail.shift(); }
+      // tahsil ettiğin nokta eğri üzerinde işaretlenir; uçak uçmaya devam eder
+      if (A.my && A.my.status === 'cashed' && A.my.cashMult && A.my.game === G.id) { const [cx, cy] = pathAt(A.my.cashMult); c.fillStyle = '#7dff6b'; c.beginPath(); c.arc(cx, cy, 9, 0, 7); c.fill(); c.font = 'bold 22px sans-serif'; c.fillText(A.my.cashMult.toFixed(2) + 'x', cx - 24, cy - 16); }
+    } else if (ph === 'betting') { px = 140 + Math.sin(ts / 200) * 1.5; }
+    for (const p of A.trail || []) { p.a *= 0.96; p.r += 0.6; c.fillStyle = `rgba(220,220,255,${p.a * 0.35})`; c.beginPath(); c.arc(p.x, p.y, p.r, 0, 7); c.fill(); }
+    A.px = px; A.py = py;
+    if (A.boom) {
+      // patlama: parlama halkası + kıvılcımlar, ardından uçak hızla uzaklaşır
+      const e = (performance.now() - A.boom.at) / 1000;
+      if (e < 0.9) {
+        const r = 30 + e * 420; const rg = c.createRadialGradient(px, py, 0, px, py, r); rg.addColorStop(0, `rgba(255,250,210,${0.95 - e})`); rg.addColorStop(0.4, `rgba(255,140,40,${0.7 - e * 0.7})`); rg.addColorStop(1, 'rgba(255,40,0,0)');
+        c.fillStyle = rg; c.beginPath(); c.arc(px, py, r, 0, 7); c.fill();
+        if (!A.boom.p) A.boom.p = Array.from({ length: 46 }, () => { const an = Math.random() * 6.283, sp = 200 + Math.random() * 600; return [Math.cos(an) * sp, Math.sin(an) * sp]; });
+        c.fillStyle = `rgba(255,${180 + Math.random() * 60 | 0},80,${1 - e})`; for (const [vx, vy] of A.boom.p) { c.fillRect(px + vx * e, py + vy * e + 300 * e * e, 5, 5); }
+      }
+      const fx = px + Math.pow(e, 2) * 2400, fy = py - Math.pow(e, 2) * 900; if (fx < W + 200) plane(c, fx, fy, -0.45, 1.15);
+    } else plane(c, px, py, ang, 1.15);
     // çarpan yazısı
     const mm = $('#avMult');
     const set = (cls, html) => { if (A.mc !== cls) { mm.className = cls; A.mc = cls; } if (A.mh !== html) { mm.innerHTML = html; A.mh = html; } }; // yalnızca değişince DOM'a yaz
-    if (fly) { set('avmult' + (t < 0 ? ' wait' : ''), t < 0 ? `<b>${Math.ceil(-t / 1000)}</b><small>Kalkışa hazırlanıyor…</small>` : `<b>${m.toFixed(2)}x</b><small>${A.round.auto ? 'oto tahsil ' + A.round.auto.toFixed(2) + 'x' : 'TAHSİL ET ile kazancını al'}</small>`); button(); }
-    else if (A.state === 'idle') set('avmult idle', '<b>HAZIR</b><small>Bahsini seç ve uçağı kaldır</small>');
-    else { A.mc = mm.className; A.mh = mm.innerHTML; }
+    const mine = A.my && A.game && A.my.game === A.game.id ? A.my : null;
+    if (ph === 'betting') { const l = Math.max(0, G.startAt - now()), tot = (A.cfg && A.cfg.betMs) || 6000; set('avmult wait', `<b>${Math.ceil(l / 1000)}</b><small>${mine ? 'Bahsin alındı — kalkışa hazırlanıyor' : 'Yeni tur — bahsini yap'}</small><span class="avcd"><i style="width:${(100 * l / tot).toFixed(1)}%"></i></span>`); }
+    else if (ph === 'flying') {
+      Sound.loopSet('engine', mNow);
+      const sub = mine && mine.status === 'cashed' ? `<small class="ok">✔ ${mine.cashMult.toFixed(2)}x'te tahsil ettin · +${fmt(mine.win)} jeton — uçak uçmaya devam ediyor</small>` : mine ? `<small>${mine.auto ? 'oto tahsil ' + mine.auto.toFixed(2) + 'x · ' : ''}TAHSİL ET ile kazancını al</small>` : '<small>Bu turda bahsin yok · sıradaki tura bahis yapabilirsin</small>';
+      set('avmult' + (mine && mine.status === 'cashed' ? ' won' : ''), `<b>${mNow.toFixed(2)}x</b>${sub}`);
+    } else if (ph === 'crashed' && crashM) {
+      const res = mine ? (mine.status === 'cashed' ? `<small class="ok">${mine.cashMult.toFixed(2)}x'te tahsil ettin · +${fmt(mine.win)} jeton</small>` : '<small>bu tur kaybedildi</small>') : '<small>sonraki tur birazdan</small>';
+      set('avmult lost', `<b>UÇTU! ${crashM.toFixed(2)}x</b>${res}`);
+    } else set('avmult idle', '<b>HAZIR</b><small>Tur bilgisi alınıyor…</small>');
+    if ((A.fr = (A.fr || 0) + 1) % 6 === 0) button();
   }
   window.Aviator = { open, back, isOpen: () => A.open, close: stop };
 })();

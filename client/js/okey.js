@@ -521,6 +521,7 @@
       if (e.t === 'take' && e.s !== v.me) Sound.play('tileDraw');
       if (e.t === 'open') { Sound.play('win'); if (e.s !== v.me) toast(`${v.seats[e.s].name} ${e.route === 'pairs' ? e.value + ' çiftle' : e.value + ' ile'} açtı`); }
       if (e.t === 'retrieve' && e.s !== v.me) toast(`${v.seats[e.s].name} masadan okey aldı!`);
+      if (e.t === 'pile_empty') toast('Ortada çekilecek taş kalmadı — el bitti, puanlar hesaplanıyor.');
       if (e.t === 'round_end') Sound.play('bigwin');
     }
     if (H.log.length) O.lastLog = H.log[H.log.length - 1].k;
@@ -682,7 +683,7 @@
       const tgt = hitTest(e.clientX, e.clientY);
       if (!D.moved) { tap(D); return; }
       if (D.kind === 'rack') {
-        if (tgt.slot != null) { moveTile(D.from, tgt.slot); renderRack(); renderStatus(); renderCol(); }
+        if (tgt.slot != null) { moveTile(D.from, tgt.slot); Sound.play('tile'); renderRack(); renderStatus(); renderCol(); const n = $(`#okRack [data-tile="${D.id}"]`); n && n.classList.add('seat'); }
         else if (tgt.zone === 'discard') discard(D.id);
         else if (tgt.zone === 'finish') finishDuz(D.id);
         else if (tgt.meld != null) toMeld(D.id, tgt.meld, tgt.side);
@@ -727,7 +728,7 @@
     const id = O.id; stopTable(); O.screen = null;
     if (v && v.status !== 'finished') { try { const r = await Api.post(`/api/okey/${id}/leave`, {}); if (r.refunded) toast(`Giriş jetonu iade edildi: ${fmt(r.refunded)}`); } catch (e) { /* bağlantı yoksa sunucu süre dolunca otomatik oynatır */ } }
     Screens.refresh && Screens.refresh().catch(() => {});
-    lobby();
+    Screens.go('home'); // masadan çıkış → ana salon
   }
   function menuModal() {
     modal(`<h3 class="gold">Menü</h3><div class="list">

@@ -82,7 +82,7 @@
     G.gen++; G.open = false; G.auto = 0; G.skip = true; G.spinning = false;
     try { $$('.bigwin,.multbadge,.bolt,.flash,.zcharge,.zimpact,.zring,.flymult,.fxi,.flyorb,.expandcol').forEach(e => e.remove()); } catch (e) { /* yoksay */ }
     try { UI.closeModal(true); } catch (e) { /* yoksay */ }
-    try { const cur = window.Platform && Platform.current(); Screens.go(cur && cur !== 'game' ? cur : 'home'); }
+    try { Screens.go('home'); } // her oyundan çıkış ana salona döner
     catch (e) { window.reportError && window.reportError(e); try { UI.show('main'); } catch (e2) { /* yoksay */ } }
   }
   function renderBet() {

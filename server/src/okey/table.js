@@ -96,6 +96,15 @@ export function openThreshold(T, s, route) {
 }
 
 /* ===================== HAMLELER ===================== */
+/** 101'de el, son taş ATILARAK biter: açarken/koyarken/işlerken elde en az bir taş kalmalı (yoksa oyun kilitlenirdi) */
+function keepOne(rack, n) { if (rack.length - n < 1) fail('keep_one', 'Eli bitirmek için son taşı atman gerekir: elinde atacak en az bir taş bırak.'); }
+/** Eski/bozuk durum güvenliği: oyun ilerleyemeyecek bir durumdaysa eli kurallara göre kapat */
+export function settleStuck(T, now) {
+  const H = T.hand; if (T.status !== 'playing' || !H) return false;
+  if (H.racks[H.turn] && H.racks[H.turn].length === 0) { endRound(T, { seat: H.turn, okey: false }, now); return true; }
+  if (H.phase === 'draw' && !H.pile.length) { endRound(T, null, now); return true; }
+  return false;
+}
 export function act(T, s, a, now, rnd = Math.random) {
   const H = T.hand, seat = T.seats[s];
   if (!seat) fail('no_seat', 'Masada değilsin.');
@@ -144,6 +153,7 @@ export function act(T, s, a, now, rnd = Math.random) {
       const need = openThreshold(T, s, route);
       if (value < need) fail('below_threshold', route === 'pairs' ? `Açmak için en az ${need} çift gerekli (sende ${value}).` : `Açmak için en az ${need} sayı gerekli (sende ${value}).`);
       if (H.took && !all.includes(H.took.id)) fail('must_use_taken', 'Yandan aldığın taşı açışında kullanmalısın (ya da geri bırak).');
+      keepOne(H.racks[s], all.length);
       takeFromRack(H.racks[s], all);
       for (const m of melds) H.melds.push({ id: ++H.meldSeq, owner: s, kind: m.kind, tiles: m.tiles });
       H.opened[s] = { route, value }; H.openTurn[s] = H.turnNo; H.laidThisTurn = true;
@@ -160,6 +170,7 @@ export function act(T, s, a, now, rnd = Math.random) {
       if (!m) fail('invalid_meld', 'Geçersiz per.');
       if (op.route === 'pairs' && m.kind !== 'pair') fail('pairs_only', 'Çift açan oyuncu masaya yalnızca çift koyabilir (işleme serbest).');
       if (m.kind === 'pair' && !pairsExist) fail('no_pairs_area', 'Masada çift açan olmadığı için çift konamaz.');
+      keepOne(H.racks[s], g.length);
       takeFromRack(H.racks[s], g); H.melds.push({ id: ++H.meldSeq, owner: s, kind: m.kind, tiles: m.tiles }); H.laidThisTurn = true;
       if (H.took && g.includes(H.took.id)) H.took = null;
       log(T, { t: 'lay', s, meld: H.meldSeq }); return {};
@@ -170,6 +181,7 @@ export function act(T, s, a, now, rnd = Math.random) {
       const id = a.tile; if (!inRack(H.racks[s], [id])) fail('not_in_rack', 'Bu taş elinde değil.');
       const m = H.melds.find(x => x.id === a.meld); if (!m) fail('no_meld', 'Per bulunamadı.');
       const nt = R.addToMeld(m, id, k, a.side); if (!nt) fail('cannot_add', 'Bu taş bu pere işlenemez.');
+      keepOne(H.racks[s], 1);
       takeFromRack(H.racks[s], [id]); m.tiles = nt; H.laidThisTurn = true; if (H.took && H.took.id === id) H.took = null;
       log(T, { t: 'add', s, meld: m.id, tile: id }); return {};
     }
@@ -197,6 +209,7 @@ export function act(T, s, a, now, rnd = Math.random) {
       else if (R.isCommittable(id, H.melds, k)) H.penalties[s] += 101;
       log(T, { t: 'discard', s, tile: id, pen: joker || R.isCommittable(id, H.melds, k) ? 101 : 0 });
       H.turn = nx(T, s); H.phase = 'draw'; H.took = null; H.laidThisTurn = false; H.turnNo++;
+      if (!H.pile.length) { log(T, { t: 'pile_empty' }); return endRound(T, null, now); } // ortada taş bitti → el sona erer
       if (!joker) H.okeyBlocked = false;
       beginTurn(T, now, rnd); return {};
     }
@@ -228,6 +241,7 @@ function actDuz(T, s, a, now, rnd, k) {
       takeFromRack(rack, [id]); H.discards[s].push(id); const joker = k.isJoker(id);
       log(T, { t: 'discard', s, tile: id });
       H.turn = nx(T, s); H.phase = 'draw'; H.took = null; H.turnNo++; H.okeyBlocked = joker;
+      if (!H.pile.length) { log(T, { t: 'pile_empty' }); return endRound(T, null, now); }
       beginTurn(T, now, rnd); return {};
     }
     case 'finish': { // bu taşı atarak el bitir: kalan 14 taş sunucuda perlere/7 çifte ayrılmalı
@@ -334,6 +348,7 @@ export function finishGame(T, now) {
 /** Zaman temelli ilerletme: botlar, süre dolan oyuncular, el arası, masa doldurma. Değişiklik olduysa true. */
 export function tick(T, now, rnd = Math.random) {
   let changed = false;
+  if (settleStuck(T, now)) changed = true;
   for (let guard = 0; guard < 12; guard++) {
     if (T.status === 'waiting') {
       if (T.fillAt && now >= T.fillAt && T.seats.some(x => x && !x.bot)) { fillBots(T, rnd); startRound(T, now, rnd); changed = true; continue; }
