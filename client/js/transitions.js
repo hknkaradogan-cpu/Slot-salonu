@@ -21,7 +21,7 @@
     document.body.appendChild(o); return o;
   }
   async function run(kind, swap) {
-    if (busy || reduce()) return swap();
+    if (busy || reduce() || (window.CardFX && CardFX.busy())) return swap();
     busy = true; const o = build(kind);
     try {
       Sound.play(kind === 'tiles' ? 'stop' : 'click');

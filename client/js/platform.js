@@ -14,9 +14,12 @@
     const app = $('#app'); const W = innerWidth, H = innerHeight;
     const portrait = H > W * 1.05;
     document.body.classList.toggle('portrait', portrait);
-    const u = Math.min(W / W0, H / H0);
-    Object.assign(app.style, { width: W0 + 'px', height: H0 + 'px', left: (W - W0 * u) / 2 + 'px', top: (H - H0 * u) / 2 + 'px', transform: `scale(${u})` });
-    document.documentElement.style.setProperty('--su', u);
+    // Tam ekran: sahne telefonun en-boy oranına göre genişler/uzar (köşelerde boşluk kalmaz).
+    // Çok kare ekranlarda (tablet) en fazla %25 uzar, kalan kısım aynı arka planla dolar.
+    const sw = Math.max(W0, Math.round(H0 * W / H)), sh = Math.min(Math.round(H0 * 1.25), Math.max(H0, Math.round(W0 * H / W)));
+    const u = Math.min(W / sw, H / sh);
+    Object.assign(app.style, { width: sw + 'px', height: sh + 'px', left: (W - sw * u) / 2 + 'px', top: (H - sh * u) / 2 + 'px', transform: `scale(${u})` });
+    document.documentElement.style.setProperty('--su', u); document.documentElement.style.setProperty('--sw', sw + 'px'); document.documentElement.style.setProperty('--sh', sh + 'px');
   }
   function lockLandscape() {
     try { window.AndroidApp && AndroidApp.setOrientation('landscape'); } catch (e) { /* */ }
@@ -51,19 +54,23 @@
       ${b('chat', '💬', 'Sohbet')}${b('quests', '📅', 'Görevler')}</div>`;
   }
   const rail = (id, ic, t, badge) => `<button class="rbtn" data-p="${id}"><span class="i">${ic}</span><span class="t">${t}</span>${badge ? `<span id="${badge}" class="hb"></span>` : ''}</button>`;
-  const GAMES = [['okey101', '101 OKEY', 'g_okey101'], ['duz', 'DÜZ OKEY', 'g_duzokey'], ['tavla', 'TAVLA', 'g_tavla'], ['aviator', 'AVIVASOR', 'g_aviator'], ['slots', 'SLOT SALONU', 'g_slot']];
+  // 12 canlı oyun kartı (her birinin kendi animasyonu: js/cardfx.js)
+  const GAMES = [['okey101', '101 Okey'], ['duz', 'Düz Okey'], ['tavla', 'Tavla'], ['aviator', 'Avivasor'], ['slots', 'Slot Salonu'], ['zeus', 'Zeus'],
+    ['misir', 'Mısır Hazineleri'], ['peri', 'Kristal Peri'], ['korsan', 'Korsan Hazinesi'], ['vegas', 'Vegas Meyveleri'], ['ejderha', 'Ejderha Hazinesi'], ['altin', 'Altın Şans']];
   function home() {
+    Sound.theme('hall');
     stopPanelTimers(); P.panel = 'home';
     UI.screen('main', `<div class="spbg"><img src="assets/hall_bg.webp" alt=""><i class="spfloor"></i></div>
       ${topHtml(true)}
       <img class="spking" src="assets/king_logo.webp" alt="SPINOVA 101 OKEY — Şansın En Eğlenceli Hali!">
       <div class="sprail l">${rail('tournaments', '🏆', 'Turnuvalar')}${rail('wheel', '🎡', 'Şans Çarkı', 'bWheel')}${rail('puzzle', '🧩', 'Bulmaca')}${rail('shop', '💎', 'Mağaza')}</div>
       <div class="sprail r">${rail('messages', '✉️', 'Mesajlar', 'bMsg2')}${rail('stats', '📈', 'İstatistik')}${rail('support', '🎧', 'Destek')}<div class="spcode"><input id="hCode" maxlength="6" placeholder="KOD" autocomplete="off"><button id="hJoin" title="Kodla masaya katıl">➜</button></div></div>
-      <div class="spcards">${GAMES.map(([id, t, img]) => `<button class="spcard ${id}" data-p="${id}"><b class="spct">${t}</b><span class="spart"><img src="assets/${img}.webp" alt=""></span><span class="spplay">Oyna ▸</span></button>`).join('')}</div>
+      <div class="spcards g12">${GAMES.map(([id, t]) => `<button class="spcard gc ${id}" data-p="${id}" data-card="${id}" aria-label="${t}"><span class="gcart"></span><span class="spplay">OYNA</span></button>`).join('')}</div>
       <button class="spchest" data-p="daily"><img src="assets/ic_chest.webp" alt=""><span>Günlük<br>Ödül</span><span id="bDaily2" class="hb"></span></button>
       <div class="spsig" aria-label="By-Hkn imzası"><i>👑</i>By-Hkn</div>
       ${bottomHtml('home')}`);
     UI.show('main'); bind($('#main')); Screens.renderTop(); renderBadges();
+    if (window.CardFX) $$('#main .gc').forEach(c => { if (!c.__fx) c.__fx = CardFX.mount(c.querySelector('.gcart'), c.dataset.card); });
     $('#hJoin').onclick = () => joinCode($('#hCode').value);
     $('#hCode').onkeydown = (e) => { if (e.key === 'Enter') joinCode(e.target.value); };
     Api.get('/api/wheel').then(w => { const e = $('#bWheel'); if (e) e.innerHTML = w.freeAvailable ? '<span class="dot">!</span>' : ''; }).catch(() => {});
@@ -108,7 +115,10 @@
     root.addEventListener('click', (e) => {
       const t = e.target.closest('[data-p]'); if (!t || t.tagName === 'INPUT') return;
       if (e.target.closest('#hCode,#hJoin')) return;
-      Sound.play('click'); open(t.dataset.p);
+      Sound.play('click');
+      // canlı oyun kartı: kart öne çıkıp ekranı doldurur, oyun arkada açılır
+      if (t.dataset.card && window.CardFX) return CardFX.launch(t, t.dataset.card, () => open(t.dataset.p));
+      open(t.dataset.p);
     });
   }
   function open(id) {
@@ -122,8 +132,7 @@
       case 'slots': return Entry.open('slots');
       case 'online': case 'private': return Okey.createPrivate('101');
       case 'quick': return quick();
-      case 'zeus': return Games.open('zeus');
-      case 'peri': return Games.open('peri');
+      case 'zeus': case 'peri': case 'misir': case 'korsan': case 'vegas': case 'ejderha': case 'altin': return Games.open(id);
       case 'daily': return Screens.dailyModal();
       case 'settings': return Screens.settings();
       case 'support': return Screens.help();

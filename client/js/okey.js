@@ -165,6 +165,7 @@
   /* ===================== MASA (yatay) ===================== */
   function root() { let r = $('#okeyRoot'); if (!r) { r = document.createElement('div'); r.id = 'okeyRoot'; document.body.appendChild(r); } return r; }
   function stopTable() {
+    Sound.theme('hall');
     clearTimeout(O.timer); clearInterval(O.tim); O.timer = O.tim = null;
     const r = $('#okeyRoot'); if (r) { r.classList.remove('show'); r.innerHTML = ''; }
     document.body.classList.remove('okey-on'); window.removeEventListener('resize', layout);
@@ -173,7 +174,7 @@
   function openTable(id) { return window.Trans && !O.open ? Trans.run('tiles', () => openTableRaw(id)) : openTableRaw(id); }
   async function openTableRaw(id) {
     closeModal(); O.id = id; O.screen = 'table'; O.v = null; O.seq = -1; O.sel = null; O.slotsKey = null; O.shownRound = 0; O.shownFinal = false; O.lastLog = 0; O.lastChat = 0; O.fail = 0; O.sameN = 0; O.arr = null;
-    setOrient('landscape'); Sound.stopMusic();
+    setOrient('landscape'); Sound.theme('okey'); Sound.startMusic();
     const r = root(); r.className = 'show'; document.body.classList.add('okey-on');
     r.innerHTML = `<div id="okStage" class="okstage">
       <div class="okbg"></div>
@@ -230,7 +231,9 @@
     const W = innerWidth, H = innerHeight; O.rot = H > W * 1.05;
     const w = O.rot ? H : W, h = O.rot ? W : H;
     Object.assign(r.style, { width: w + 'px', height: h + 'px', transform: O.rot ? `translateX(${W}px) rotate(90deg)` : 'none' });
-    O.u = Math.min(w / W0, h / H0); O.sl = (w - W0 * O.u) / 2; O.st = (h - H0 * O.u) / 2;
+    // Masa ekranı tam doldurur: sahne yana doğru genişler, ıstaka ve masa ortada kalır
+    const sw = Math.max(W0, Math.round(H0 * w / h)), sh = Math.min(Math.round(H0 * 1.25), Math.max(H0, Math.round(W0 * h / w)));
+    O.u = Math.min(w / sw, h / sh); O.sl = (w - sw * O.u) / 2 + (sw - W0) / 2 * O.u; O.st = (h - sh * O.u) / 2 + (sh - H0) / 2 * O.u;
     const s = $('#okStage'); Object.assign(s.style, { transform: `translate(${O.sl}px,${O.st}px) scale(${O.u})` });
   }
   const toLocal = (cx, cy) => { let x = cx, y = cy; if (O.rot) { x = cy; y = innerWidth - cx; } return { x: (x - O.sl) / O.u, y: (y - O.st) / O.u }; };
@@ -514,8 +517,8 @@
   function events(prev, v) {
     const H = v.hand; if (!H) return;
     const fresh = H.log.filter(e => e.k > O.lastLog); if (prev) for (const e of fresh) {
-      if (e.t === 'discard' && e.s !== v.me) { Sound.play('stop'); flyFrom(e.s, e.tile); if (e.pen) toast(`${v.seats[e.s].name}: +${e.pen} ceza`); }
-      if (e.t === 'take' && e.s !== v.me) Sound.play('click');
+      if (e.t === 'discard' && e.s !== v.me) { Sound.play('tileDrop'); flyFrom(e.s, e.tile); if (e.pen) toast(`${v.seats[e.s].name}: +${e.pen} ceza`); }
+      if (e.t === 'take' && e.s !== v.me) Sound.play('tileDraw');
       if (e.t === 'open') { Sound.play('win'); if (e.s !== v.me) toast(`${v.seats[e.s].name} ${e.route === 'pairs' ? e.value + ' çiftle' : e.value + ' ile'} açtı`); }
       if (e.t === 'retrieve' && e.s !== v.me) toast(`${v.seats[e.s].name} masadan okey aldı!`);
       if (e.t === 'round_end') Sound.play('bigwin');
@@ -550,14 +553,14 @@
   }
   // İYİMSER HAMLE: taş sunucu yanıtı beklenmeden yerine konur; yanıt gelince (tek istek) gerçek durumla eşitlenir, ret olursa geri alınır.
   async function drawTo(slot) {
-    const H = O.v.hand; if (O.acting || !myTurn() || H.phase !== 'draw') return; O.pendingSlot = slot; Sound.play('click');
+    const H = O.v.hand; if (O.acting || !myTurn() || H.phase !== 'draw') return; O.pendingSlot = slot; Sound.play('tileDraw');
     H.phase = 'play'; H.pile = Math.max(0, H.pile - 1); const at = slot != null && O.slots[slot] == null ? slot : O.slots.lastIndexOf(null);
     if (at >= 0) { O.ghostAt = at; } renderPile(); renderRack(); renderStatus();
     const ph = at >= 0 && document.querySelector(`.okslot[data-slot="${at}"]`); if (ph) ph.innerHTML = backTile('incoming');
     await act({ type: 'draw' }); O.ghostAt = null;
   }
   async function takeTo(slot) {
-    const H = O.v.hand; if (O.acting || !myTurn() || H.phase !== 'draw') return; O.pendingSlot = slot; Sound.play('click');
+    const H = O.v.hand; if (O.acting || !myTurn() || H.phase !== 'draw') return; O.pendingSlot = slot; Sound.play('tileDraw');
     const d = H.discards[prevSeat()]; const id = d[d.length - 1];
     if (id != null) { d.pop(); H.rack = H.rack.concat(id); H.phase = 'play'; H.took = { id, from: prevSeat() }; syncRack(); renderDiscards(); renderRack(); renderStatus(); }
     await act({ type: 'take' });
@@ -571,7 +574,7 @@
       if (!K.isJoker(id) && OR.isCommittable(id, H.melds, K) && !(await UI.confirm('Bu taş masadaki bir pere işlenebilir. Atarsan 101 ceza yazılır. Yine de atılsın mı?', 'At'))) return;
     }
     const i = O.slots.indexOf(id); if (i >= 0) { O.slots[i] = null; renderRack(); }
-    O.sel = null; Sound.play('stop');
+    O.sel = null; Sound.play('tileDrop');
     { const me = O.v.me; H.discards[me] = H.discards[me].concat(id); H.rack = H.rack.filter(x => x !== id); H.phase = 'draw'; H.turn = nextSeat(me); renderDiscards(); renderStatus(); renderCol(); }
     await act({ type: 'discard', tile: id });
   }

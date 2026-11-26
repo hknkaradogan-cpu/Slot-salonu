@@ -36,7 +36,7 @@
   const dieHtml = (n, used) => `<i class="die d${n} ${used ? 'used' : ''}">${pip[n]}</i>`;
   /** 3B zar yuvarlanma animasyonu, sonra verilen değerlerde durur */
   function rollAnim(el, vals) {
-    if (!el) return Promise.resolve(); Sound.play('stop');
+    if (!el) return Promise.resolve(); Sound.play('dice');
     el.classList.remove('rolling'); void el.offsetWidth; el.classList.add('rolling');
     let k = 0; const t = setInterval(() => { el.innerHTML = dieHtml(1 + Math.floor(Math.random() * 6)) + dieHtml(1 + Math.floor(Math.random() * 6)); if (++k > 6) { clearInterval(t); el.innerHTML = dieHtml(vals[0]) + dieHtml(vals[1]); el.classList.remove('rolling'); Sound.play('click'); } }, 70);
     return new Promise(r => setTimeout(r, 560));
@@ -50,7 +50,7 @@
   }
   async function openTableRaw(id) {
     closeModal(); stop(); Object.assign(T, { open: true, id, v: null, seq: -1, part: [], pboard: null, sel: null, fail: 0, shownGame: 0, shownFinal: false, lastSeenMove: null });
-    Platform.setCurrent('tavla'); Sound.stopMusic && Sound.stopMusic();
+    Platform.setCurrent('tavla'); Sound.theme('tavla'); Sound.startMusic();
     UI.screen('tavla', `<div class="tvg">
       <div class="tvhead"><button class="okexit" id="tvLeave">⟵ ÇIK</button><div class="tvsc" id="tvScore"></div><div class="grow"></div><div class="okpill"><i>⏱</i><b id="tvClock">—</b></div><div class="okpill"><i class="okcoin"></i><b id="tvBal"></b></div><button class="okic" id="tvMenu">▾</button></div>
       <div class="tvside"><div class="tvpl opp" id="tvOpp"></div><div class="tvpl me" id="tvMe"></div></div>
@@ -64,7 +64,7 @@
     bindBoard();
     await poll(true); loop(); T.tim = setInterval(clock, 250);
   }
-  function stop() { clearTimeout(T.timer); clearInterval(T.tim); T.timer = T.tim = null; T.open = false; }
+  function stop() { Sound.theme('hall'); clearTimeout(T.timer); clearInterval(T.tim); T.timer = T.tim = null; T.open = false; }
   function loop() {
     clearTimeout(T.timer); if (!T.open) return;
     let ms = 900; if (T.fail) ms = Math.min(8000, 1000 * 2 ** T.fail); else if (T.v && T.v.status === 'finished') ms = 5000; else if (T.v && T.v.status === 'waiting') ms = 1500;
@@ -84,7 +84,7 @@
     const prev = T.v; T.v = v; T.seq = v.seq; T.skew = Date.now() - v.now;
     // tur değiştiyse yerel hamle taslağı sıfırlanır
     if (!prev || prev.turn !== v.turn || prev.phase !== v.phase || JSON.stringify(prev.dice) !== JSON.stringify(v.dice)) { T.part = []; T.pboard = null; T.sel = null; }
-    if (prev && v.lastMove && JSON.stringify(v.lastMove) !== JSON.stringify(prev.lastMove) && v.lastMove.s !== v.me) Sound.play('stop');
+    if (prev && v.lastMove && JSON.stringify(v.lastMove) !== JSON.stringify(prev.lastMove) && v.lastMove.s !== v.me) Sound.play('checker');
     if (prev && v.dice && JSON.stringify(prev.dice) !== JSON.stringify(v.dice) && v.turn !== v.me) rollAnim($('#tvDice'), v.dice);
     if (prev && prev.turn !== v.turn && v.turn === v.me && v.status === 'playing') { Sound.play('orb'); Sound.vibrate && Sound.vibrate(30); }
     render();
@@ -156,7 +156,7 @@
   function step(from, to) {
     const s = nextSteps().find(x => x[0] === from && x[1] === to); if (!s) return false;
     const m = TR.moveOne(board(), T.v.me, from, s[2]); if (!m) return false;
-    T.pboard = m.board; T.part.push([from, to, s[2]]); T.sel = null; Sound.play(m.hit ? 'pop' : 'click'); if (m.hit) Sound.vibrate && Sound.vibrate(25);
+    T.pboard = m.board; T.part.push([from, to, s[2]]); T.sel = null; Sound.play(m.hit ? 'pop' : 'checker'); if (m.hit) Sound.vibrate && Sound.vibrate(25);
     render(); if (T.part.length === fullLen()) setTimeout(() => { const b = $('#tvOk'); b && b.classList.add('pulse'); }, 50);
     return true;
   }

@@ -13,11 +13,12 @@
 <div id="app">
   <div id="splash" class="screen active">
     <div class="studio" id="studio"><b>SPINOVA</b><span>S T U D I O</span><i>By-Hkn</i></div>
-    <div class="ld" id="ld"><div class="ldbg"></div><div class="ldbokeh"><i></i><i></i><i></i><i></i><i></i><i></i></div>
-      <div class="ldfan"><img src="assets/g_okey101.webp" alt=""><img src="assets/g_duzokey.webp" alt=""><img src="assets/g_tavla.webp" alt=""><img src="assets/g_aviator.webp" alt=""><img src="assets/g_slot.webp" alt=""></div>
-      <div class="ldtip" id="ldTip">101 Okey · Düz Okey · Tavla · Avivasor · Slot Salonu</div>
+    <div class="ld ks" id="ld">
+      <div class="kblur"></div><div class="kscene" id="kScene"><img class="kbase" src="assets/splash_king.webp" alt=""><div class="krays"></div><canvas class="kfx" id="kFx"></canvas>
+        <img class="klogo" src="assets/splash_logo.webp" alt="SPINOVA 101 OKEY"><i class="kshine"></i><i class="kstar s1"></i><i class="kstar s2"></i><i class="kstar s3"></i><i class="kflash"></i><div class="kbar"><div class="kbarin"><i id="ldFill"></i><b class="kspark"></b></div><span id="splashMsg">Kaynaklar başlatılıyor…</span></div></div>
       <div class="ldside"><button class="ldrb" onclick="Intro.help()"><span>💬</span>İLETİŞİM</button><button class="ldrb" onclick="Intro.repair()"><span>🛠️</span>TAMİRAT</button></div>
-      <div class="ldbar"><i id="ldFill"></i><span id="splashMsg">Kaynaklar başlatılıyor…</span></div><em class="ldver" id="ldVer"></em></div>
+      <button class="ksnd" id="kSnd" onclick="Intro.toggleSound()">🔊</button>
+      <em class="ldver" id="ldVer"></em><div class="ldtip" id="ldTip"></div></div>
   </div>
 </div>
 <div id="overlay"></div>
@@ -37,6 +38,7 @@
 <script src="js/tavla-rules.js"></script>
 <script src="js/okey.js"></script>
 <script src="js/transitions.js"></script>
+<script src="js/cardfx.js"></script>
 <script src="js/intro.js"></script>
 <script src="js/platform.js"></script>
 <script src="js/entry.js"></script>

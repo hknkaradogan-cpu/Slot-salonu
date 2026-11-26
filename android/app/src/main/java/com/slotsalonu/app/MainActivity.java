@@ -31,6 +31,12 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        // Tam ekran: çentik/kamera deliği tarafına da çiz, kenarlarda siyah boşluk kalmasın
+        if (android.os.Build.VERSION.SDK_INT >= 28) {
+            WindowManager.LayoutParams lp = getWindow().getAttributes();
+            lp.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+            getWindow().setAttributes(lp);
+        }
 
         final WebViewAssetLoader loader = new WebViewAssetLoader.Builder()
                 .addPathHandler("/assets/", new WebViewAssetLoader.AssetsPathHandler(this))
@@ -84,6 +90,13 @@ public class MainActivity extends Activity {
         super.onResume();
         if (webView != null) webView.onResume();
         if (billing != null) billing.restore(); // bekleyen/tamamlanmamış satın alımları tekrar doğrula
+        new AppBridge(this).setOrientation("landscape"); // geri dönüşte de sistem çubukları gizli, tam ekran
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) new AppBridge(this).setOrientation("landscape");
     }
 
     @Override

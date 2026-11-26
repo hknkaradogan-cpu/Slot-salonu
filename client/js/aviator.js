@@ -15,6 +15,7 @@
     return Trans.run('night', openRaw);
   }
   async function openRaw() {
+    Sound.theme('aviator'); Sound.startMusic();
     stop(); A.open = true; Platform.setCurrent('aviator');
     try { A.bet = +(localStorage.getItem('av_bet') || 1000); A.autoOn = localStorage.getItem('av_auto_on') === '1'; A.auto = +(localStorage.getItem('av_auto') || 2) || 2; } catch (e) { /* */ }
     UI.screen('aviator', `<div class="av">
@@ -50,7 +51,7 @@
     } catch (e) { toast(e.message, true); }
     button(); A.raf = requestAnimationFrame(frame);
   }
-  function stop() { A.open = false; cancelAnimationFrame(A.raf); }
+  function stop() { Sound.theme('hall'); Sound.loopStop('engine'); A.open = false; cancelAnimationFrame(A.raf); }
   function back() { if ($('#overlay').classList.contains('show')) { UI.closeModal(); return true; } if (A.state === 'fly' && A.round && A.round.status === 'flying') toast('Uçuşun sürüyor — sonucu kaybetmezsin: döndüğünde tur kapanmış olur, otomatik tahsil hedefin geçerliyse ödenir.'); stop(); Platform.home(); return true; }
   const stepBet = (d) => { const L = [100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000]; let i = L.findIndex(x => x >= A.bet); if (i < 0) i = L.length - 1; return L[Math.max(0, Math.min(L.length - 1, i + d))]; };
   function setBet(v) { A.bet = v; localStorage.setItem('av_bet', v); $('#avBetV').textContent = fmt(v); $$('[data-c]').forEach(b => b.classList.toggle('on', +b.dataset.c === v)); button(); }
@@ -75,7 +76,7 @@
       const r = await Api.post('/api/aviator/bet', { bet: A.bet, ...(A.autoOn ? { auto: A.auto } : {}) });
       A.skew = Date.now() - r.now; A.k = r.k; A.round = r.round; A.state = 'fly'; A.result = null; App.me.balance = r.balance; Screens.setBalance && Screens.setBalance(r.balance); paintBal();
       $('#avFair').innerHTML = `Tur #${r.round.id} · taahhüt <code>${r.round.hash.slice(0, 16)}…</code>`;
-      waitEnd();
+      Sound.play('takeoff'); Sound.loopStart('engine'); waitEnd();
     } catch (e) { toast(e.message, true); } finally { A.busy = false; button(); }
   }
   async function cashout() {
@@ -93,12 +94,12 @@
   }
   function finish(r) {
     if (!A.round || A.round.id !== r.round.id || A.round.status !== 'flying') return;
-    A.round = r.round; A.state = 'end'; A.result = r.round; A.endAt = performance.now();
+    A.round = r.round; A.state = 'end'; A.result = r.round; A.endAt = performance.now(); Sound.loopStop('engine');
     App.me.balance = r.balance; Screens.setBalance && Screens.setBalance(r.balance); paintBal(); Entry.setBal && Entry.setBal();
     A.hist.unshift(r.round.crash); A.hist = A.hist.slice(0, 24); hist();
     const m = $('#avMult');
-    if (r.round.status === 'cashed') { Sound.play('bigwin'); UI.coinBurst && UI.coinBurst(12); m.className = 'avmult win'; m.innerHTML = `<b>${r.round.cashMult.toFixed(2)}x</b><small>+${fmt(r.round.win)} jeton · uçak ${r.round.crash.toFixed(2)}x'te uçtu</small>`; }
-    else { Sound.play('pop'); Sound.vibrate && Sound.vibrate(60); m.className = 'avmult lost'; m.innerHTML = `<b>UÇTU! ${r.round.crash.toFixed(2)}x</b><small>bu tur kaybedildi</small>`; }
+    if (r.round.status === 'cashed') { Sound.play('cashout'); UI.coinBurst && UI.coinBurst(12); m.className = 'avmult win'; m.innerHTML = `<b>${r.round.cashMult.toFixed(2)}x</b><small>+${fmt(r.round.win)} jeton · uçak ${r.round.crash.toFixed(2)}x'te uçtu</small>`; }
+    else { Sound.play('crash'); Sound.vibrate && Sound.vibrate(60); m.className = 'avmult lost'; m.innerHTML = `<b>UÇTU! ${r.round.crash.toFixed(2)}x</b><small>bu tur kaybedildi</small>`; }
     $('#avFair').innerHTML = `Tur #${r.round.id} · çarpan ${r.round.crash.toFixed(2)}x · tuz <code>${esc(r.round.salt)}</code> · <a href="#" id="avVer">doğrula</a>`;
     $('#avVer').onclick = (e) => { e.preventDefault(); verify(r.round); };
     if (A.best) { A.best.rounds++; if (r.round.cashMult > A.best.mult) A.best.mult = r.round.cashMult; if (r.round.win > A.best.win) A.best.win = r.round.win; stats(); }
@@ -145,7 +146,7 @@
     if (!A.open) return; A.raf = requestAnimationFrame(frame);
     const cv = $('#avCv'); if (!cv) return; const c = cv.getContext('2d'), W = cv.width, H = cv.height;
     const fly = A.round && A.state === 'fly', t = fly ? now() - A.round.startAt : -1, m = fly && t > 0 ? multAt(t) : 1;
-    const speed = fly && t > 0 ? Math.min(3, 0.4 + Math.log(m) * 0.6) : 0.15;
+    const speed = fly && t > 0 ? Math.min(3, 0.4 + Math.log(m) * 0.6) : 0.15; if (fly) Sound.loopSet('engine', m);
     // gökyüzü
     const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#05061a'); g.addColorStop(0.55, '#141a4a'); g.addColorStop(1, '#3a1a52'); c.fillStyle = g; c.fillRect(0, 0, W, H);
     for (const s of A.stars) { c.globalAlpha = 0.4 + 0.6 * Math.abs(Math.sin(ts / 900 + s.t)); c.fillStyle = '#fff'; c.beginPath(); c.arc(s.x * W, s.y * H, s.r, 0, 7); c.fill(); }

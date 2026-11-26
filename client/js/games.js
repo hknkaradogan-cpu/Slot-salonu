@@ -20,8 +20,10 @@
 
   /* ---------- ekran ---------- */
   /** Slota giriş: mor kadife perde geçişi */
-  function open(id) { return window.Trans && !G.open ? Trans.run('curtain', () => openRaw(id)) : openRaw(id); }
+  /** Oyun açılışı: oyunun kendi canlı kartı ekranı doldurur (her oyunda farklı animasyon), oyun arkada hazırlanır */
+  function open(id, fromEl) { return window.CardFX && !G.open ? CardFX.launch(fromEl || null, id, () => openRaw(id)) : openRaw(id); }
   function openRaw(id) {
+    Sound.theme(id); Sound.startMusic();
     const meta = App.games.find(g => g.id === id); if (!meta) return;
     G.gen++; Object.assign(G, { open: true, id, meta, th: Sym.THEMES[id], auto: 0, spinning: false });
     G.turbo = localStorage.getItem('slot_turbo') === '1'; G.speed = G.turbo ? 0.5 : 1;
@@ -55,6 +57,7 @@
     if (G.rows <= 3) s.classList.add('tall');
     const bc = () => { const b = App.bets[G.betIdx]; if ($('#buyFsC')) $('#buyFsC').textContent = short(Math.round(b * buyC.fs)); if ($('#buySuperC')) $('#buySuperC').textContent = short(Math.round(b * buyC.super)); }; G.updBuy = bc;
     UI.show('game'); Screens.renderTop();
+    if (window.CardFX) { G.amb && G.amb.destroy(); G.amb = CardFX.ambient(s, id); } // oyunun kendi canlı arka planı (şimşek, ateş, kelebek, altın…)
     meter('L'); meter('R'); sizeGrid(); buildGrid(); fitGrid(); initialFill(); renderBet();
     { const gb = $('#gBack'); let t = 0; const go = (e) => { e && e.preventDefault(); const n = Date.now(); if (n - t < 400) return; t = n; close(); }; gb.onclick = go; gb.addEventListener('pointerup', go); } $('#gShop').onclick = () => { close(); Screens.shop(); };
     $('#gInfo').onclick = info; $('#gInfo2').onclick = info; $('#gShop2').onclick = () => { close(); Screens.shop(); }; G.log = [];
@@ -75,6 +78,7 @@
   }
   // Oyundan çıkış her koşulda çalışmalı: animasyon, modal veya hata çıkışı engelleyemez
   function close() {
+    Sound.theme('slot'); if (G.amb) { G.amb.destroy(); G.amb = null; }
     G.gen++; G.open = false; G.auto = 0; G.skip = true; G.spinning = false;
     try { $$('.bigwin,.multbadge,.bolt,.flash,.zcharge,.zimpact,.zring,.flymult,.fxi,.flyorb,.expandcol').forEach(e => e.remove()); } catch (e) { /* yoksay */ }
     try { UI.closeModal(true); } catch (e) { /* yoksay */ }
@@ -182,7 +186,7 @@
     }
     G.spinning = true; G.skip = false; G.speed = G.turbo ? 0.5 : 1; spinLabel(); clearLines(); unmark(); setWin(0); meter('L'); meter('R'); fsBar('');
     if (!me.unlimited) Screens.setBalance(me.balance - cost);
-    Sound.play('spin'); Sound.vibrate(15);
+    Sound.play('spin'); Sound.vibrate(15); G.amb && G.amb.event('spin');
     const key = Api.uuid();
     const vis = buyKind && G.meta.family !== 'pirate' ? null : startVisual();
     let r;
@@ -196,8 +200,8 @@
     if (vis && vis.iv) clearInterval(vis.iv);
     if (myGen !== G.gen || !G.open) { finishQuiet(r); return; }
     setWin(r.win, r.win >= bet * 10 ? 'TOPLAM KAZANÇ' : 'KAZANÇ');
-    if (r.win >= (r.cost || bet) * 10 || (r.buy && r.win >= bet * 20)) await bigWin(r.win, r.win / bet);
-    else if (r.win > 0) { Sound.play('win'); const c = $('#reels').getBoundingClientRect(); UI.coinBurst(c.left + c.width / 2, c.top + c.height / 2, Math.min(18, 4 + r.win / bet * 2)); }
+    if (r.win >= (r.cost || bet) * 10 || (r.buy && r.win >= bet * 20)) { G.amb && G.amb.event('big'); await bigWin(r.win, r.win / bet); }
+    else if (r.win > 0) { G.amb && G.amb.event('win'); Sound.play('win'); const c = $('#reels').getBoundingClientRect(); UI.coinBurst(c.left + c.width / 2, c.top + c.height / 2, Math.min(18, 4 + r.win / bet * 2)); }
     finish(r);
     const feature = !!(r.result.fs || r.result.hold || r.result.wheel);
     if (G.auto && G.open) {

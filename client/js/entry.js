@@ -141,7 +141,7 @@
         ${[['quests', '📋', 'Görev'], ['daily', '📅', 'Günlük Giriş'], ['tournaments', '🏆', 'Turnuva'], ['friends', '👥', 'Arkadaşlar'], ['gifts', '🎁', 'Hediye'], ['leaders', '📊', 'Sıralama'], ['wheel', '🎡', 'Şans Çarkı']].map(([k, ic, t]) => `<button class="slb" data-ev="${k}"><span>${ic}</span><small>${t}</small></button>`).join('')}
         <button class="slgo" data-g="${last}"><b>HEMEN<br>OYNA</b></button></div>`, 'en-slots');
     $$('[data-c]', root).forEach(b => b.onclick = (e) => { e.stopPropagation(); Sound.play('click'); slots(b.dataset.c); });
-    $$('[data-g]', root).forEach(b => b.onclick = (e) => { e.stopPropagation(); Sound.play('click'); try { localStorage.setItem('slot_last', b.dataset.g); } catch (x) { /* */ } Games.open(b.dataset.g); });
+    $$('[data-g]', root).forEach(b => b.onclick = (e) => { e.stopPropagation(); Sound.play('click'); try { localStorage.setItem('slot_last', b.dataset.g); } catch (x) { /* */ } Games.open(b.dataset.g, b); });
     $$('[data-ev]', root).forEach(b => b.onclick = (e) => { e.stopPropagation(); Sound.play('click'); const k = b.dataset.ev; if (k === 'daily') return Screens.dailyModal(); if (k === 'settings') return Screens.settings(); Platform.panel(k); });
     Api.get('/api/winners/recent').then(r => { const t = $('#slTick'); if (!t || !r.winners.length) return; let i = 0; const nm = Object.fromEntries((App.games || []).map(g => [g.id, g.name]));
       const f = () => { const w = r.winners[i++ % r.winners.length]; const el = $('#slTick'); if (!el) return clearInterval(E.tick); el.textContent = `${w.username} · ${nm[w.game] || w.game} · ${fmt(w.win)} jeton kazandı (${Math.round(w.win / w.bet)}x)`; };
@@ -149,6 +149,7 @@
   }
 
   function open(id) {
+    Sound.theme(id === 'slots' ? 'slot' : (id === 'tavla' ? 'tavla' : (id === 'aviator' ? 'aviator' : (/okey|duz/.test(id) ? 'okey' : 'hall'))));
     if (id === 'okey101') return okey('101');
     if (id === 'duz') return okey('duz');
     if (id === 'tavla') return tavla();
