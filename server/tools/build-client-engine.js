@@ -1,18 +1,15 @@
 #!/usr/bin/env node
-'use strict';
-// Oyun motorunu ve kalibrasyonu tarayıcı/APK "yerel mod" için tek dosyada paketler: client/js/engine.bundle.js
-const fs = require('fs'), path = require('path');
-const src = fs.readFileSync(path.join(__dirname, '../src/games/engine.js'), 'utf8');
-const cal = fs.readFileSync(path.join(__dirname, '../src/games/calibration.json'), 'utf8');
+// Oyun motorunu ve kalibrasyonu istemci "yerel mod" için tek dosyada paketler: client/js/engine.bundle.js
+import fs from 'node:fs';
+const rd = (p) => fs.readFileSync(new URL(p, import.meta.url), 'utf8');
+let src = rd('../src/games/engine.js').replace(/^export \{[^}]*\};?$/gm, '').replace(/^export (const|function|class) /gm, '$1 ');
+const cal = rd('../src/games/calibration.json');
 const out = `/* OTOMATİK ÜRETİLDİ: server/tools/build-client-engine.js — elle düzenlemeyin */
 (function () {
   var CAL = ${cal.trim()};
-  var module = { exports: {} };
-  function require(n) { if (n === 'fs') return { readFileSync: function () { return JSON.stringify(CAL); } }; if (n === 'path') return { join: function () { return ''; } }; throw new Error(n); }
-  var __dirname = '';
 ${src}
-  window.SlotEngine = module.exports;
+  window.SlotEngine = { buildGames: function (rtp) { return buildGames(CAL, rtp || {}); }, ORDER: ORDER, DEFAULT_RTP: DEFAULT_RTP };
 })();
 `;
-fs.writeFileSync(path.join(__dirname, '../../client/js/engine.bundle.js'), out);
+fs.writeFileSync(new URL('../../client/js/engine.bundle.js', import.meta.url), out);
 console.log('client/js/engine.bundle.js yazıldı', out.length);

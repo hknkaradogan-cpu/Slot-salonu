@@ -1,9 +1,9 @@
-'use strict';
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const { buildGames, ORDER, MAX_WIN } = require('../src/games/engine');
-const { FastRng, FairRng } = require('../src/games/rng');
-const games = buildGames();
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import { buildGames, ORDER, MAX_WIN } from '../src/games/engine.js';
+import { FastRng, FairRng } from '../src/games/rng.js';
+const games = buildGames(JSON.parse(fs.readFileSync(new URL('../src/games/calibration.json', import.meta.url), 'utf8')));
 
 test('7 oyun yüklü ve her biri %95 RTP için kalibre edilmiş', () => {
   assert.deepEqual(ORDER, ['zeus', 'misir', 'vegas', 'peri', 'ejderha', 'korsan', 'altin']);

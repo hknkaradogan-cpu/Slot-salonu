@@ -1,16 +1,25 @@
 {
   "name": "slot-salonu-server",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "private": true,
-  "description": "SLOT SALONU oyun sunucusu: üyelik, jeton, seviye, ödül, mağaza doğrulama, yönetici paneli ve 7 oyun motoru",
-  "main": "src/index.js",
-  "engines": { "node": ">=22.13" },
-  "scripts": {
-    "start": "node --no-warnings src/index.js",
-    "test": "node --no-warnings --test test/*.test.js",
-    "simulate": "node --no-warnings tools/simulate.js --spins 10000000",
-    "calibrate": "node --no-warnings tools/simulate.js --calibrate --spins 60000000",
-    "verify-spin": "node --no-warnings tools/verify-spin.js"
+  "type": "module",
+  "description": "SLOT SALONU sunucusu (Node veya Supabase Edge Function, PostgreSQL)",
+  "engines": {
+    "node": ">=22"
   },
-  "optionalDependencies": { "nodemailer": "^6.9.16" }
+  "scripts": {
+    "start": "node src/node-server.js",
+    "test": "node --test test/*.test.js",
+    "simulate": "node tools/simulate.js --spins 10000000",
+    "build:edge": "node tools/build-edge.js",
+    "build:client-engine": "node tools/build-client-engine.js"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.3.0",
+    "jose": "^5.9.6",
+    "postgres": "^3.4.5"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.2"
+  }
 }

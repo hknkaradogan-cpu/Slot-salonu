@@ -1,23 +1,32 @@
 plugins { id 'com.android.application' }
 
-// Boş bırakılırsa APK "yerel mod"da çalışır (sunucusuz, veriler cihazda)
-def apiBase = (project.findProperty('slotApiBase') ?: '').toString()
+// ---- Marka / müşteri ayarları (beyaz etiket) ----
+// Her müşteri için: -PappId=com.musteri.slot -PappName="Müşteri Slot" -PslotApiBase=https://... ile derleyin.
+def apiBase = (project.findProperty('slotApiBase') ?: '').toString()          // boşsa "yerel mod"
+def appIdProp = (project.findProperty('appId') ?: 'com.slotsalonu.app').toString()
+def appNameProp = (project.findProperty('appName') ?: 'SLOT SALONU').toString()
+def vCode = (project.findProperty('versionCode') ?: '6').toString().toInteger()
+def vName = (project.findProperty('versionName') ?: '3.0.0').toString()
+def selfUpdate = (project.findProperty('selfUpdate') ?: 'true').toString().toBoolean() // Play Store sürümünde false
 
 android {
     namespace 'com.slotsalonu.app'
     compileSdk 36
 
     defaultConfig {
-        applicationId 'com.slotsalonu.app'
+        applicationId appIdProp
         minSdk 24
         targetSdk 36
-        versionCode 5
-        versionName '2.3.0'
+        versionCode vCode
+        versionName vName
+        manifestPlaceholders = [appName: appNameProp]
+        buildConfigField 'boolean', 'SELF_UPDATE', selfUpdate.toString()
     }
+    buildFeatures { buildConfig true }
 
     signingConfigs {
         release {
-            // CI'da gizli değişkenlerden doldurulur; yoksa release derlemesi debug anahtarıyla imzalanır
+            // Tüm sürümler AYNI anahtarla imzalanır; böylece güncellemeler silmeden üstüne kurulur.
             if (System.getenv('KEYSTORE_FILE')) {
                 storeFile file(System.getenv('KEYSTORE_FILE'))
                 storePassword System.getenv('KEYSTORE_PASSWORD')
@@ -31,6 +40,9 @@ android {
             minifyEnabled false
             signingConfig System.getenv('KEYSTORE_FILE') ? signingConfigs.release : signingConfigs.debug
         }
+        debug {
+            if (System.getenv('KEYSTORE_FILE')) signingConfig signingConfigs.release
+        }
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
@@ -41,19 +53,21 @@ android {
     }
 }
 
-// Web istemcisini (../../client) APK içine kopyala ve sunucu adresini yaz
+// Web istemcisini (../../client) APK içine kopyala; sunucu adresi ve sürüm bilgisini yaz
 def copyWeb = tasks.register('copyWeb', Copy) {
     from(rootProject.file('../client'))
     into(layout.buildDirectory.dir('generated/www/www'))
     exclude 'assets/README.txt'
     filesMatching('config.js') {
-        filter { String line -> line.replace("apiBase: ''", "apiBase: '" + apiBase + "'") }
+        filter { String line -> line.replace("apiBase: ''", "apiBase: '" + apiBase + "'").replace("appVersion: ''", "appVersion: '" + vName + "'") }
     }
     inputs.property('apiBase', apiBase)
+    inputs.property('vName', vName)
 }
 tasks.named('preBuild') { dependsOn copyWeb }
 
 dependencies {
     implementation 'com.android.billingclient:billing:8.0.0'
     implementation 'androidx.webkit:webkit:1.14.0'
+    implementation 'androidx.core:core:1.16.0'
 }

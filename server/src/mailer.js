@@ -1,26 +1,16 @@
-'use strict';
-/*
- * E-posta gönderimi. Tüm iletiler önce outbox tablosuna yazılır.
- * SMTP_URL tanımlıysa (ör. smtps://kullanici:sifre@smtp.ornek.com:465) ve
- * "nodemailer" paketi kuruluysa gerçekten gönderilir; değilse geliştirme
- * modunda konsola yazılır.
- */
-function createMailer(db, cfg, log = console) {
-  let transport = null;
-  if (cfg.smtpUrl) {
-    try { transport = require('nodemailer').createTransport(cfg.smtpUrl); }
-    catch { log.warn('[mail] SMTP_URL var ama nodemailer kurulu değil: npm i nodemailer'); }
-  }
+// E-posta: tüm iletiler outbox tablosuna yazılır; RESEND_API_KEY tanımlıysa Resend HTTP API ile gönderilir
+// (Node ve Supabase Edge'de çalışır). Tanımlı değilse "yapılandırılmadı" kabul edilir.
+export function createMailer(db, cfg, log = console) {
   return {
+    configured: !!cfg.resendKey,
     async send(to, subject, body, now = Date.now()) {
-      const id = db.prepare('INSERT INTO outbox(to_addr,subject,body,created_at) VALUES(?,?,?,?)').run(to, subject, body, now).lastInsertRowid;
-      if (transport) {
-        try { await transport.sendMail({ from: cfg.mailFrom, to, subject, text: body }); db.prepare('UPDATE outbox SET sent=1 WHERE id=?').run(id); }
-        catch (e) { log.error('[mail] gönderilemedi', e.message); }
-      } else if (!cfg.quiet) {
-        log.log(`[mail:dev] -> ${to} | ${subject}\n${body}\n`);
-      }
+      const [row] = await db.q('INSERT INTO slot.outbox(to_addr,subject,body,created_at) VALUES($1,$2,$3,$4) RETURNING id', [to, subject, body, now]);
+      if (!cfg.resendKey) { if (!cfg.quiet) log.log(`[mail:dev] -> ${to} | ${subject}\n${body}`); return false; }
+      try {
+        const r = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: `Bearer ${cfg.resendKey}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ from: cfg.mailFrom, to: [to], subject, text: body }) });
+        if (!r.ok) throw new Error('resend ' + r.status + ' ' + (await r.text()).slice(0, 200));
+        await db.q('UPDATE slot.outbox SET sent=TRUE WHERE id=$1', [row.id]); return true;
+      } catch (e) { log.error('[mail] gönderilemedi', e.message); return false; }
     },
   };
 }
-module.exports = { createMailer };

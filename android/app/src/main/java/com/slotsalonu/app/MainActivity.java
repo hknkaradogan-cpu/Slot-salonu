@@ -66,6 +66,7 @@ public class MainActivity extends Activity {
 
         billing = new BillingBridge(this, webView);
         webView.addJavascriptInterface(billing, "AndroidBilling");
+        webView.addJavascriptInterface(new UpdateBridge(this, webView), "AndroidUpdate");
         setContentView(webView);
 
         // Android 13+ (ve targetSdk 36 ile zorunlu) geri hareketi
@@ -110,7 +111,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         if (billing != null) billing.destroy();
-        if (webView != null) { webView.removeJavascriptInterface("AndroidBilling"); webView.destroy(); }
+        if (webView != null) { webView.removeJavascriptInterface("AndroidBilling"); webView.removeJavascriptInterface("AndroidUpdate"); webView.destroy(); }
         super.onDestroy();
     }
 }

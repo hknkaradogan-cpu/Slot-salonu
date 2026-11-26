@@ -7,3 +7,5 @@ android/app/build/
 android/local.properties
 *.jks
 .env
+server/dist/
+server/edge/calibration.gen.js

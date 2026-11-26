@@ -1,4 +1,4 @@
-name: SLOT SALONU – test ve APK derleme
+name: SLOT SALONU – test, sunucu yayını ve APK
 
 on:
   push:
@@ -6,67 +6,83 @@ on:
 
 permissions:
   contents: write
+  id-token: write   # Supabase sunucusuna gizli anahtar olmadan (OIDC) kimlik kanıtlamak için
+
+env:
+  SLOT_API: https://sjcoopddwmfqoxhrjyqa.supabase.co/functions/v1/slot-api
 
 jobs:
-  server-tests:
+  server:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '22' }
-      - name: Sunucu testleri
+      - name: Bağımlılıklar
         working-directory: server
-        run: npm test
-      - name: RTP simülasyonu (oyun başına 2 milyon spin)
+        run: npm ci --no-audit --no-fund
+      - name: Testler (API, oyun motoru, sunucu paketi)
         working-directory: server
-        run: node --no-warnings tools/simulate.js --spins 2000000 --out sim.json
+        run: npm run build:edge && npm test
+      - name: RTP simülasyonu (profil RTP'leri, oyun başına 2 milyon spin)
+        working-directory: server
+        run: node tools/simulate.js --spins 2000000 --rtp profil --out sim.json
+      - name: Sunucuyu Supabase'e yayınla (yalnızca main)
+        if: github.ref == 'refs/heads/main'
+        working-directory: server
+        run: |
+          OIDC=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=slot-salonu-release" | jq -r .value)
+          curl -fsS -X POST -H "Authorization: Bearer $OIDC" -H "Content-Type: application/javascript" --data-binary @dist/server-bundle.js "$SLOT_API/ci/server-bundle"
+          echo
+      - name: Canlı sunucu duman testi
+        if: github.ref == 'refs/heads/main'
+        run: |
+          set -e
+          curl -fsS "$SLOT_API/api/health"; echo
+          curl -fsS "$SLOT_API/api/setup/status"; echo
+          curl -fsS "$SLOT_API/api/games" | jq -c '[.games[] | {id, rtp, volatility}]'
+          U="ci$(date +%s)"; R=$(curl -fsS -X POST -H 'Content-Type: application/json' -d "{\"email\":\"$U@ci.test\",\"username\":\"$U\",\"password\":\"Ci$(date +%s)x\"}" "$SLOT_API/api/auth/register")
+          T=$(echo "$R" | jq -r .token)
+          curl -fsS -X POST -H "Authorization: Bearer $T" -H 'Content-Type: application/json' -d '{"game":"zeus","bet":100}' "$SLOT_API/api/spin" | jq -c '{win, balance, xp: .xp.xp, level: .xp.level}'
+          curl -s -o /dev/null -w "oyuncu -> admin: %{http_code}\n" -H "Authorization: Bearer $T" "$SLOT_API/api/admin/users"
       - uses: actions/upload-artifact@v4
         with: { name: simulation-report, path: server/sim.json }
 
   android:
     runs-on: ubuntu-latest
-    needs: server-tests
-    env:
-      KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+    needs: server
+    if: "!contains(github.event.head_commit.message, '[yalnizca-sunucu]')"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: '17' }
-      - name: Android SDK lisansları (runner'da SDK hazır kurulu)
+      - name: Android SDK lisansları
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
-      - name: Debug APK derle
+      - name: Sabit imza anahtarını al (OIDC; depoda gizli bilgi tutulmaz)
+        if: github.ref == 'refs/heads/main'
+        run: |
+          OIDC=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=slot-salonu-release" | jq -r .value)
+          curl -fsS -H "Authorization: Bearer $OIDC" "$SLOT_API/api/release/signing" > /tmp/s.json
+          jq -r .keystore /tmp/s.json | base64 -d > "$RUNNER_TEMP/release.jks"
+          for k in storePassword keyAlias keyPassword; do echo "::add-mask::$(jq -r .$k /tmp/s.json)"; done
+          echo "KEYSTORE_FILE=$RUNNER_TEMP/release.jks" >> $GITHUB_ENV
+          echo "KEYSTORE_PASSWORD=$(jq -r .storePassword /tmp/s.json)" >> $GITHUB_ENV
+          echo "KEY_ALIAS=$(jq -r .keyAlias /tmp/s.json)" >> $GITHUB_ENV
+          echo "KEY_PASSWORD=$(jq -r .keyPassword /tmp/s.json)" >> $GITHUB_ENV
+          rm /tmp/s.json
+      - name: APK derle (imzalı)
         working-directory: android
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon assembleDebug -PslotApiBase="${{ vars.SLOT_API_BASE || '' }}"
-      - uses: actions/upload-artifact@v4
-        with: { name: slot-salonu-debug-apk, path: android/app/build/outputs/apk/debug/app-debug.apk }
-      - name: APK'yı Releases'a yayınla (telefondan doğrudan indirme)
+          ./gradlew --no-daemon assembleRelease -PslotApiBase="$SLOT_API" -PversionCode=$((100 + ${{ github.run_number }})) -PversionName="3.0.${{ github.run_number }}"
+          cp app/build/outputs/apk/release/app-release.apk ../SlotSalonu.apk
+      - name: Güncellemeyi yayınla (uygulama içi güncelleme + GitHub Releases)
         if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp android/app/build/outputs/apk/debug/app-debug.apk SlotSalonu.apk
-          TAG="build-${{ github.run_number }}"
-          gh release create "$TAG" SlotSalonu.apk --title "SLOT SALONU – derleme ${{ github.run_number }}" --notes "Otomatik derlenen APK (commit ${{ github.sha }})." --latest
-
-      # İmzalı yayın sürümü: depo ayarlarında KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD gizlilerini tanımlayın
-      - name: Release APK + AAB (Play Console için)
-        if: ${{ env.KEYSTORE_BASE64 != '' }}
-        env:
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        working-directory: android
-        run: |
-          echo "$KEYSTORE_BASE64" | base64 -d > release.jks
-          export KEYSTORE_FILE="$PWD/release.jks"
-          ./gradlew --no-daemon assembleRelease bundleRelease -PslotApiBase="${{ vars.SLOT_API_BASE }}"
-      - uses: actions/upload-artifact@v4
-        if: ${{ always() }}
-        with:
-          name: slot-salonu-release
-          path: |
-            android/app/build/outputs/apk/release/*.apk
-            android/app/build/outputs/bundle/release/*.aab
-          if-no-files-found: ignore
+          OIDC=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=slot-salonu-release" | jq -r .value)
+          NOTES=$(git log -1 --pretty=%s | head -c 300 | jq -sRr @uri)
+          curl -fsS -X POST -H "Authorization: Bearer $OIDC" -H "Content-Type: application/vnd.android.package-archive" --data-binary @SlotSalonu.apk "$SLOT_API/api/release?code=$((100 + ${{ github.run_number }}))&name=3.0.${{ github.run_number }}&notes=$NOTES"
+          echo
+          gh release create "build-${{ github.run_number }}" SlotSalonu.apk --title "SLOT SALONU 3.0.${{ github.run_number }}" --notes "$(git log -1 --pretty=%B)" --latest

@@ -54,10 +54,8 @@
     "date": "2026-11-25T23:19:58.590Z"
   }
 };
-  var module = { exports: {} };
-  function require(n) { if (n === 'fs') return { readFileSync: function () { return JSON.stringify(CAL); } }; if (n === 'path') return { join: function () { return ''; } }; throw new Error(n); }
-  var __dirname = '';
-'use strict';
+// SLOT SALONU oyun motoru (ES modülü: Node ve Deno/Supabase'de aynen çalışır)
+
 /*
  * SLOT SALONU oyun motoru — 7 oyun, 5 farklı mekanik ailesi.
  * Tüm kazançlar "bahis katı" (x) cinsindendir; jeton = round(x * bahis).
@@ -65,8 +63,6 @@
  * tools/simulate.js ile milyonlarca spin simüle edilerek %95 RTP'ye
  * kalibre edilir ve calibration.json dosyasına yazılır.
  */
-const path = require('path');
-const fs = require('fs');
 
 const MAX_WIN = 5000; // tek spin (bonus dahil) azami kazanç: 5000x
 
@@ -473,25 +469,28 @@ const DEFS = {
 };
 
 const ORDER = ['zeus', 'misir', 'vegas', 'peri', 'ejderha', 'korsan', 'altin'];
-const CAL_FILE = path.join(__dirname, 'calibration.json');
+// Varsayılan teorik RTP profilleri (yönetici panelinden oyun bazında değiştirilebilir, %85–%98)
+const DEFAULT_RTP = { zeus: 0.965, misir: 0.95, vegas: 0.96, peri: 0.955, ejderha: 0.94, korsan: 0.945, altin: 0.95 };
+const RTP_MIN = 0.85, RTP_MAX = 0.98;
+const BASE_RTP = 0.95; // calibration.json katsayıları %95 içindir; ödeme tablosu RTP ile doğrusal ölçeklenir
 
-function loadCalibration() {
-  try { return JSON.parse(fs.readFileSync(CAL_FILE, 'utf8')); } catch { return {}; }
-}
-
-function buildGames(scales) {
-  const cal = scales || loadCalibration();
+/** cal: calibration.json içeriği; rtp: { oyun: hedefRTP } (yoksa DEFAULT_RTP) */
+function buildGames(cal = {}, rtp = {}) {
   const games = {};
   for (const id of ORDER) {
-    const d = DEFS[id]; const S = (cal[id] && cal[id].scale) || 1;
+    const target = rtp[id] != null ? Number(rtp[id]) : DEFAULT_RTP[id];
+    const d = DEFS[id]; const S = ((cal[id] && cal[id].scale) || 1) * (target / BASE_RTP);
     const g = d.make(d.def, S);
     const buyCost = {}; for (const k of (g.buyKinds || [])) { const c = cal[id] && cal[id].buy && cal[id].buy[k]; if (c) buyCost[k] = c; }
-    games[id] = { id, name: d.name, family: d.family, scale: S, play: g.play, buy: g.buy, buyKinds: g.buyKinds || [], buyCost, info: { ...g.info, buyCost }, cal: cal[id] || null };
+    // Bonus satın alma fiyatı RTP'den bağımsız sabit kalır: beklenen kazanç RTP ile birlikte ölçeklendiği için satın alma RTP'si de hedef RTP olur
+    games[id] = { id, name: d.name, family: d.family, rtp: target, volatility: VOL[id], scale: S, play: g.play, buy: g.buy, buyKinds: g.buyKinds || [], buyCost, info: { ...g.info, buyCost, rtp: target, volatility: VOL[id] }, cal: cal[id] || null };
   }
   return games;
 }
 
-module.exports = { buildGames, ORDER, DEFS, MAX_WIN, CAL_FILE };
+// Simülasyonla ölçülen standart sapmaya göre volatilite sınıfı (docs/simulation-results.json)
+const VOL = { zeus: 'yüksek', misir: 'orta-yüksek', vegas: 'yüksek', peri: 'orta-yüksek', ejderha: 'yüksek', korsan: 'çok yüksek', altin: 'yüksek' };
 
-  window.SlotEngine = module.exports;
+
+  window.SlotEngine = { buildGames: function (rtp) { return buildGames(CAL, rtp || {}); }, ORDER: ORDER, DEFAULT_RTP: DEFAULT_RTP };
 })();

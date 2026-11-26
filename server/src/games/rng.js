@@ -1,4 +1,3 @@
-'use strict';
 /*
  * RNG katmanı
  *  - FairRng: Denetlenebilir (provably fair) RNG. Her spin sonucu
@@ -10,9 +9,9 @@
  * Oyun sonucu YALNIZCA bu akıştan belirlenir; oyuncu geçmişi, bakiye veya
  * başka bir durum kazanma olasılığını etkilemez.
  */
-const crypto = require('crypto');
+import crypto from 'node:crypto';
 
-class FairRng {
+export class FairRng {
   constructor(serverSeed, clientSeed, nonce) {
     this.serverSeed = serverSeed;
     this.clientSeed = clientSeed;
@@ -38,7 +37,7 @@ class FairRng {
   }
 }
 
-class FastRng {
+export class FastRng {
   constructor(seed) {
     const b = crypto.createHash('sha256').update(String(seed)).digest();
     this.a = b.readUInt32LE(0) | 0; this.b = b.readUInt32LE(4) | 0;
@@ -55,7 +54,6 @@ class FastRng {
 }
 function rotl(x, k) { return (x << k) | (x >>> (32 - k)); }
 
-function newServerSeed() { return crypto.randomBytes(32).toString('hex'); }
-function hashSeed(seed) { return crypto.createHash('sha256').update(seed).digest('hex'); }
+export function newServerSeed() { return crypto.randomBytes(32).toString('hex'); }
+export function hashSeed(seed) { return crypto.createHash('sha256').update(seed).digest('hex'); }
 
-module.exports = { FairRng, FastRng, newServerSeed, hashSeed };

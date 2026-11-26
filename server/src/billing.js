@@ -1,4 +1,3 @@
-'use strict';
 /*
  * Google Play Billing sunucu doğrulaması.
  *  - GooglePlayVerifier: Google Play Developer API (androidpublisher v3) ile
@@ -8,15 +7,15 @@
  *    Belirteç biçimi: mock:<purchased|pending|canceled>:<obfuscatedAccountId>:<herhangi>
  * Ortak dönüş: { state: 'purchased'|'pending'|'canceled', orderId, obfuscatedAccountId, quantity }
  */
-const crypto = require('crypto');
-const fs = require('fs');
+import crypto from 'node:crypto';
+import { Buffer } from 'node:buffer';
 
 const STATE = { 0: 'purchased', 1: 'canceled', 2: 'pending' };
 
-class GooglePlayVerifier {
-  constructor({ packageName, serviceAccountFile }) {
+export class GooglePlayVerifier {
+  constructor({ packageName, serviceAccount }) {
     this.packageName = packageName;
-    this.sa = JSON.parse(fs.readFileSync(serviceAccountFile, 'utf8'));
+    this.sa = typeof serviceAccount === 'string' ? JSON.parse(serviceAccount) : serviceAccount;
     this.token = null; this.tokenExp = 0;
   }
   async accessToken() {
@@ -54,7 +53,7 @@ class GooglePlayVerifier {
   }
 }
 
-class MockVerifier {
+export class MockVerifier {
   constructor() { this.overrides = new Map(); this.consumedTokens = new Set(); this.voidedList = []; }
   async verify(productId, token) {
     if (this.overrides.has(token)) return this.overrides.get(token);
@@ -66,9 +65,8 @@ class MockVerifier {
   async voided() { return this.voidedList; }
 }
 
-function createVerifier(cfg) {
-  if (cfg.billingMode === 'google') return new GooglePlayVerifier({ packageName: cfg.packageName, serviceAccountFile: cfg.serviceAccountFile });
+export function createVerifier(cfg) {
+  if (cfg.billingMode === 'google') return new GooglePlayVerifier({ packageName: cfg.packageName, serviceAccount: cfg.serviceAccount });
   return new MockVerifier();
 }
 
-module.exports = { createVerifier, GooglePlayVerifier, MockVerifier };
