@@ -1,0 +1,481 @@
+/* Oyun ekranı ve 5 mekanik ailesinin animasyonları.
+ * Tüm sonuçlar sunucudan gelir; istemci yalnızca gösterir. */
+(function () {
+  'use strict';
+  const { $, $$, esc, fmt, short, toast, modal, closeModal } = UI;
+  // Oyun kapatılınca/yenisi açılınca süren animasyon iptal edilir (gen sayacı)
+  const ABORT = new Error('aborted');
+  const sleep = (ms) => { const gen = G.gen; return new Promise((r, j) => setTimeout(() => (gen === G.gen ? r() : j(ABORT)), ms * G.speed)); };
+  const G = { gen: 0, demo: [], open: false, id: null, meta: null, th: null, betIdx: 0, spinning: false, auto: 0, turbo: false, speed: 1, boxes: [], cols: 0, rows: 0, step: 0, skip: false };
+  const FAM = { tumble: [6, 5], egypt: [5, 3], gold: [5, 3], pirate: [5, 3], ways: [5, 3], vegas: [3, 3] };
+  const RULES = {
+    zeus: 'Aynı sembolden 8 veya daha fazlası ekranın herhangi bir yerinde kazandırır. Kazanan semboller patlar, yenileri düşer (zincirleme kazanç). Yıldırım çarpanları (x2–x500) dizinin sonunda toplanır ve toplam kazancı çarpar. 4+ ⚡ scatter = 15 ücretsiz dönüş; ücretsiz dönüşlerde çarpanlar birikir, 3+ scatter +5 dönüş verir.',
+    peri: 'Aynı sembolden 8+ adet herhangi bir yerde kazandırır; semboller patlar ve zincirleme düşer. Çarpan topları (x2–x100) dizinin sonunda toplanır. 4+ 🧚 scatter = 15 ücretsiz dönüş; ücretsiz dönüşlerde hem çarpan topları hem her zincirleme kazanç (+1) toplam çarpana eklenir.',
+    misir: '10 çizgi. 📖 Kitap hem wild hem scatter\'dır. 3+ kitap = 10 ücretsiz dönüş ve rastgele bir özel sembol seçilir; ücretsiz dönüşlerde özel sembol yeterli makarada çıkarsa tüm makarayı kaplayarak genişler ve tüm çizgilerde öder.',
+    vegas: '5 çizgili klasik 3x3 makine. 7 wild\'dır ve her biri çizgi kazancını x2 yapar (iki 7 = x4). Ekranın tamamı aynı sembolse kazanç x10 (EKRAN DOLU). 3 ⭐ = Yıldız Çarkı bonusu.',
+    ejderha: '243 yol: soldan sağa bitişik makaralarda aynı sembol kazandırır. 🔥 Ateş wild\'ları 2-4. makaralarda çıkar ve x1/x2/x3 (ücretsiz dönüşlerde x2/x3/x5) çarpan taşır. 3+ 🔮 inci = 8/12/20 ücretsiz dönüş; her kazançlı dönüşte çarpan +1 artar.',
+    korsan: '10 çizgi. ☠️ bayrak wild\'dır. 6+ 🪙 altın sikke = Sandık Altını (Tut ve Döndür): sikkeler kilitlenir, 3 yeniden dönüş verilir ve her yeni sikke sayacı 3\'e sıfırlar. Sonunda tüm sikke değerleri ödenir; 15 hücrenin tamamı dolarsa GRAND ödül eklenir.',
+    altin: '20 çizgi. 👑 Altın Taç wild\'dır ve katıldığı çizgi kazancını x2 yapar. 1., 3. ve 5. makaralarda 3 🎰 BONUS = Jackpot Çarkı (dilim büyüklüğü olasılığıyla orantılı).',
+  };
+
+  /* ---------- ekran ---------- */
+  function open(id) {
+    const meta = App.games.find(g => g.id === id); if (!meta) return;
+    G.gen++; Object.assign(G, { open: true, id, meta, th: Sym.THEMES[id], auto: 0, spinning: false });
+    G.turbo = localStorage.getItem('slot_turbo') === '1'; G.speed = G.turbo ? 0.5 : 1;
+    const saved = +localStorage.getItem('slot_bet_' + id); G.betIdx = Math.max(0, App.bets.indexOf(saved));
+    [G.cols, G.rows] = FAM[meta.family];
+    const th = G.th;
+    const hero = th.heroAlpha ? `<img class="heroimg alpha" src="assets/${th.heroImg}.webp" alt="">` : `<img class="heroimg" src="assets/${th.heroImg}.webp" alt="">`;
+    const jpBars = id === 'korsan' ? `<div class="jpbars"><div class="jp major">MAJOR<b id="jpMajor"></b></div><div class="jp grand">GRAND<b id="jpGrand"></b></div></div>` : id === 'altin' ? `<div class="jpbars"><div class="jp grand" style="flex:1">JACKPOT ÇARKI<b id="jpGrand"></b></div></div>` : '';
+    const s = UI.screen('game', `<div class="bgart"><div class="rays"></div></div>
+      <div class="ghead"><button class="iconbtn" id="gBack">◀</button>
+        <div class="lvlbox"><div class="nm"><span class="lvl" id="tLvl"></span><span id="tName"></span></div><div class="xpbar"><i id="tXp"></i><em id="tXpT"></em></div></div>
+        <div class="coins" id="tCoins"><span class="c">🪙</span><span id="tBal"></span><span class="plus" id="gShop">+</span></div></div>
+      <div class="hero">${hero}<div class="meter meterL hidden" id="mL"></div><div class="meter hidden" id="mR"></div></div>${jpBars}
+      <div class="center gold" style="font-weight:900;font-size:22px;margin-top:-4px;z-index:3">${esc(meta.name)}</div>
+      <div class="machine" id="machine"><div class="reels" id="reels"></div><svg class="linesvg" id="lineSvg"></svg><div id="fsBar"></div></div>
+      <div class="winline winframe" id="winLine"><span class="muted small">${esc(meta.tag)}</span></div>
+      <div class="controls">
+        <button class="imgbtn" id="gInfo"><img src="assets/ui_info.webp" alt="i"></button>
+        <div class="betbox"><span class="lbl">BAHİS</span><div class="row"><button class="imgbtn" id="bMinus"><img src="assets/b_minus.webp" alt="-"></button><div class="val" id="bVal"></div><button class="imgbtn" id="bPlus"><img src="assets/b_plus.webp" alt="+"></button></div></div>
+        <button class="spinbtn img" id="gSpin"><img src="assets/b_spin.webp" alt="DÖNDÜR"></button>
+        <div class="betbox"><span class="lbl">OTO / TURBO</span><div class="row"><button class="imgbtn" id="gAuto"><img src="assets/b_auto.webp" alt="AUTO"><span class="autoN"></span></button><button class="rbtn ${G.turbo ? 'on' : ''}" id="gTurbo">⚡</button></div></div>
+      </div>`, 'gscreen');
+    s.style.cssText = `--b1:${th.b1};--b2:${th.b2};--glow:${th.glow}`;
+    if (G.rows <= 3) s.classList.add('tall');
+    UI.show('game'); Screens.renderTop();
+    sizeGrid(); buildGrid(); initialFill(); renderBet();
+    $('#gBack').onclick = close; $('#gShop').onclick = () => { close(); Screens.shop(); };
+    $('#gInfo').onclick = info; $('#gSpin').onclick = () => { if (G.auto) { G.auto = 0; renderAuto(); } else if (G.spinning) G.skip = true; else spin(); };
+    $('#bMinus').onclick = () => { if (!G.spinning) { G.betIdx = Math.max(0, G.betIdx - 1); renderBet(); Sound.play('click'); } };
+    $('#bPlus').onclick = () => { if (!G.spinning) { G.betIdx = Math.min(App.bets.length - 1, G.betIdx + 1); renderBet(); Sound.play('click'); } };
+    $('#gTurbo').onclick = (e) => { G.turbo = !G.turbo; G.speed = G.turbo ? 0.5 : 1; e.currentTarget.classList.toggle('on', G.turbo); document.documentElement.style.setProperty('--speed', G.speed); };
+    $('#gAuto').onclick = autoMenu;
+    document.documentElement.style.setProperty('--speed', G.speed);
+  }
+  function close() { G.gen++; G.open = false; G.auto = 0; G.skip = true; G.spinning = false; $$('.bigwin,.multbadge,.bolt,.flash').forEach(e => e.remove()); UI.closeModal(); Screens.go(App.tab || 'lobby'); }
+  function renderBet() {
+    const b = App.bets[G.betIdx]; $('#bVal').textContent = short(b); localStorage.setItem('slot_bet_' + G.id, b);
+    const inf = G.meta.info; if ($('#jpGrand')) $('#jpGrand').textContent = short(Math.round((G.id === 'korsan' ? inf.grand : Math.max(...inf.wheel.map(w => w.value))) * b));
+    if ($('#jpMajor')) $('#jpMajor').textContent = short(Math.round(inf.coinValues[inf.coinValues.length - 1] * b));
+  }
+  function renderAuto() { const b = $('#gAuto'); if (!b) return; b.querySelector('.autoN').textContent = G.auto ? (G.auto > 900 ? '∞' : G.auto) : ''; b.classList.toggle('on', !!G.auto); $('#gSpin').classList.toggle('auto', !!G.auto); }
+  function autoMenu() {
+    if (G.auto) { G.auto = 0; renderAuto(); return; }
+    modal(`<h3 class="gold">Otomatik Dönüş</h3><div class="row wrap" style="justify-content:center">${[10, 25, 50, 100, 999].map(n => `<button class="btn purple" data-n="${n}">${n > 900 ? '∞' : n}</button>`).join('')}</div><p class="small muted center">Bonus özelliği tetiklendiğinde veya bakiye yetmediğinde durur. Durdurmak için dönüş butonuna dokun.</p>`, {
+      onOpen(m) { $$('[data-n]', m).forEach(b => b.onclick = () => { G.auto = +b.dataset.n; closeModal(); renderAuto(); if (!G.spinning) spin(); }); },
+    });
+  }
+  function sizeGrid() {
+    const W = Math.min(innerWidth, 520) - 24 - 28; const H = innerHeight - 380;
+    const byW = Math.floor((W - 4 * (G.cols - 1)) / G.cols); const byH = Math.floor((H - 4 * (G.rows - 1)) / G.rows);
+    const cell = Math.max(40, Math.min(byW, byH, G.cols <= 3 ? 104 : 84));
+    $('#game').style.setProperty('--cell', cell + 'px'); G.cell = cell; G.step = cell + 4;
+  }
+  function buildGrid() {
+    const r = $('#reels'); r.style.gridTemplateColumns = `repeat(${G.cols}, var(--cell))`; r.innerHTML = ''; G.boxes = [];
+    for (let row = 0; row < G.rows; row++) for (let c = 0; c < G.cols; c++) { const b = document.createElement('div'); b.className = 'cellbox'; b.style.gridRow = row + 1; b.style.gridColumn = c + 1; r.appendChild(b); G.boxes[c * G.rows + row] = b; }
+    const svg = $('#lineSvg'); svg.setAttribute('viewBox', `0 0 ${r.offsetWidth} ${r.offsetHeight}`);
+  }
+  const nSyms = () => G.th.syms.length;
+  function randCode() { const f = G.meta.family; let n = nSyms(); if (f === 'pirate') n = 8; if (f === 'gold' || f === 'egypt') n = 9; if (f === 'ways') n = 8; if (f === 'vegas') n = 9; return (Math.random() * n) | 0; }
+  function setCell(i, code, cls = '', from = null, delay = 0) {
+    const b = G.boxes[i]; if (!b) return;
+    b.innerHTML = Sym.symHtml(G.id, code, cls);
+    const s = b.firstElementChild; if (from != null) { s.classList.add('fall'); s.style.setProperty('--from', from + 'px'); s.style.setProperty('--d', (delay * G.speed) + 's'); }
+  }
+  function initialFill() { for (let i = 0; i < G.boxes.length; i++) setCell(i, randCode(), '', -G.step * (G.rows + 1), ((i / G.rows) | 0) * 0.05); }
+  function center(i) { const r = G.boxes[i].getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }
+  function setWin(amount, label) { $('#winLine').innerHTML = amount > 0 ? `<span>${label || 'KAZANÇ'}</span><span class="v">${fmt(amount)}</span>` : `<span class="muted small">${esc(G.meta.tag)}</span>`; }
+  function meter(side, html) { const m = $(side === 'L' ? '#mL' : '#mR'); if (!html) { m.classList.add('hidden'); return; } m.classList.remove('hidden'); m.innerHTML = html; }
+  function fsBar(text) { $('#fsBar').innerHTML = text ? `<div class="fsbar">${text}</div>` : ''; }
+  function clearLines() { $('#lineSvg').innerHTML = ''; $$('.expandcol').forEach(e => e.remove()); }
+  function dimAll(on) { G.boxes.forEach(b => b.firstElementChild && b.firstElementChild.classList.toggle('dim', on)); }
+  function markWin(pos) { pos.forEach(i => { const s = G.boxes[i] && G.boxes[i].firstElementChild; if (s) { s.classList.remove('dim'); s.classList.add('win'); } }); }
+  function unmark() { G.boxes.forEach(b => { const s = b.firstElementChild; if (s) s.classList.remove('win', 'dim'); }); }
+
+  /* ---------- spin ---------- */
+  async function spin() {
+    if (G.spinning || !G.open) return;
+    const bet = App.bets[G.betIdx], me = App.me;
+    if (!me.unlimited && me.balance < bet) {
+      G.auto = 0; renderAuto(); Sound.play('error');
+      const go = await UI.confirm('Bu bahis için yeterli jetonun yok. Mağazaya gitmek ister misin?', 'Mağaza'); if (go) { close(); Screens.shop(); }
+      return;
+    }
+    G.spinning = true; G.skip = false; $('#gSpin').classList.add('busy'); clearLines(); unmark(); setWin(0); meter('L'); meter('R'); fsBar('');
+    if (!me.unlimited) Screens.setBalance(me.balance - bet);
+    Sound.play('spin'); Sound.vibrate(15);
+    const key = Api.uuid();
+    const vis = startVisual();
+    let r;
+    try { r = G.demo.length ? demoResp(G.demo.shift(), bet) : await Api.retrying('POST', '/api/spin', { game: G.id, bet, key }); }
+    catch (e) {
+      stopVisualRandom(vis); toast(e.message, true); G.auto = 0; renderAuto();
+      await Screens.refresh().catch(() => {}); G.spinning = false; $('#gSpin').classList.remove('busy'); return;
+    }
+    const myGen = G.gen;
+    try { await ANIM[G.meta.family](r, vis, bet); } catch (e) { if (e !== ABORT) console.error(e); }
+    if (vis && vis.iv) clearInterval(vis.iv);
+    if (myGen !== G.gen || !G.open) { finishQuiet(r); return; }
+    setWin(r.win, r.win >= bet * 10 ? 'TOPLAM KAZANÇ' : 'KAZANÇ');
+    if (r.win >= bet * 10) await bigWin(r.win, r.win / bet);
+    else if (r.win > 0) { Sound.play('win'); const c = $('#reels').getBoundingClientRect(); UI.coinBurst(c.left + c.width / 2, c.top + c.height / 2, Math.min(40, 8 + r.win / bet * 3)); }
+    finish(r);
+    const feature = !!(r.result.fs || r.result.hold || r.result.wheel);
+    if (G.auto && G.open) {
+      if (feature) { G.auto = 0; renderAuto(); }
+      else { if (G.auto < 900) G.auto--; renderAuto(); setTimeout(() => { if (G.auto && G.open) spin(); }, r.win > 0 ? 900 * G.speed : 350 * G.speed); }
+    }
+  }
+  function finishQuiet(r) { // ekran kapandıysa yalnızca bakiye/XP güncellenir
+    const me = App.me; if (!me) return; me.balance = r.balance; Object.assign(me, { xp: r.xp.xp, level: r.xp.level, xpInto: r.xp.into, xpNeed: r.xp.need, maxLevel: r.xp.max }); Screens.renderTop();
+    if (r.xp.levelUp) Screens.refresh().catch(() => {});
+  }
+  function finish(r) {
+    const me = App.me; Screens.setBalance(r.balance, r.win > 0);
+    Object.assign(me, { xp: r.xp.xp, level: r.xp.level, xpInto: r.xp.into, xpNeed: r.xp.need, maxLevel: r.xp.max });
+    Screens.renderTop(); G.spinning = false; const b = $('#gSpin'); b && b.classList.remove('busy');
+    if (r.xp.levelUp) levelUp(r.xp.levelUp);
+  }
+  async function levelUp(L) {
+    Sound.play('feature'); UI.confetti(80); toast(`🎉 Seviye atladın! Artık Seviye ${L}`);
+    await Screens.refresh().catch(() => {});
+    if (L % 10 === 0) { G.auto = 0; renderAuto(); Screens.levelRewardsModal(); }
+  }
+
+  /* ---------- makara görselleri ---------- */
+  function startVisual() {
+    if (G.meta.family === 'tumble') { // eski semboller aşağı düşüp kaybolur
+      G.boxes.forEach((b, i) => { const s = b.firstElementChild; if (s) { s.style.transition = `transform ${0.3 * G.speed}s ease-in ${((i / G.rows) | 0) * 0.03}s, opacity .3s`; s.style.transform = `translateY(${G.step * (G.rows + 1)}px)`; s.style.opacity = '0'; } });
+      return { tumble: true };
+    }
+    const iv = setInterval(() => { G.boxes.forEach((b, i) => { if (!vis.stopped[(i / G.rows) | 0]) { b.innerHTML = Sym.symHtml(G.id, randCode()); b.firstElementChild.style.filter = 'blur(1.5px)'; b.firstElementChild.style.transform = `translateY(${(Math.random() * 10 - 5) | 0}px)`; } }); Sound.play('tick'); }, 70);
+    const vis = { iv, stopped: [] };
+    return vis;
+  }
+  function stopVisualRandom(vis) { if (vis && vis.iv) clearInterval(vis.iv); initialFill(); }
+  async function stopReels(vis, grid, decor) {
+    for (let c = 0; c < G.cols; c++) {
+      await sleep(c === 0 ? 260 : 130);
+      vis.stopped[c] = true;
+      for (let r = 0; r < G.rows; r++) { const i = c * G.rows + r; setCell(i, decor ? decor(i, grid[i]) : grid[i]); G.boxes[i].firstElementChild.classList.add('stopbounce'); }
+      Sound.play('stop');
+    }
+    clearInterval(vis.iv);
+  }
+  function spinVisualAgain() { const v = startVisual(); return v; }
+
+  /* ---------- çizgi/yol kazançları ---------- */
+  function drawLine(pos, color) {
+    const svg = $('#lineSvg'); const rr = $('#reels').getBoundingClientRect();
+    const pts = pos.map(i => { const c = center(i); return `${c.x - rr.left},${c.y - rr.top}`; }).join(' ');
+    svg.setAttribute('viewBox', `0 0 ${rr.width} ${rr.height}`);
+    svg.insertAdjacentHTML('beforeend', `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="5" stroke-linejoin="round" stroke-linecap="round" style="filter:drop-shadow(0 0 6px ${color})" opacity=".9"/>`);
+  }
+  const LINE_COLORS = ['#ffd34d', '#35d6ff', '#ff7acf', '#6bff7a', '#ff8a3d', '#c07bff', '#ff4d6d', '#7fffd4'];
+  async function showWins(wins, bet, opts = {}) {
+    if (!wins || !wins.length) return 0;
+    let total = 0; dimAll(true);
+    wins.forEach((w, k) => { markWin(w.pos); if (!opts.noLines && w.line != null) drawLine(w.pos, LINE_COLORS[k % LINE_COLORS.length]); total += w.pay * bet; });
+    setWin(Math.round(total)); Sound.play('win');
+    await sleep(G.skip ? 200 : 1100);
+    if (wins.length > 1 && !G.skip && !G.auto) {
+      for (const [k, w] of wins.slice(0, 6).entries()) {
+        clearLines(); unmark(); dimAll(true); markWin(w.pos); if (!opts.noLines && w.line != null) drawLine(w.pos, LINE_COLORS[k % LINE_COLORS.length]);
+        $('#winLine').innerHTML = `<span class="small">${w.ways ? w.ways + ' yol' : 'Çizgi ' + (w.line + 1)} · ${esc(Sym.symName(G.id, w.s))} x${w.n}</span><span class="v">${fmt(Math.round(w.pay * bet))}</span>`;
+        await sleep(650); if (G.skip) break;
+      }
+    }
+    clearLines(); unmark();
+    return total;
+  }
+
+  /* ---------- efektler (sprite sayfasından kesilen fx_* görselleri) ---------- */
+  function fxs(name, x, y, size, dur = 0.8, o = {}) {
+    if (document.querySelectorAll('.fxi').length > 24) return;
+    const e = document.createElement('img'); e.src = `assets/${name}.webp`; e.className = 'fxi'; e.draggable = false;
+    const d = dur * (G.turbo ? 0.65 : 1);
+    e.style.cssText = `left:${x}px;top:${y}px;width:${size}px;--d:${d}s;--s:${o.s || 1.4};--r1:${o.r1 == null ? 40 : o.r1}deg;animation-delay:${o.delay || 0}s;${o.hue ? `filter:hue-rotate(${o.hue}deg);` : ''}`;
+    document.body.appendChild(e); setTimeout(() => e.remove(), (d + (o.delay || 0)) * 1000 + 150);
+  }
+  function reelsMid() { const r = $('#reels').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width }; }
+  function bolt(to) {
+    const x0 = to.x + (Math.random() * 120 - 60), pts = [[x0, 0]]; const n = 8;
+    for (let k = 1; k < n; k++) pts.push([x0 + (to.x - x0) * k / n + (Math.random() * 40 - 20), to.y * k / n]);
+    pts.push([to.x, to.y]);
+    const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('class', 'bolt'); s.setAttribute('width', innerWidth); s.setAttribute('height', innerHeight); s.style.cssText = 'left:0;top:0';
+    const p = pts.map(q => q.join(',')).join(' ');
+    s.innerHTML = `<polyline points="${p}" fill="none" stroke="#9fe8ff" stroke-width="9" opacity=".5" style="filter:blur(4px)"/><polyline points="${p}" fill="none" stroke="#fff" stroke-width="3"/>`;
+    document.body.appendChild(s); const f = document.createElement('div'); f.className = 'flash'; document.body.appendChild(f);
+    $('#machine').classList.remove('shake'); void $('#machine').offsetWidth; $('#machine').classList.add('shake');
+    setTimeout(() => { s.remove(); f.remove(); }, 380);
+    UI.burst(to.x, to.y, 30, ['#ffffff', '#9fe8ff', '#5aa0ff']);
+  }
+  function badge(text, color = '#ffd34d') {
+    const d = document.createElement('div'); d.className = 'multbadge gold'; d.textContent = text; d.style.filter = `drop-shadow(0 0 20px ${color})`;
+    document.body.appendChild(d); setTimeout(() => d.remove(), 1150);
+  }
+  async function flyOrb(i, target) {
+    const s = G.boxes[i].querySelector('.orb'); if (!s) return; const a = s.getBoundingClientRect(); const b = target.getBoundingClientRect();
+    const c = s.cloneNode(true); c.classList.add('flyorb'); c.style.cssText += `;left:${a.left}px;top:${a.top}px;width:${a.width}px;height:${a.height}px;position:fixed`;
+    document.body.appendChild(c); await new Promise(r => requestAnimationFrame(r));
+    c.style.left = (b.left + b.width / 2 - a.width / 4) + 'px'; c.style.top = (b.top + b.height / 2 - a.height / 4) + 'px'; c.style.transform = 'scale(.5)'; c.style.opacity = '.4';
+    Sound.play('orb'); await sleep(450); c.remove(); UI.burst(b.left + b.width / 2, b.top + b.height / 2, 14, ['#ff9ae8', '#fff']);
+  }
+  function overlayBanner(title, sub, ms = 2200, emoji = '') {
+    return new Promise(res => {
+      const d = document.createElement('div'); d.className = 'bigwin';
+      const art = { '⚡': 'b_scatter', '🧚': 'a_scatter', '📖': 'a_bonus', '🐉': 'card_dragon', '🏴‍☠️': 'a_chest', '🎰': 'a_jackpot', '🏆': 'b_chest', '✨': 'b_scatter', '🔮': 'a_scatter', '💰': 'a_jackpot', '🍒': 'a_seven' }[emoji];
+      d.innerHTML = `<div class="rays"></div><img class="bgfx" src="assets/fx_burstp.webp" alt="">${art ? `<img src="assets/${art}.webp" style="position:relative;width:220px;max-height:200px;object-fit:contain;animation:floaty 2s infinite;filter:drop-shadow(0 0 18px #ffd34d)${art.startsWith('card') ? ';border-radius:24px' : ''}" alt="">` : emoji ? `<div style="position:relative;font-size:90px;animation:floaty 2s infinite">${emoji}</div>` : ''}<div class="t gold">${title}</div><div class="s" style="font-size:18px;color:#fff">${sub || ''}</div><div class="s">Devam etmek için dokun</div>`;
+      document.body.appendChild(d); Sound.play('feature'); UI.confetti(50);
+      const gen = G.gen; const done = () => { d.remove(); res(); }; d.onclick = done; setTimeout(() => d.isConnected && done(), G.auto ? ms * 0.6 : ms * 1.6);
+      const chk = setInterval(() => { if (gen !== G.gen) { clearInterval(chk); done(); } else if (!d.isConnected) clearInterval(chk); }, 300);
+    });
+  }
+  function bigWin(win, x) {
+    const t = x >= 100 ? 'EFSANE KAZANÇ!' : x >= 50 ? 'SÜPER KAZANÇ!' : x >= 25 ? 'MEGA KAZANÇ!' : 'BÜYÜK KAZANÇ!';
+    return new Promise(res => {
+      const d = document.createElement('div'); d.className = 'bigwin';
+      const tier = x >= 50 ? 2 : 1;
+      d.innerHTML = `<div class="rays"></div><img class="bwfx pl" src="assets/fx_pillar.webp" alt=""><img class="bwfx pr" src="assets/fx_pillar.webp" alt=""><img class="bwfx sun" src="assets/fx_orange.webp" alt=""><img class="bwfx sun2" src="assets/fx_burstp.webp" alt="">
+        ${tier >= 2 ? '<img src="assets/a_jackpot.webp" style="position:relative;width:300px;animation:pulse 1s infinite;filter:drop-shadow(0 0 20px #ff59d6)" alt="">' : ''}
+        <div class="t gold">${t}</div><div class="n" id="bwN">0</div>${tier >= 2 ? '<img src="assets/b_chest.webp" style="position:relative;width:240px;margin-top:6px;animation:floaty 2s infinite" alt="">' : ''}<div class="s">x${(Math.round(x * 10) / 10)} · Geçmek için dokun</div>`;
+      document.body.appendChild(d); Sound.play('bigwin'); Sound.vibrate([60, 40, 60]);
+      const dur = Math.min(5000, 1800 + x * 15) * G.speed; const t0 = performance.now(); let done = false;
+      const iv = setInterval(() => { UI.coinShower(25); fxs(Math.random() < .5 ? 'fx_coins' : 'fx_crystal', innerWidth * (.2 + Math.random() * .6), innerHeight * (.25 + Math.random() * .4), 220, .9, { s: 1.5 }); if (x >= 50) fxs('fx_confetti', innerWidth / 2, innerHeight * .35, 320, 1, { s: 1.4, r1: 0 }); }, 350);
+      const step = (now) => { if (done) return; const bn = $('#bwN'); if (!bn) { end(); return; } const p = Math.min(1, (now - t0) / dur); bn.textContent = fmt(win * (1 - Math.pow(1 - p, 3))); if (p < 1) requestAnimationFrame(step); else { Sound.play('coin'); setTimeout(end, 1300); } };
+      const end = () => { if (done) return; done = true; clearInterval(iv); const n = $('#bwN'); n && (n.textContent = fmt(win)); setTimeout(() => { d.remove(); res(); }, 150); };
+      d.onclick = end; requestAnimationFrame(step);
+      const gen = G.gen; const chk = setInterval(() => { if (gen !== G.gen) { clearInterval(chk); end(); } else if (done) clearInterval(chk); }, 300);
+    });
+  }
+  function wheel(segs, idx, bet, title) {
+    return new Promise(res => {
+      const total = segs.reduce((a, s) => a + s.weight, 0); let acc = 0; const cols = ['#ff4d6d', '#ffd34d', '#35d6ff', '#6bff7a', '#c07bff', '#ff8a3d', '#ff9ae8'];
+      const stops = []; const mids = [];
+      segs.forEach((s, k) => { const a0 = acc / total * 360; acc += s.weight; const a1 = acc / total * 360; stops.push(`${cols[k % cols.length]} ${a0}deg ${a1}deg`); mids.push((a0 + a1) / 2); });
+      const labels = segs.map((s, k) => { const a = mids[k], r = 105; const sz = Math.max(9, Math.min(15, s.weight / total * 160)); return `<div style="position:absolute;left:50%;top:50%;transform:rotate(${a}deg) translateY(-${r}px) rotate(90deg);transform-origin:0 0;font-weight:900;font-size:${sz}px;color:#1a0640;white-space:nowrap">${short(s.value * bet)}</div>`; }).join('');
+      modal(`<h3 class="gold">${title}</h3><div class="wheelwrap"><div class="wheelptr">🔻</div><div class="wheel" id="whl" style="background:conic-gradient(${stops.join(',')});position:relative">${labels}</div><div class="hub">🎰</div></div><div class="center" id="whRes" style="min-height:40px;font-size:24px;font-weight:900"></div>`, {
+        noClose: true,
+        onOpen() {
+          const target = 360 * 6 - mids[idx] + (Math.random() * 0.5 - 0.25) * (segs[idx].weight / total * 360);
+          const w = $('#whl'); w.style.transitionDuration = (4.2 * G.speed) + 's'; let ticks = setInterval(() => Sound.play('tick'), 120);
+          requestAnimationFrame(() => { w.style.transform = `rotate(${target}deg)`; });
+          const gen = G.gen; setTimeout(() => { clearInterval(ticks); if (gen !== G.gen) return res(); $('#whRes').innerHTML = `<span class="gold">+${fmt(segs[idx].value * bet)}</span>`; Sound.play('bigwin'); UI.coinShower(60); setTimeout(() => { closeModal(); res(); }, 1500 * G.speed); }, 4300 * G.speed);
+        },
+      });
+    });
+  }
+
+  /* ===================== MEKANİK ANİMASYONLARI ===================== */
+  const ANIM = {};
+
+  // 1) TUMBLE (Zeus, Kristal Peri)
+  async function playSequence(seq, bet, fsAcc) {
+    const R = G.rows, nS = nSyms();
+    G.boxes.forEach((b, i) => setCell(i, seq.grid[i], '', -G.step * (R + 1), ((i / R) | 0) * 0.06 + (R - 1 - i % R) * 0.02));
+    Sound.play('stop'); await sleep(520);
+    let prev = seq.grid, running = 0;
+    for (const st of seq.steps || []) {
+      const rem = new Set(st.removed); rem.forEach(i => G.boxes[i].firstElementChild.classList.add('win'));
+      running += st.wins.reduce((a, w) => a + w.pay, 0) * bet; setWin(Math.round(running), 'ZİNCİR');
+      Sound.play('win'); await sleep(G.skip ? 150 : 650);
+      rem.forEach((i, k) => { const s = G.boxes[i].firstElementChild; s.classList.remove('win'); s.classList.add('pop'); const c = center(i); UI.burst(c.x, c.y, 10); if (k % 2 === 0) fxs(G.id === 'zeus' ? 'fx_blue' : 'fx_orange', c.x, c.y, G.cell * 1.5, 0.6, { s: 1.3 }); });
+      { const m = reelsMid(); const pay = st.wins.reduce((a, w) => a + w.pay, 0); if (pay >= 5) fxs('fx_coins', m.x, m.y, m.w * 0.7, 0.9, { s: 1.5, r1: 10 }); if (pay >= 12) fxs('fx_crystal', m.x, m.y, m.w * 0.8, 1, { s: 1.5, r1: 20 }); }
+      Sound.play('pop'); Sound.vibrate(20); await sleep(380);
+      for (let c = 0; c < G.cols; c++) {
+        const removedRows = []; for (let r = 0; r < R; r++) if (rem.has(c * R + r)) removedRows.push(r);
+        const k = removedRows.length; if (!k) continue;
+        for (let r = 0; r < R; r++) {
+          const i = c * R + r; let from;
+          if (r < k) from = -G.step * k; else { const oldR = survivorsOld(r - k); from = -G.step * (r - oldR); }
+          setCell(i, st.grid[i], '', from === 0 ? null : from, r < k ? (k - r) * 0.03 : 0);
+        }
+        function survivorsOld(j) { let n = -1; for (let r = 0; r < R; r++) if (!rem.has(c * R + r)) { n++; if (n === j) return r; } return j; }
+      }
+      await sleep(420); prev = st.grid;
+    }
+    // çarpanlar
+    const mpos = []; for (let i = 0; i < prev.length; i++) if (prev[i] >= 1000) mpos.push(i);
+    let seqWin = running;
+    if (running > 0 && mpos.length) {
+      const target = G.id === 'zeus' ? $('#winLine') : $('#winLine');
+      for (const i of mpos) {
+        G.boxes[i].firstElementChild.classList.add('win');
+        const c = center(i);
+        if (G.id === 'zeus') { Sound.play('thunder'); bolt(c); fxs('fx_pillarb', c.x, c.y - 40, G.cell * 1.6, 0.7, { s: 1.4, r1: 0 }); await sleep(420); }
+        else { fxs('fx_purple', c.x, c.y, G.cell * 2.2, 0.8, { s: 1.7 }); fxs('fx_swirl', c.x, c.y, G.cell * 2.6, 1, { s: 1.4, r1: 120 }); Sound.play('orb'); await sleep(380); }
+      }
+      const sum = seq.multSum;
+      const mult = fsAcc != null ? fsAcc : sum;
+      badge('x' + mult, G.id === 'zeus' ? '#8fe3ff' : '#ff9ae8'); Sound.play('bigwin');
+      { const m = reelsMid(); fxs('fx_pillar', m.x, m.y + 30, m.w * 0.75, 1, { s: 1.3, r1: 0 }); fxs('fx_burstp', m.x, m.y, m.w * 0.9, 1, { s: 1.5, r1: 30 }); }
+      await sleep(900);
+    }
+    return seqWin;
+  }
+  ANIM.tumble = async (r, vis, bet) => {
+    const res = r.result, b = res.base;
+    await sleep(120);
+    await playSequence(b, bet, null);
+    let shown = b.seqWin * bet + b.scPay * bet;
+    if (b.seqWin) setWin(Math.round(b.seqWin * bet));
+    const scPos = []; b.steps && (b.steps.length ? b.steps[b.steps.length - 1].grid : b.grid).forEach((v, i) => { if (v === nSyms()) scPos.push(i); });
+    if (res.fs) {
+      markWin(scPos); scPos.forEach(i => { const c = center(i); UI.burst(c.x, c.y, 24, ['#fff', '#ffd34d']); }); await sleep(900); unmark();
+      await overlayBanner(`${res.fs.count} ÜCRETSİZ DÖNÜŞ!`, b.scPay ? `Scatter ödülü: ${fmt(b.scPay * bet)}` : '', 2200, G.id === 'zeus' ? '⚡' : '🧚');
+      let total = 0, n = 0;
+      for (const sp of res.fs.spins) {
+        if (!G.open) break; n++;
+        fsBar(`ÜCRETSİZ DÖNÜŞ ${n} · Kalan ${sp.left}`);
+        meter('R', `TOPLAM ÇARPAN<b>x${sp.acc - (sp.seqWin ? sp.added : 0)}</b>`);
+        meter('L', `BONUS KAZANÇ<b>${short(Math.round(total))}</b>`);
+        G.boxes.forEach((bx) => { const s = bx.firstElementChild; if (s) { s.style.transition = `transform ${0.25 * G.speed}s ease-in, opacity .25s`; s.style.transform = `translateY(${G.step * (G.rows + 1)}px)`; s.style.opacity = '0'; } });
+        await sleep(260);
+        await playSequence(sp, bet, sp.seqWin ? sp.acc : null);
+        meter('R', `TOPLAM ÇARPAN<b>x${sp.acc}</b>`);
+        total += sp.seqWin * bet; meter('L', `BONUS KAZANÇ<b>${short(Math.round(total))}</b>`);
+        if (sp.retrig) { await overlayBanner(`+${sp.retrig} DÖNÜŞ!`, 'Ekstra ücretsiz dönüş kazandın', 1400, '✨'); }
+        await sleep(G.skip ? 120 : 380);
+      }
+      fsBar(''); await overlayBanner('BONUS BİTTİ', `Toplam: ${fmt(Math.round(total))} jeton`, 2000, '🏆');
+      shown += total;
+    }
+    return shown;
+  };
+
+  // 2) MISIR HAZİNELERİ
+  ANIM.egypt = async (r, vis, bet) => {
+    const res = r.result, b = res.base;
+    await stopReels(vis, b.grid);
+    let shown = await showWins(b.wins, bet);
+    const books = []; b.grid.forEach((v, i) => { if (v === 9) books.push(i); });
+    if (b.scPay) { dimAll(true); markWin(books); setWin(Math.round(b.scPay * bet), 'KİTAP ÖDÜLÜ'); Sound.play('feature'); await sleep(1200); unmark(); }
+    if (res.fs) {
+      await overlayBanner(`${res.fs.count} ÜCRETSİZ DÖNÜŞ!`, 'Özel genişleyen sembol seçiliyor…', 1600, '📖');
+      await new Promise(rs => {
+        modal(`<h3 class="gold">Özel Sembol</h3><div class="center" style="height:130px;display:flex;align-items:center;justify-content:center"><div class="cellbox" style="--cell:110px;width:110px;height:110px" id="spSym"></div></div><p class="center" id="spNm"></p>`, {
+          noClose: true, onOpen: async () => {
+            for (let k = 0; k < 18; k++) { $('#spSym').innerHTML = Sym.symHtml('misir', k % 9); Sound.play('tick'); await sleep(70 + k * 8); }
+            $('#spSym').innerHTML = Sym.symHtml('misir', res.fs.special, 'win'); $('#spNm').innerHTML = `<b class="gold" style="font-size:22px">${esc(Sym.symName('misir', res.fs.special))}</b><br><span class="small muted">Ücretsiz dönüşlerde genişler!</span>`;
+            Sound.play('bigwin'); setTimeout(() => { closeModal(); rs(); }, 1600 * G.speed);
+          },
+        });
+      });
+      meter('L', `ÖZEL<div class="cellbox" style="--cell:46px;width:46px;height:46px;margin:2px auto 0">${Sym.symHtml('misir', res.fs.special)}</div>`);
+      let total = 0, n = 0;
+      for (const sp of res.fs.spins) {
+        if (!G.open) break; n++; fsBar(`ÜCRETSİZ DÖNÜŞ ${n} · Kalan ${sp.left}`);
+        const v = spinVisualAgain(); await sleep(300); await stopReels(v, sp.grid);
+        const lw = await showWins(sp.wins, bet);
+        if (sp.expand) {
+          const rr = $('#reels').getBoundingClientRect();
+          for (const c of sp.expand.reels) {
+            const top = G.boxes[c * 3].getBoundingClientRect(); const e = document.createElement('div'); e.className = 'expandcol';
+            e.style.left = (top.left - rr.left + 6) + 'px'; e.style.width = top.width + 'px'; e.innerHTML = Sym.symHtml('misir', res.fs.special).replace('class="sym', 'style="position:relative;width:100%;height:' + G.cell + 'px" class="sym');
+            $('#machine').appendChild(e); Sound.play('orb'); await sleep(250);
+          }
+          setWin(Math.round(sp.expand.pay * bet), 'GENİŞLEYEN'); Sound.play('bigwin'); await sleep(1500); clearLines();
+        }
+        total += sp.win * bet; meter('R', `BONUS<b>${short(Math.round(total))}</b>`);
+        if (sp.retrig) await overlayBanner(`+${sp.retrig} DÖNÜŞ!`, '', 1400, '📖');
+        await sleep(300);
+      }
+      fsBar(''); meter('L'); await overlayBanner('BONUS BİTTİ', `Toplam: ${fmt(Math.round(total))} jeton`, 2000, '🏆');
+      shown += total;
+    }
+    return shown;
+  };
+
+  // 3) ALTIN ŞANS ve 4) VEGAS MEYVELERİ
+  ANIM.gold = async (r, vis, bet) => {
+    const res = r.result, b = res.base;
+    await stopReels(vis, b.grid);
+    await showWins(b.wins, bet);
+    if (res.wheel) {
+      const pos = []; b.grid.forEach((v, i) => { if (v === 9) pos.push(i); }); dimAll(true); markWin(pos); Sound.play('feature'); await sleep(1100); unmark();
+      await overlayBanner('JACKPOT ÇARKI!', '3 BONUS sembolü', 1400, '🎰');
+      await wheel(G.meta.info.wheel, res.wheel.idx, bet, '🎰 Jackpot Çarkı');
+    }
+  };
+  ANIM.vegas = async (r, vis, bet) => {
+    const res = r.result, b = res.base;
+    await stopReels(vis, b.grid);
+    await showWins(b.wins, bet);
+    if (b.full) { await overlayBanner('EKRAN DOLU!', 'Kazanç x10', 1600, '🍒'); }
+    if (res.wheel) {
+      const pos = []; b.grid.forEach((v, i) => { if (v === 9) pos.push(i); }); dimAll(true); markWin(pos); Sound.play('feature'); await sleep(1100); unmark();
+      await wheel(G.meta.info.wheel, res.wheel.idx, bet, '⭐ Yıldız Çarkı');
+    }
+  };
+
+  // 5) EJDERHA HAZİNESİ (243 yol)
+  function dragonDecor(wm) { return (i, code) => code; }
+  function labelWilds(grid, wm) { grid.forEach((v, i) => { if (v === 8 && wm[i] > 1) { const l = G.boxes[i].querySelector('.lbl'); if (l) { l.textContent = 'x' + wm[i]; l.style.color = '#ffd34d'; l.style.fontSize = 'calc(var(--cell)*.26)'; } } }); }
+  ANIM.ways = async (r, vis, bet) => {
+    const res = r.result, b = res.base;
+    await stopReels(vis, b.grid); labelWilds(b.grid, b.wm);
+    if (b.wm.some(m => m > 1)) { b.wm.forEach((m, i) => { if (m > 1) { const c = center(i); UI.burst(c.x, c.y, 18, ['#ff8a3d', '#ffd34d', '#fff']); } }); Sound.play('orb'); await sleep(400); }
+    await showWins(b.wins, bet, { noLines: true });
+    if (res.fs) {
+      const pos = []; b.grid.forEach((v, i) => { if (v === 9) pos.push(i); }); dimAll(true); markWin(pos); await sleep(1000); unmark();
+      await overlayBanner(`${res.fs.count} ÜCRETSİZ DÖNÜŞ!`, 'Her kazançlı dönüşte çarpan +1', 2000, '🐉');
+      let total = 0, n = 0;
+      for (const sp of res.fs.spins) {
+        if (!G.open) break; n++; fsBar(`ÜCRETSİZ DÖNÜŞ ${n} · Kalan ${sp.left}`); meter('L', `ÇARPAN<b>x${sp.mult}</b>`);
+        const v = spinVisualAgain(); await sleep(280); await stopReels(v, sp.grid); labelWilds(sp.grid, sp.wm);
+        if (sp.wins.length) { await showWins(sp.wins, bet, { noLines: true }); if (sp.mult > 1) { badge('x' + sp.mult, '#ff8a3d'); await sleep(700); } }
+        total += sp.win * bet; meter('R', `BONUS<b>${short(Math.round(total))}</b>`);
+        if (sp.retrig) await overlayBanner(`+${sp.retrig} DÖNÜŞ!`, '', 1300, '🔮');
+        await sleep(250);
+      }
+      fsBar(''); meter('L'); await overlayBanner('BONUS BİTTİ', `Toplam: ${fmt(Math.round(total))} jeton`, 2000, '🏆');
+    }
+  };
+
+  // 6) KORSAN HAZİNESİ (Tut ve Döndür)
+  ANIM.pirate = async (r, vis, bet) => {
+    const res = r.result, b = res.base; const S = G.meta.info.coinValues[0];
+    const coin = (v) => ({ coin: v, text: short(Math.round(v * S * bet)) });
+    await stopReels(vis, b.grid, (i, code) => code === 8 ? coin(b.values[i]) : code);
+    await showWins(b.wins, bet);
+    if (res.hold) {
+      const h = res.hold; const vals = h.start.slice();
+      dimAll(true); vals.forEach((v, i) => { if (v) markWin([i]); }); Sound.play('feature'); await sleep(1000);
+      await overlayBanner('SANDIK ALTINI!', 'Sikkeler kilitlendi · 3 yeniden dönüş', 1800, '🏴‍☠️');
+      G.boxes.forEach((bx, i) => { if (!vals[i]) bx.innerHTML = ''; else setCell(i, coin(vals[i]), 'win'); });
+      for (const st of h.steps) {
+        fsBar(`YENİDEN DÖNÜŞ · Kalan ${st.left}`);
+        G.boxes.forEach((bx, i) => { if (!vals[i]) { bx.innerHTML = Sym.symHtml('korsan', (Math.random() * 7) | 0, 'dim'); } });
+        await sleep(450);
+        G.boxes.forEach((bx, i) => { if (!vals[i]) bx.innerHTML = ''; });
+        for (const [i, v] of st.landed) { vals[i] = v; setCell(i, coin(v), 'win', -G.step, 0); const c = center(i); UI.burst(c.x, c.y, 20, ['#ffd34d', '#fff']); fxs('fx_goldring', c.x, c.y, G.cell * 1.8, .7, { s: 1.3, r1: 0 }); Sound.play('coin'); await sleep(200); }
+        fsBar(`YENİDEN DÖNÜŞ · Kalan ${st.left}`); await sleep(st.landed.length ? 450 : 650);
+      }
+      fsBar('');
+      let sum = 0; for (let i = 0; i < 15; i++) if (vals[i]) { sum += vals[i] * S * bet; G.boxes[i].firstElementChild && G.boxes[i].firstElementChild.classList.add('pop'); setWin(Math.round(sum), 'SANDIK'); Sound.play('coin'); await sleep(110); }
+      if (h.grand) await overlayBanner('GRAND JACKPOT!', `+${fmt(Math.round(G.meta.info.grand * bet))}`, 2600, '💰');
+      await sleep(500);
+      G.boxes.forEach((bx, i) => setCell(i, b.grid[i] === 8 ? coin(b.values[i]) : b.grid[i]));
+    }
+  };
+
+  /* ---------- ödeme tablosu ---------- */
+  function info() {
+    const m = G.meta, inf = m.info; const bet = App.bets[G.betIdx];
+    const row = (code, txt) => `<div class="li"><div class="cellbox" style="--cell:46px;width:46px;height:46px;flex:none">${Sym.symHtml(G.id, code)}</div><div class="grow"><b>${esc(Sym.symName(G.id, code))}</b><small>${txt}</small></div></div>`;
+    let rows = '';
+    if (m.family === 'tumble') rows = inf.syms.map(s => row(s.id, `8-9: ${short(s.pay[0] * bet)} · 10-11: ${short(s.pay[1] * bet)} · 12+: ${short(s.pay[2] * bet)}`)).join('') + row(nSyms(), `4: ${short(inf.scPay[4] * bet)} · 5: ${short(inf.scPay[5] * bet)} · 6: ${short(inf.scPay[6] * bet)} + ücretsiz dönüş`);
+    else if (m.family === 'ways') rows = inf.syms.filter(s => s.pay).map(s => row(s.id, `yol başına 3: ${short(s.pay[0] * bet)} · 4: ${short(s.pay[1] * bet)} · 5: ${short(s.pay[2] * bet)}`)).join('');
+    else rows = inf.syms.filter(s => s.pay && s.pay.some(x => x > 0)).map(s => row(s.id, s.pay.map((p, k) => p > 0 ? `${k}x: ${short(p * bet)}` : '').filter(Boolean).reverse().join(' · '))).join('');
+    modal(`<h3 class="gold">${esc(m.name)} — Ödeme Tablosu</h3><p class="small">${RULES[G.id]}</p><p class="small muted">Bahis ${fmt(bet)} için değerler · Teorik RTP %95 · Volatilite: yüksek · Azami kazanç bahsin 5000 katı.</p><div class="list">${rows}</div>`);
+  }
+
+  /* Yalnızca SLOT_CONFIG.demo=true iken (tanıtım videosu / görsel test): sunucunun ürettiği örnek bir sonucu oynatır, bakiyeyi değiştirmez. */
+  function demoResp(result, bet) { const me = App.me; return { result, win: Math.round(result.win * bet), balance: me.balance + (me.unlimited ? 0 : bet), xp: { xp: me.xp, level: me.level, into: me.xpInto, need: me.xpNeed, max: me.maxLevel, levelUp: null } }; }
+  function queueDemo(list) { if (window.SLOT_CONFIG.demo) G.demo.push(...list); }
+  addEventListener('resize', () => { if (G.open && !G.spinning) { sizeGrid(); } });
+  window.Games = { open, close, isOpen: () => G.open, queueDemo, spin: () => spin() };
+})();

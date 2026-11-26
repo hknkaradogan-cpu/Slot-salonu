@@ -1,0 +1,37 @@
+{
+  "zeus": {
+    "scale": 2.1763747,
+    "calibratedWithSpins": 120000000,
+    "date": "2026-11-25T23:15:37.287Z"
+  },
+  "misir": {
+    "scale": 1.0585241,
+    "calibratedWithSpins": 120000000,
+    "date": "2026-11-25T23:16:14.221Z"
+  },
+  "vegas": {
+    "scale": 2.4920074,
+    "calibratedWithSpins": 120000000,
+    "date": "2026-11-25T23:16:37.527Z"
+  },
+  "peri": {
+    "scale": 1.7563051,
+    "calibratedWithSpins": 120000000,
+    "date": "2026-11-25T23:17:53.139Z"
+  },
+  "ejderha": {
+    "scale": 3.8761457,
+    "calibratedWithSpins": 120000000,
+    "date": "2026-11-25T23:18:36.467Z"
+  },
+  "korsan": {
+    "scale": 2.0382027,
+    "calibratedWithSpins": 120000000,
+    "date": "2026-11-25T23:19:15.337Z"
+  },
+  "altin": {
+    "scale": 1.1044674,
+    "calibratedWithSpins": 120000000,
+    "date": "2026-11-25T23:19:58.590Z"
+  }
+}

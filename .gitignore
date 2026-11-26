@@ -1,0 +1,9 @@
+data/
+node_modules/
+*.db
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+*.jks
+.env

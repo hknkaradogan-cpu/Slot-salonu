@@ -1,0 +1,16 @@
+{
+  "name": "slot-salonu-server",
+  "version": "2.0.0",
+  "private": true,
+  "description": "SLOT SALONU oyun sunucusu: üyelik, jeton, seviye, ödül, mağaza doğrulama, yönetici paneli ve 7 oyun motoru",
+  "main": "src/index.js",
+  "engines": { "node": ">=22.13" },
+  "scripts": {
+    "start": "node --no-warnings src/index.js",
+    "test": "node --no-warnings --test test/*.test.js",
+    "simulate": "node --no-warnings tools/simulate.js --spins 10000000",
+    "calibrate": "node --no-warnings tools/simulate.js --calibrate --spins 60000000",
+    "verify-spin": "node --no-warnings tools/verify-spin.js"
+  },
+  "optionalDependencies": { "nodemailer": "^6.9.16" }
+}
