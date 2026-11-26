@@ -4,18 +4,22 @@ import * as R from './rules.js';
 import { botTurn, botDiscard } from './bot.js';
 import * as D from './duz.js';
 
-export const TURN_MS = 30000, BOT_MIN_MS = 1100, BOT_MAX_MS = 2600, ROUND_PAUSE_MS = 9000, FILL_BOTS_MS = 20000;
+export const TURN_MS = 30000, BOT_MIN_MS = 700, BOT_MAX_MS = 1600, ROUND_PAUSE_MS = 9000, FILL_BOTS_MS = 20000;
 export const BOT_NAMES = ['Ayşe', 'Mehmet', 'Zeynep', 'Emre', 'Elif', 'Burak', 'Selin', 'Hakan', 'Derya', 'Kerem', 'Merve', 'Oğuz', 'Gizem', 'Serkan', 'Ece', 'Tolga', 'Pınar', 'Cem', 'Ebru', 'Murat'];
 
-const next = (s) => (s + 1) % 4, prev = (s) => (s + 3) % 4;
+// 4 kişilik masada sıra saat yönünde; 2 kişilik masada oyuncular karşılıklı (0 ve 2) oturur
+export const seatsOf = (T) => (T.cfg.players === 2 ? [0, 2] : [0, 1, 2, 3]);
+const nx = (T, s) => (T.cfg.players === 2 ? (s + 2) % 4 : (s + 1) % 4), pv = (T, s) => (T.cfg.players === 2 ? (s + 2) % 4 : (s + 3) % 4);
+export const isFull = (T) => seatsOf(T).every(i => T.seats[i]);
+export const hasFree = (T) => seatsOf(T).some(i => !T.seats[i]);
 export const partner = (s) => (s + 2) % 4;
 export class OkeyError extends Error { constructor(code, msg) { super(msg); this.code = code; } }
 const fail = (code, msg) => { throw new OkeyError(code, msg); };
 
 export function newTable(cfg, now) {
   const bots = cfg.bots !== false, fillMs = cfg.fillMs || FILL_BOTS_MS;
-  return { cfg: { variant: cfg.variant === 'duz' ? 'duz' : '101', mode: cfg.mode === 'esli' ? 'esli' : 'tekli', rounds: cfg.rounds || 1, katlamali: cfg.katlamali !== false, stake: cfg.stake || 0, private: !!cfg.private, turnMs: cfg.turnMs || TURN_MS, bots },
-    status: 'waiting', seats: [null, null, null, null], round: 0, startSeat: Math.floor(Math.random() * 4), totals: [0, 0, 0, 0], history: [], hand: null,
+  return { cfg: { variant: cfg.variant === 'duz' ? 'duz' : '101', players: cfg.players === 2 ? 2 : 4, helper: cfg.helper !== false, risk: !!cfg.risk, mode: cfg.players === 2 ? 'tekli' : cfg.mode === 'esli' ? 'esli' : 'tekli', rounds: cfg.rounds || 1, katlamali: cfg.katlamali !== false, stake: cfg.stake || 0, private: !!cfg.private, turnMs: cfg.turnMs || TURN_MS, bots },
+    status: 'waiting', seats: [null, null, null, null], round: 0, startSeat: cfg.players === 2 ? (Math.random() < 0.5 ? 0 : 2) : Math.floor(Math.random() * 4), totals: [0, 0, 0, 0], history: [], hand: null,
     createdAt: now, fillAt: cfg.private || !bots ? null : now + fillMs, deadline: null, botAt: null, seq: 0, chat: [] };
 }
 /** Masadan ayrılmış (ya da bağlantısı kopmuş) oyuncu aynı koltuğa geri döner; bot yerine tekrar kendisi oynar. */
@@ -28,14 +32,14 @@ export function rejoin(T, uid) {
 }
 export function seatHuman(T, user, seat) {
   if (T.status !== 'waiting') fail('table_started', 'Oyun başladı.');
-  const s = seat != null ? seat : T.seats.findIndex(x => !x);
-  if (s < 0 || T.seats[s]) fail('table_full', 'Masa dolu.');
+  const A = seatsOf(T); const s = seat != null ? seat : (A.find(i => !T.seats[i]) ?? -1);
+  if (s < 0 || !A.includes(s) || T.seats[s]) fail('table_full', 'Masa dolu.');
   T.seats[s] = { uid: user.id, name: user.username, avatar: user.avatar || 0, level: user.level || 1, bot: false, left: false, away: false, timeouts: 0 };
   return s;
 }
 export function fillBots(T, rnd = Math.random) {
   const used = new Set(T.seats.filter(Boolean).map(s => s.name));
-  for (let i = 0; i < 4; i++) if (!T.seats[i]) {
+  for (const i of seatsOf(T)) if (!T.seats[i]) {
     let name; do { name = BOT_NAMES[Math.floor(rnd() * BOT_NAMES.length)]; } while (used.has(name)); used.add(name);
     T.seats[i] = { uid: null, name, avatar: Math.floor(rnd() * 12), level: 5 + Math.floor(rnd() * 120), bot: true, left: false, away: false, timeouts: 0 };
   }
@@ -46,12 +50,13 @@ const log = (T, e) => { const H = T.hand; H.log.push({ k: ++T.seq, ...e }); if (
 
 export function startRound(T, now, rnd = Math.random) {
   T.round++; T.status = 'playing';
-  const start = T.round === 1 ? T.startSeat : next(T.hand ? T.hand.start : T.startSeat);
+  const start = T.round === 1 ? T.startSeat : nx(T, T.hand ? T.hand.start : T.startSeat);
   let deck = R.shuffle(R.fullDeck(), rnd);
   let ii = deck.findIndex(id => id < 104); const indicator = deck.splice(ii, 1)[0]; // gösterge sahte okey olamaz
   const okey = R.okeyOf(indicator);
   const racks = [[], [], [], []];
-  for (let k = 0; k < 4; k++) { const s = (start + k) % 4; racks[s] = deck.splice(0, isDuz(T) ? (s === start ? 15 : 14) : (s === start ? 22 : 21)); }
+  const A = seatsOf(T), si = A.indexOf(start);
+  for (let k = 0; k < A.length; k++) { const s = A[(si + k) % A.length]; racks[s] = deck.splice(0, isDuz(T) ? (s === start ? 15 : 14) : (s === start ? 22 : 21)); }
   T.hand = { start, indicator, okey, pile: deck, racks, discards: [[], [], [], []], melds: [], opened: [null, null, null, null], penalties: [0, 0, 0, 0], siler: [0, 0, 0, 0],
     turn: start, phase: 'play', took: null, laidThisTurn: false, okeyBlocked: false, turnNo: 1, openTurn: [0, 0, 0, 0], meldSeq: 0, log: [], result: null };
   log(T, { t: 'deal', s: start });
@@ -106,9 +111,9 @@ export function act(T, s, a, now, rnd = Math.random) {
     }
     case 'take': {
       needTurn(T, s, 'draw');
-      const d = H.discards[prev(s)]; if (!d.length) fail('empty', 'Alınacak taş yok.');
+      const d = H.discards[pv(T, s)]; if (!d.length) fail('empty', 'Alınacak taş yok.');
       if (H.okeyBlocked) fail('okey_blocked', 'Atılan okey alınamaz.');
-      const id = d.pop(); H.racks[s].push(id); H.phase = 'play'; H.took = { id, from: prev(s) }; snapshot(T);
+      const id = d.pop(); H.racks[s].push(id); H.phase = 'play'; H.took = { id, from: pv(T, s) }; snapshot(T);
       log(T, { t: 'take', s, tile: id }); return { taken: id };
     }
     case 'return': {
@@ -191,7 +196,7 @@ export function act(T, s, a, now, rnd = Math.random) {
       if (joker) { H.penalties[s] += 101; H.okeyBlocked = true; }
       else if (R.isCommittable(id, H.melds, k)) H.penalties[s] += 101;
       log(T, { t: 'discard', s, tile: id, pen: joker || R.isCommittable(id, H.melds, k) ? 101 : 0 });
-      H.turn = next(s); H.phase = 'draw'; H.took = null; H.laidThisTurn = false; H.turnNo++;
+      H.turn = nx(T, s); H.phase = 'draw'; H.took = null; H.laidThisTurn = false; H.turnNo++;
       if (!joker) H.okeyBlocked = false;
       beginTurn(T, now, rnd); return {};
     }
@@ -212,9 +217,9 @@ function actDuz(T, s, a, now, rnd, k) {
     }
     case 'take': {
       needTurn(T, s, 'draw');
-      const d = H.discards[prev(s)]; if (!d.length) fail('empty', 'Alınacak taş yok.');
+      const d = H.discards[pv(T, s)]; if (!d.length) fail('empty', 'Alınacak taş yok.');
       if (H.okeyBlocked) fail('okey_blocked', 'Atılan okey alınamaz.');
-      const id = d.pop(); H.racks[s].push(id); H.phase = 'play'; H.took = { id, from: prev(s) };
+      const id = d.pop(); H.racks[s].push(id); H.phase = 'play'; H.took = { id, from: pv(T, s) };
       log(T, { t: 'take', s, tile: id }); return { taken: id };
     }
     case 'discard': {
@@ -222,7 +227,7 @@ function actDuz(T, s, a, now, rnd, k) {
       const id = a.tile, rack = H.racks[s]; if (!inRack(rack, [id])) fail('not_in_rack', 'Bu taş elinde değil.');
       takeFromRack(rack, [id]); H.discards[s].push(id); const joker = k.isJoker(id);
       log(T, { t: 'discard', s, tile: id });
-      H.turn = next(s); H.phase = 'draw'; H.took = null; H.turnNo++; H.okeyBlocked = joker;
+      H.turn = nx(T, s); H.phase = 'draw'; H.took = null; H.turnNo++; H.okeyBlocked = joker;
       beginTurn(T, now, rnd); return {};
     }
     case 'finish': { // bu taşı atarak el bitir: kalan 14 taş sunucuda perlere/7 çifte ayrılmalı
@@ -244,7 +249,7 @@ function autoTurnDuz(T, s, now, rnd, k) {
   if (!(seat.bot || seat.left || seat.away)) { seat.timeouts++; if (seat.timeouts >= 2) seat.away = true; }
   const smart = seat.bot || seat.left || seat.away;
   if (H.phase === 'draw') {
-    const d = H.discards[prev(s)], top = d.length ? d[d.length - 1] : null;
+    const d = H.discards[pv(T, s)], top = d.length ? d[d.length - 1] : null;
     if (smart && top != null && !H.okeyBlocked && D.duzWantTake(H.racks[s], top, k)) actDuz(T, s, { type: 'take' }, now, rnd, k);
     else { const r = actDuz(T, s, { type: 'draw' }, now, rnd, k); if (T.status !== 'playing' || T.hand !== H) return r; }
   }
@@ -272,11 +277,11 @@ export function endRound(T, fin, now) {
   if (isDuz(T)) { // klasik okey: biten oyuncu puan kazanır (düşük toplam önde), okeyle/çiftle bitiş katlar
     let v = 0, note = '';
     if (fin) { v = -2; note = 'Bitti'; if (fin.pairs) { v *= 2; note = 'Çiftle bitti'; } if (fin.okey) { v *= 2; note += ' (okey atarak)'; } }
-    for (let s = 0; s < 4; s++) {
+    for (const s of seatsOf(T)) {
       const mine = fin && s === fin.seat, mate = fin && T.cfg.mode === 'esli' && s === partner(fin.seat);
       sc[s] = mine ? v : 0; detail.push({ s, base: sc[s], penalties: 0, siler: 0, score: sc[s], note: mine ? note : mate ? 'Eşi bitti' : fin ? 'Kaybetti' : 'Taşlar bitti — kazanan yok', left: H.racks[s].length });
     }
-    for (let s = 0; s < 4; s++) T.totals[s] += sc[s];
+    for (const s of seatsOf(T)) T.totals[s] += sc[s];
     H.result = { finisher: fin ? fin.seat : null, okeyFinish: fin ? fin.okey : false, pairs: fin ? !!fin.pairs : false, scores: sc, detail, racks: H.racks.map(r => r.slice()), show: H.finishShow || null };
     T.history.push(sc); log(T, { t: 'round_end', s: fin ? fin.seat : -1 });
     if (T.round >= T.cfg.rounds) finishGame(T, now); else { T.status = 'round_end'; T.deadline = now + ROUND_PAUSE_MS; T.botAt = null; }
@@ -284,7 +289,7 @@ export function endRound(T, fin, now) {
   }
   const anyOpen = H.opened.some(Boolean);
   if (!fin && !anyOpen) {
-    for (let s = 0; s < 4; s++) detail.push({ s, note: 'Kimse açmadı — el sayılmadı', score: 0 });
+    for (const s of seatsOf(T)) detail.push({ s, note: 'Kimse açmadı — el sayılmadı', score: 0 });
   } else {
     let mult = 1, direct = false, pairsFin = false;
     if (fin) {
@@ -293,7 +298,7 @@ export function endRound(T, fin, now) {
       pairsFin = op && op.route === 'pairs';
       if (fin.okey) mult *= 2; if (pairsFin) mult *= 2;
     }
-    for (let s = 0; s < 4; s++) {
+    for (const s of seatsOf(T)) {
       let v, note;
       if (fin && s === fin.seat) {
         v = direct ? (fin.okey ? -404 : -202) : pairsFin ? (fin.okey ? -404 : -202) : (fin.okey ? -202 : -101);
@@ -305,7 +310,7 @@ export function endRound(T, fin, now) {
       sc[s] = v + extra; detail.push({ s, base: v, penalties: H.penalties[s], siler: H.siler[s], score: sc[s], note, left: H.racks[s].length });
     }
   }
-  for (let s = 0; s < 4; s++) T.totals[s] += sc[s];
+  for (const s of seatsOf(T)) T.totals[s] += sc[s];
   H.result = { finisher: fin ? fin.seat : null, okeyFinish: fin ? fin.okey : false, scores: sc, detail, racks: H.racks.map(r => r.slice()) };
   T.history.push(sc);
   log(T, { t: 'round_end', s: fin ? fin.seat : -1 });
@@ -315,7 +320,7 @@ export function endRound(T, fin, now) {
 }
 export function finishGame(T, now) {
   T.status = 'finished'; T.deadline = null; T.botAt = null;
-  const order = [0, 1, 2, 3];
+  const order = seatsOf(T).slice();
   if (T.cfg.mode === 'esli') {
     const t0 = T.totals[0] + T.totals[2], t1 = T.totals[1] + T.totals[3];
     T.final = { teams: [t0, t1], winners: t0 === t1 ? [0, 1, 2, 3] : t0 < t1 ? [0, 2] : [1, 3], ranking: order.sort((a, b) => T.totals[a] - T.totals[b]) };

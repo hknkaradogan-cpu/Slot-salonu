@@ -118,6 +118,8 @@
   /* ---------- sahne (canvas) ---------- */
   function sceneInit() {
     A.stars = Array.from({ length: 90 }, () => ({ x: Math.random(), y: Math.random() * 0.7, r: Math.random() * 1.6 + 0.3, t: Math.random() * 6 }));
+    // şehir silueti (ışıklı pencereler) — kanvasın içinde, uçağın arkasında
+    { let x = 0; A.city = []; while (x < 1400) { const w = 30 + Math.random() * 60, h = 50 + Math.random() * 190; const win = []; for (let k = 0; k < h * w / 260; k++) win.push([Math.random() * (w - 8) + 4, Math.random() * (h - 10) + 6, Math.random() < 0.7]); A.city.push({ x, w, h, win, ph: Math.random() * 6 }); x += w + 4 + Math.random() * 10; } }
     A.clouds = Array.from({ length: 7 }, (_, i) => ({ x: Math.random(), y: 0.15 + Math.random() * 0.5, s: 0.6 + Math.random() * 0.9, v: 0.02 + Math.random() * 0.04, i }));
   }
   function plane(c, x, y, ang, sc) {
@@ -148,6 +150,11 @@
     // bulutlar (paralaks)
     for (const k of A.clouds) { k.x -= k.v * speed * 0.016; if (k.x < -0.3) { k.x = 1.2; k.y = 0.12 + Math.random() * 0.5; }
       const x = k.x * W, y = k.y * H, s = k.s * 60; c.fillStyle = `rgba(180,190,255,${0.08 + k.s * 0.06})`; c.beginPath(); c.ellipse(x, y, s * 1.6, s * 0.5, 0, 0, 7); c.ellipse(x + s * 0.8, y - s * 0.3, s, s * 0.45, 0, 0, 7); c.ellipse(x - s * 0.7, y - s * 0.15, s * 0.9, s * 0.4, 0, 0, 7); c.fill(); }
+    // projektör ışıkları
+    for (const [x0, sp] of [[W * 0.25, 1], [W * 0.7, -1.3]]) { const ang = Math.sin(ts / 2600 * sp) * 0.5; c.save(); c.translate(x0, H - 70); c.rotate(ang); const lg = c.createLinearGradient(0, 0, 0, -H); lg.addColorStop(0, 'rgba(170,200,255,.30)'); lg.addColorStop(1, 'rgba(170,200,255,0)'); c.fillStyle = lg; c.beginPath(); c.moveTo(-8, 0); c.lineTo(8, 0); c.lineTo(70, -H); c.lineTo(-70, -H); c.closePath(); c.fill(); c.restore(); }
+    // şehir
+    const gyc = H - 70; c.fillStyle = '#120a2c';
+    for (const b of A.city || []) { c.fillStyle = '#120a2c'; c.fillRect(b.x, gyc - b.h, b.w, b.h); for (const w of b.win) { if (!w[2]) continue; c.fillStyle = (Math.sin(ts / 900 + b.ph + w[0]) > -0.6) ? 'rgba(255,210,110,.85)' : 'rgba(255,210,110,.25)'; c.fillRect(b.x + w[0], gyc - b.h + w[1], 5, 6); } }
     // pist
     const gy = H - 70; c.fillStyle = '#0c0a1e'; c.fillRect(0, gy, W, 70); c.fillStyle = '#1f1a3a'; c.fillRect(0, gy + 18, W, 34);
     const off = (ts / 8 * speed) % 80; c.fillStyle = '#f2c14e'; for (let x = -off; x < W; x += 80) c.fillRect(x, gy + 33, 40, 4);

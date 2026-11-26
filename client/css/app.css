@@ -1242,3 +1242,96 @@ body.portrait #okeyRoot{visibility:visible}
 .slb{flex:1;height:52px;border:0;background:none;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:1px}
 .slb span{font-size:24px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.6))}.slb small{font-size:10px;font-weight:800;color:#d9d2ff}
 .slgo{width:118px;height:56px;border-radius:12px 12px 8px 8px;border:2px solid #ffe27a;background:linear-gradient(180deg,#ffb34d,#e0661a 55%,#a83a06);color:#fff;font:900 15px "Arial Black",Arial,sans-serif;line-height:1;text-shadow:0 2px 0 #6a2a00;box-shadow:0 0 16px rgba(255,160,60,.5)}
+
+/* =================== 5.2 GERÇEKÇİ TAŞLAR (kemik, kalınlık, oyma rakam) =================== */
+@font-face{font-family:"SpCond";src:url(../fonts/oswald-latin-700-normal.woff2) format("woff2");font-weight:700;font-display:swap}
+@font-face{font-family:"SpCond";src:url(../fonts/oswald-latin-ext-700-normal.woff2) format("woff2");font-weight:700;font-display:swap;unicode-range:U+0100-024F,U+011E-011F,U+0130-0131,U+015E-015F}
+@font-face{font-family:"SpCond6";src:url(../fonts/oswald-latin-600-normal.woff2) format("woff2");font-weight:600;font-display:swap}
+.otile{border-radius:7px;background:
+  radial-gradient(120% 70% at 50% 0%,rgba(255,255,255,.95),rgba(255,255,255,0) 60%),
+  linear-gradient(180deg,#fffdf6 0%,#f6f0e0 55%,#ebe2cb 100%);
+  box-shadow:inset 0 1px 0 #fff,inset 0 0 0 1px rgba(160,140,100,.25),0 2px 0 #e2d7bd,0 3px 0 #cfc2a2,0 4px 0 #b7a985,0 6px 7px rgba(0,0,0,.42)!important}
+.otile span{font-family:"SpCond","Arial Narrow",Arial,sans-serif;font-weight:700;font-size:31px;letter-spacing:-.5px;line-height:1;margin-top:1px;
+  text-shadow:0 1px 0 rgba(255,255,255,.85),0 -1px 0 rgba(0,0,0,.18)}
+.otile.c0{color:#dc1a22}.otile.c1{color:#eea900}.otile.c2{color:#1b6fd0}.otile.c3{color:#141414}
+.otile .od{width:11px;height:11px;margin-top:3px;background:radial-gradient(circle at 50% 40%,#f7f2e6 0 30%,#cfc5ad 34% 52%,#f3ecdc 56% 70%,#bdb29a 74%)!important;box-shadow:inset 0 1px 2px rgba(0,0,0,.25),0 1px 0 rgba(255,255,255,.8)}
+.otile.sel{transform:translateY(-10px)!important;box-shadow:inset 0 1px 0 #fff,0 0 0 3px #7dff6b,0 4px 0 #b7a985,0 12px 14px rgba(0,0,0,.45)!important}
+.otile.jok{box-shadow:inset 0 1px 0 #fff,0 0 0 2px #ffcf3a,0 4px 0 #b7a985,0 0 12px rgba(255,200,40,.8)!important}
+.otile.sm{border-radius:4px}.otile.sm span{font-size:17px}.otile.xs span{font-size:13px}
+.otile.back{background:linear-gradient(135deg,#2b6fd0,#123f85)!important;box-shadow:inset 0 0 0 2px #dfe9ff,0 3px 0 #0b2a5e,0 5px 6px rgba(0,0,0,.45)!important}
+.otile.incoming{animation:incoming .18s ease-out}
+@keyframes incoming{from{transform:translateY(-40px) scale(.7);opacity:.3}to{transform:none;opacity:1}}
+.okfly{transition:transform .28s cubic-bezier(.2,.8,.3,1)!important}
+.okstage.nohelp #okRuns,.okstage.nohelp #okPairs{display:none}
+.okstage.p2 .okseat.side,.okstage.p2 .okdisc[data-dpos="1"],.okstage.p2 .okdisc[data-dpos="3"]{display:none!important}
+.okstage .okdisc[data-zone="take"]{border-color:rgba(125,255,107,.45)!important}
+
+/* =================== 5.2 CANLI TEMALAR =================== */
+/* ortak: ışık süpürmesi ve parıltı */
+@keyframes sweep{0%{transform:translateX(-120%) skewX(-20deg)}55%,100%{transform:translateX(320%) skewX(-20deg)}}
+@keyframes glowp{0%,100%{box-shadow:0 4px 0 #0e5a18,0 0 14px rgba(120,255,90,.35)}50%{box-shadow:0 4px 0 #0e5a18,0 0 30px rgba(150,255,110,.85)}}
+@keyframes twinkle{0%,100%{opacity:.15;transform:scale(.6)}50%{opacity:1;transform:scale(1)}}
+@keyframes floatup{0%{transform:translateY(0);opacity:0}15%{opacity:1}100%{transform:translateY(-160px);opacity:0}}
+/* okey lobisi */
+.olbg::after{content:"";position:absolute;inset:0;background:
+  radial-gradient(ellipse 40% 60% at 20% -10%,rgba(120,220,255,.35),transparent 70%),
+  radial-gradient(ellipse 40% 60% at 80% -10%,rgba(255,220,120,.28),transparent 70%),
+  radial-gradient(ellipse 70% 40% at 50% 110%,rgba(0,0,0,.55),transparent);pointer-events:none}
+.olbg::before{content:"";position:absolute;inset:0;background-image:radial-gradient(2px 2px at 12% 30%,#fff,transparent),radial-gradient(1.5px 1.5px at 33% 72%,#cff,transparent),radial-gradient(2px 2px at 58% 18%,#fff,transparent),radial-gradient(1.5px 1.5px at 78% 64%,#ffe,transparent),radial-gradient(2px 2px at 91% 26%,#fff,transparent);animation:twinkle 3s ease-in-out infinite;pointer-events:none}
+.orc{position:relative;font-family:"SpCond",Arial,sans-serif;border-radius:12px!important;transition:transform .15s}
+.orc::after{content:"";position:absolute;top:0;bottom:0;width:30%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.45),transparent);animation:sweep 4.5s ease-in-out infinite;pointer-events:none}
+.orc:nth-child(2)::after{animation-delay:.6s}.orc:nth-child(3)::after{animation-delay:1.2s}.orc:nth-child(4)::after{animation-delay:1.8s}.orc:nth-child(5)::after{animation-delay:2.4s}.orc:nth-child(6)::after{animation-delay:3s}.orc:nth-child(7)::after{animation-delay:3.6s}
+.orc:active{transform:scale(.97)}
+.rch b{font-family:"SpCond",Arial,sans-serif;font-size:22px!important;letter-spacing:.5px}.rch small{font-family:"SpCond6",Arial,sans-serif;letter-spacing:.5px}
+.rca{border:2px solid rgba(255,255,255,.35);background-blend-mode:screen}
+.rca::before{content:"";position:absolute;inset:0;border-radius:6px;background:radial-gradient(circle at 50% 35%,rgba(255,255,255,.35),transparent 60%),repeating-conic-gradient(from 0deg at 50% 50%,rgba(255,255,255,.07) 0 10deg,transparent 10deg 20deg);pointer-events:none}
+.orbtn{font-family:"SpCond",Arial,sans-serif!important;font-size:16px!important;letter-spacing:1px!important;background:linear-gradient(180deg,#5aa8ff,#2a6fe0 50%,#1a4fb0)!important;border:1.5px solid #bfe0ff!important}
+.orc.rz2,.orc.rz4{background:linear-gradient(180deg,#2a0a10,#140306)!important;box-shadow:0 0 0 2px #ff4d4d,0 0 18px rgba(255,60,60,.55),0 6px 14px rgba(0,0,0,.5)!important;animation:rzglow 1.6s ease-in-out infinite}
+@keyframes rzglow{50%{box-shadow:0 0 0 2px #ffb3b3,0 0 30px rgba(255,80,60,.9),0 6px 14px rgba(0,0,0,.5)}}
+.orc.rz2 .rch,.orc.rz4 .rch,.orc.rz2 .rch small,.orc.rz4 .rch small,.orc.rz2 .rcn,.orc.rz4 .rcn{color:#ffe1d6!important}
+.orc.rz2 .rca{background:radial-gradient(circle,#ff5a3a,#7a0a0a)}.orc.rz4 .rca{background:radial-gradient(circle,#ffa83a,#8a1a06)}
+.rzhot{position:absolute;top:6px;right:-26px;transform:rotate(35deg);padding:1px 28px;background:linear-gradient(180deg,#ff4d4d,#b8121a);color:#fff;font:700 10px "SpCond",Arial;letter-spacing:1px;z-index:3;box-shadow:0 2px 4px rgba(0,0,0,.4)}
+.rzb{background:linear-gradient(180deg,#ff6a4a,#d4261a 55%,#8a0a06)!important;border-color:#ffc2b3!important}
+.rkvs{position:absolute;font:700 34px "SpCond",Arial;color:#fff;text-shadow:0 0 12px #ff3a3a,0 3px 0 #5a0606;z-index:2}.rkfire{position:absolute;top:4px;font-size:24px;animation:okbob 1s infinite}
+.olplay{animation:glowp 1.6s ease-in-out infinite;font-family:"SpCond",Arial,sans-serif}.olplay b{font-family:"SpCond",Arial,sans-serif!important;font-size:26px!important;letter-spacing:2px!important}
+.olbn{position:relative;overflow:hidden;font-family:"SpCond",Arial,sans-serif}.olbn b{font-family:"SpCond",Arial,sans-serif!important;font-size:19px!important;letter-spacing:.5px}
+.olbn::after{content:"";position:absolute;top:0;bottom:0;width:40%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.35),transparent);animation:sweep 5s ease-in-out infinite;pointer-events:none}
+.olbn.b1::before{content:"🏆";position:absolute;right:6px;bottom:2px;font-size:36px;opacity:.85;filter:drop-shadow(0 3px 4px rgba(0,0,0,.5))}
+.olbn.b2::before{content:"🎡";position:absolute;right:6px;bottom:2px;font-size:36px;opacity:.85;animation:spinr 8s linear infinite}
+.olbn.b3::before{content:"🧩";position:absolute;right:6px;bottom:2px;font-size:36px;opacity:.85}
+.olgame b{font-family:"SpCond",Georgia,serif!important;font-size:24px!important;letter-spacing:1px;background:linear-gradient(180deg,#fff6c8,#ffd23f 50%,#e08a00);-webkit-background-clip:text;background-clip:text;color:transparent!important;filter:drop-shadow(0 2px 0 #4a2a00)}
+.olic{font-family:"SpCond6",Arial,sans-serif;font-size:10px!important;box-shadow:0 3px 0 rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.3)}
+/* okey masası: canlılık */
+.okbg::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse 55% 50% at 50% 42%,rgba(140,220,255,.18),transparent 70%);animation:tablelight 6s ease-in-out infinite;pointer-events:none}
+@keyframes tablelight{50%{opacity:.55}}
+.okseat.turn{box-shadow:0 0 0 2px #7dff6b,0 0 18px rgba(125,255,107,.55)!important}
+.okcb,#okRuns,#okPairs,.okwchips span,.okleave,.okgo2{font-family:"SpCond",Arial,sans-serif!important}
+#okRuns,#okPairs{font-size:19px!important;letter-spacing:.5px}
+.okleave{font-size:18px!important}.okwstake b{font-family:"SpCond",Arial,sans-serif!important;font-size:26px!important}
+.okwcount{font-family:"SpCond6",Arial,sans-serif;font-size:16px!important}
+/* Avivasor: canlı gece şehri */
+.avsky{background:linear-gradient(180deg,#0a0630,#2a0e5a 55%,#6a1a6a)}
+.avsky::before{display:none;content:"";position:absolute;left:0;right:0;bottom:34px;height:120px;z-index:1;pointer-events:none;background:
+  linear-gradient(180deg,transparent 0 0),
+  url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='690' height='120' viewBox='0 0 690 120'%3E%3Cg fill='%23140a2e'%3E%3Crect x='0' y='60' width='40' height='60'/%3E%3Crect x='44' y='30' width='30' height='90'/%3E%3Crect x='78' y='70' width='50' height='50'/%3E%3Crect x='132' y='20' width='26' height='100'/%3E%3Crect x='162' y='50' width='44' height='70'/%3E%3Crect x='210' y='75' width='60' height='45'/%3E%3Crect x='274' y='10' width='34' height='110'/%3E%3Crect x='312' y='55' width='40' height='65'/%3E%3Crect x='356' y='35' width='28' height='85'/%3E%3Crect x='388' y='65' width='56' height='55'/%3E%3Crect x='448' y='25' width='36' height='95'/%3E%3Crect x='488' y='60' width='40' height='60'/%3E%3Crect x='532' y='40' width='30' height='80'/%3E%3Crect x='566' y='72' width='54' height='48'/%3E%3Crect x='624' y='30' width='30' height='90'/%3E%3Crect x='658' y='58' width='32' height='62'/%3E%3C/g%3E%3Cg fill='%23ffd36a' opacity='.75'%3E%3Crect x='50' y='40' width='4' height='4'/%3E%3Crect x='62' y='56' width='4' height='4'/%3E%3Crect x='138' y='30' width='4' height='4'/%3E%3Crect x='148' y='50' width='4' height='4'/%3E%3Crect x='282' y='20' width='4' height='4'/%3E%3Crect x='296' y='44' width='4' height='4'/%3E%3Crect x='282' y='70' width='4' height='4'/%3E%3Crect x='362' y='48' width='4' height='4'/%3E%3Crect x='456' y='36' width='4' height='4'/%3E%3Crect x='470' y='60' width='4' height='4'/%3E%3Crect x='538' y='52' width='4' height='4'/%3E%3Crect x='630' y='44' width='4' height='4'/%3E%3Crect x='640' y='70' width='4' height='4'/%3E%3Crect x='176' y='62' width='4' height='4'/%3E%3Crect x='398' y='78' width='4' height='4'/%3E%3C/g%3E%3C/svg%3E") bottom/100% 120px no-repeat;opacity:.95}
+.avsky::after{content:"";position:absolute;left:30%;bottom:40px;width:30px;height:420px;transform-origin:50% 100%;background:linear-gradient(0deg,rgba(160,200,255,.28),transparent);animation:searchl 6s ease-in-out infinite alternate;pointer-events:none;z-index:0}
+@keyframes searchl{from{transform:rotate(-28deg)}to{transform:rotate(28deg)}}
+.avsky canvas{z-index:0}
+.avmult b{background:linear-gradient(180deg,#fff,#ffd6e6 55%,#ff7ab0);-webkit-background-clip:text;background-clip:text;color:transparent!important;filter:drop-shadow(0 0 18px rgba(255,90,140,.7)) drop-shadow(0 4px 0 rgba(0,0,0,.35));font-family:"SpCond","Arial Black",sans-serif!important;font-size:96px!important;letter-spacing:1px}
+.avmult.win b{background:linear-gradient(180deg,#fff,#b9ffad 50%,#3fd64a);-webkit-background-clip:text;background-clip:text;filter:drop-shadow(0 0 20px rgba(120,255,110,.8))}
+.avmult.lost b{background:linear-gradient(180deg,#fff,#ffb3b3 50%,#ff3a3a);-webkit-background-clip:text;background-clip:text;font-size:70px!important}
+.avmult.idle b{font-size:56px!important}
+.avhist span{font-family:"SpCond6",Arial,sans-serif;font-size:13px!important;border:1px solid rgba(255,255,255,.15)}
+.avpanel{background:linear-gradient(180deg,rgba(40,20,90,.96),rgba(14,8,40,.98))!important;border:1px solid rgba(255,150,220,.35)!important;box-shadow:0 0 24px rgba(160,80,255,.35)}
+.avgo{font-family:"SpCond",Arial,sans-serif}.avgo b{font-family:"SpCond",Arial,sans-serif!important;font-size:30px!important;letter-spacing:1px}
+.avgo.bet{animation:glowp 1.8s ease-in-out infinite}
+.avbet b{font-family:"SpCond",Arial,sans-serif;font-size:28px!important}
+/* ana salon: kart parıltısı */
+.spcard{overflow:hidden}.spcard::after{content:"";position:absolute;top:0;bottom:0;width:35%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.4),transparent);animation:sweep 5s ease-in-out infinite;pointer-events:none}
+.spcard:nth-child(2)::after{animation-delay:1s}.spcard:nth-child(3)::after{animation-delay:2s}.spcard:nth-child(4)::after{animation-delay:3s}.spcard:nth-child(5)::after{animation-delay:4s}
+.spct{font-family:"SpCond",Georgia,serif!important;font-size:19px!important;letter-spacing:1px}
+.spplay{animation:glowp 2s ease-in-out infinite;background:linear-gradient(180deg,#7ee05a,#2ea83a 55%,#1a7e24)!important;border-color:#c9ff9b!important}
+.avsky::after{z-index:1!important}
+.olgame b{background:none!important;-webkit-background-clip:initial!important;background-clip:initial!important;color:#ffd84a!important;filter:none!important;text-shadow:0 2px 0 #6a3500,0 0 12px rgba(255,200,60,.55)}
+.orc.rz2 .rch b,.orc.rz4 .rch b{font-size:18px!important;margin-top:6px}.rzhot{top:4px;right:-30px;font-size:8.5px}
+.avsky::after{z-index:0!important;opacity:0}

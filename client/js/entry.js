@@ -45,6 +45,10 @@
       <div class="olrooms">${ROOMS.map(([st, t1, t2, sub, k]) => { const can = !st || me().unlimited || me().balance >= st;
         return `<div class="orc ${k} ${can ? '' : 'dis'}"><div class="rch"><b>${t1}</b><small>${t2}</small></div><div class="rca">${art[k]}</div><div class="rcn" id="orn${st}">${sub}</div>
           <div class="rcb"><button class="orbtn" data-st="${st}" ${can ? '' : 'disabled'}>${st ? 'KATIL' : 'OYNA'}</button></div></div>`; }).join('')}
+        <div class="orc rz2"><span class="rzhot">RİZİKOLU</span><div class="rch"><b>2 KİŞİLİK</b><small>KAZANAN HEPSİNİ ALIR</small></div><div class="rca"><span class="rkvs">VS</span>${tiles([[0, 13], [2, 13]])}</div><div class="rcn">Giriş 10.000 · kazanan 20.000</div>
+          <div class="rcb"><button class="orbtn rzb" data-rz="2">KATIL</button></div></div>
+        <div class="orc rz4"><span class="rzhot">RİZİKOLU</span><div class="rch"><b>4 KİŞİLİK</b><small>KAZANAN HEPSİNİ ALIR</small></div><div class="rca"><span class="rkfire">🔥</span>${tiles([[0, 1], [1, 1], [2, 1], [3, 1]])}</div><div class="rcn">Giriş 10.000 · kazanan 40.000</div>
+          <div class="rcb"><button class="orbtn rzb" data-rz="4">KATIL</button></div></div>
         <div class="orc vip"><div class="rch"><b>ÖZEL</b><small>ARKADAŞ ODALARI</small></div><div class="rca"><span class="rkstar">★</span></div><div class="rcn">Kodlu · şifreli</div>
           <div class="rcb two"><button class="orbtn s" id="olCode">KODLA</button><button class="orbtn s" id="olPriv">MASA AÇ</button></div></div></div>
       <div class="olbot"><button class="olic" data-ev="friends"><span>👥</span>Arkadaş</button><button class="olic" data-ev="messages"><span>✉️</span>Mesaj</button><button class="olic" data-y="top"><span>🏆</span>Sıralama</button>
@@ -56,6 +60,7 @@
       const r = await Api.post('/api/okey/quick', { ...o, variant: V, stake: 0 }); if (r.existing) toast('Zaten bir masadasın — oraya dönüyorsun.'); Okey.openTable(r.tableId);
     });
     $$('[data-st]', root).forEach(b => b.onclick = (e) => { e.stopPropagation(); Okey.quickOpts(V, +b.dataset.st); });
+    $$('[data-rz]', root).forEach(b => b.onclick = (e) => { e.stopPropagation(); if (!me().unlimited && me().balance < 10000) return toast('Rizikolu masa için en az 10.000 jeton gerekli.', true); Okey.quickOpts(V, 10000, { players: +b.dataset.rz, risk: true }); });
     $('#olPriv').onclick = (e) => { e.stopPropagation(); Okey.createPrivate(V); };
     $('#olCode').onclick = (e) => { e.stopPropagation(); Okey.codeModal(); };
     $('#olOpen').onclick = (e) => { e.stopPropagation(); UI.modal(`<h3 class="gold">🟢 Açık Masalar</h3><div class="list" id="olOpenL"><p class="small muted center">Yükleniyor…</p></div>`); Okey.openTables($('#olOpenL'), V); };

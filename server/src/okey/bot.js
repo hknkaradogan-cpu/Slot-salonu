@@ -2,7 +2,7 @@
 import * as R from './rules.js';
 import { openThreshold } from './table.js';
 
-const prevSeat = (s) => (s + 3) % 4;
+const prevSeat = (s, T) => (T && T.cfg.players === 2 ? (s + 2) % 4 : (s + 3) % 4);
 
 function pairsPlan(T, s, rack, k) {
   const op = T.hand.opened[s]; if (op) return op.route === 'pairs';
@@ -84,7 +84,7 @@ function layAndAdd(T, s, k, act) {
 export function botTurn(T, s, act) {
   const H = T.hand, k = R.kit(H.okey);
   if (H.phase === 'draw') {
-    const d = H.discards[prevSeat(s)], top = d[d.length - 1];
+    const d = H.discards[prevSeat(s, T)], top = d[d.length - 1];
     if (top != null && !H.okeyBlocked && wantTake(T, s, top, k)) act({ type: 'take' });
     else { act({ type: 'draw' }); if (T.status !== 'playing' || T.hand !== H) return {}; }
   }

@@ -170,3 +170,35 @@ test('Lobiler, liderlik tablosu ve yönetici ayarları (yalnızca yönetici; oyu
   assert.equal((await api('GET', '/api/admin/tavla', null, tok)).status, 200);
   assert.equal((await api('GET', '/api/aviator', null, a.token)).body.config.rtp, 0.95);
 });
+
+test('101 Okey 2 kişilik: yalnız karşılıklı koltuklar, sıra karşıya geçer, botlu tam oyun biter', () => {
+  let now = 1e12; const t = OT.newTable({ players: 2, mode: 'esli', rounds: 2, bots: true, risk: true, helper: false }, now);
+  assert.equal(t.cfg.players, 2); assert.equal(t.cfg.mode, 'tekli', '2 kişilik eşli olamaz'); assert.equal(t.cfg.helper, false); assert.equal(t.cfg.risk, true);
+  OT.seatHuman(t, { id: 1, username: 'A' }); assert.throws(() => OT.seatHuman(t, { id: 2, username: 'B' }, 1), /dolu/);
+  OT.fillBots(t, Math.random); assert.deepEqual(t.seats.map(Boolean), [true, false, true, false]); assert.ok(OT.isFull(t));
+  OT.startRound(t, now); const H = t.hand;
+  assert.equal(H.racks[1].length + H.racks[3].length, 0); assert.equal(H.racks[0].length + H.racks[2].length, 43);
+  let guard = 0; while (t.status !== 'finished' && guard++ < 20000) { now += 3000; OT.tick(t, now); }
+  assert.equal(t.status, 'finished'); assert.deepEqual(t.final.ranking.slice().sort(), [0, 2]);
+});
+
+test('Okey API: Rizikolu 2 kişilik — seçenekler eşleşmede ayrılır, kazanan havuzun tamamını alır', async () => {
+  const a = await reg('rz_a'); const b0 = await bal(a.token);
+  const q = await api('POST', '/api/okey/quick', { players: 2, risk: true, helper: false, katlamali: false, stake: 1000, rounds: 1 }, a.token); assert.equal(q.status, 200, JSON.stringify(q.body));
+  const v0 = (await api('GET', `/api/okey/${q.body.tableId}`, null, a.token)).body;
+  assert.equal(v0.cfg.players, 2); assert.equal(v0.cfg.risk, true); assert.equal(v0.cfg.helper, false); assert.equal(await bal(a.token), b0 - 1000);
+  const b = await reg('rz_b'); // farklı seçenekle gelen aynı masaya düşmez
+  const q2 = await api('POST', '/api/okey/quick', { players: 4, risk: true, helper: false, katlamali: false, stake: 1000, rounds: 1 }, b.token); assert.notEqual(q2.body.tableId, q.body.tableId);
+  await api('POST', `/api/okey/${q.body.tableId}/start`, {}, a.token);
+  let v = (await api('GET', `/api/okey/${q.body.tableId}`, null, a.token)).body;
+  assert.equal(v.status, 'playing'); assert.equal(v.seats.filter(Boolean).length, 2);
+  // hamle yanıtı masanın yeni görünümünü taşır (tek gidiş-dönüş)
+  for (let i = 0; i < 40 && !(v.hand && v.hand.turn === v.me && v.status === 'playing'); i++) { clock += 3000; v = (await api('GET', `/api/okey/${q.body.tableId}`, null, a.token)).body; }
+  if (v.status === 'playing' && v.hand.phase === 'draw') { const r = await api('POST', `/api/okey/${q.body.tableId}/act`, { type: 'draw' }, a.token); assert.equal(r.status, 200); assert.ok(r.body.view && r.body.view.hand.rack.length === v.hand.rack.length + 1, 'görünüm yanıtta'); }
+  // botlar bitirsin
+  for (let i = 0; i < 400 && v.status !== 'finished'; i++) { clock += 31000; v = (await api('GET', `/api/okey/${q.body.tableId}`, null, a.token)).body; }
+  assert.equal(v.status, 'finished');
+  const paid = v.payouts.reduce((x, y) => x + y, 0); const winnerIsMe = v.final.winners.length === 1 && v.final.winners[0] === v.me;
+  if (winnerIsMe) assert.equal(v.payouts[v.me], 2000, 'kazanan havuzun tamamı'); else assert.equal(v.payouts[v.me], 0);
+  assert.ok(paid <= 2000);
+});
