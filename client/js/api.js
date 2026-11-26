@@ -13,7 +13,13 @@
   }
   class ApiError extends Error { constructor(status, code, message) { super(message || code); this.status = status; this.code = code; } }
 
+  // Sunucu adresi yoksa ve APK içinden çalışıyorsa YEREL MOD (bkz. local.js)
+  const LOCAL = !!(window.SLOT_CONFIG && window.SLOT_CONFIG.local) || (!BASE && location.host === 'appassets.androidplatform.net');
   async function request(method, path, body, opts = {}) {
+    if (LOCAL) {
+      try { setOffline(false); return await window.LocalApi.handle(method, path, body); }
+      catch (e) { if (e.status === 401 && token && !opts.noAuthEvent) listeners.unauthorized.forEach(f => f()); throw new ApiError(e.status || 400, e.code || 'error', e.message); }
+    }
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), opts.timeout || 15000);
     let res;
@@ -46,7 +52,7 @@
     get: (p) => request('GET', p), post: (p, b) => request('POST', p, b || {}), put: (p, b) => request('PUT', p, b || {}),
     retrying, ApiError,
     setToken(t) { token = t; try { t ? localStorage.setItem('slot_token', t) : localStorage.removeItem('slot_token'); } catch (e) {} },
-    hasToken: () => !!token, isOffline: () => offline,
+    hasToken: () => !!token, isOffline: () => offline, isLocal: () => LOCAL,
     on(ev, f) { listeners[ev].push(f); },
     uuid() { return (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2)); },
   };

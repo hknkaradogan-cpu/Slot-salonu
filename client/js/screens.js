@@ -319,7 +319,7 @@
     const s = Sound.get(); const turbo = localStorage.getItem('slot_turbo') === '1';
     const tg = (id, on, t) => `<label class="li"><span class="grow"><b>${t}</b></span><input type="checkbox" id="${id}" ${on ? 'checked' : ''} style="width:26px;height:26px;accent-color:#ffd34d"></label>`;
     modal(`<h3 class="gold">⚙️ Ayarlar</h3><div class="list">${tg('sSnd', s.sound, '🔊 Ses efektleri')}${tg('sMus', s.music, '🎵 Müzik')}${tg('sVib', s.vibrate, '📳 Titreşim')}${tg('sTur', turbo, '⚡ Turbo dönüş (varsayılan)')}</div>
-      <p class="small muted center">Sürüm 2.0.0 · Sunucu: ${esc((window.SLOT_CONFIG.apiBase || location.origin))}</p>`, {
+      <p class="small muted center">Sürüm 2.1.0 · ${Api.isLocal() ? 'YEREL MOD (veriler bu cihazda; mağaza, arkadaşlar ve yönetici paneli sunucu gerektirir)' : 'Sunucu: ' + esc((window.SLOT_CONFIG.apiBase || location.origin))}</p>`, {
       onOpen() { $('#sSnd').onchange = e => Sound.set('sound', e.target.checked); $('#sMus').onchange = e => Sound.set('music', e.target.checked); $('#sVib').onchange = e => Sound.set('vibrate', e.target.checked); $('#sTur').onchange = e => localStorage.setItem('slot_turbo', e.target.checked ? '1' : '0'); },
     });
   }
