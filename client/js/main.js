@@ -19,14 +19,14 @@
       if (busy) return;
       if (native()) { busy = true; try { native().launch(productId, acct); } catch (e) { busy = false; toast('Ödeme ekranı açılamadı.', true); } return; }
       const shop = App.shop || {};
-      if (!shop.testMode) { toast('Satın alma yalnızca Android uygulamasında Google Play ile yapılabilir.', true); return; }
+      if (!shop.testMode) { toast('Satın alma Google Play üzerinden yalnızca Android uygulamasında yapılır.', true); return; }
       const ok = await UI.confirm('Geliştirme/test modu: Google Play yerine sahte (mock) bir satın alma ile sunucu doğrulaması test edilecek. Gerçek ödeme alınmaz.', 'Test et');
       if (ok) handlePurchase({ productId, purchaseToken: `mock:purchased:${acct}:${Api.uuid()}`, state: 'purchased' });
     },
   };
   async function handlePurchase(p) {
     try {
-      const r = await Api.retrying('POST', '/api/shop/verify', { productId: p.productId, purchaseToken: p.purchaseToken });
+      const r = await Api.retrying('POST', '/api/shop/verify', { productId: p.productId, purchaseToken: p.purchaseToken, state: p.state, orderId: p.orderId });
       if (r.status === 'purchased') {
         if (native()) try { native().consume(p.purchaseToken); } catch (e) {}
         if (r.credited) { Screens.setBalance(r.balance, true); Sound.play('bigwin'); UI.coinShower(120); toast(`+${fmt(r.coins)} jeton hesabına eklendi!`); }
@@ -41,7 +41,7 @@
     if (type === 'products') (d.list || []).forEach(x => { prices[x.productId] = x.price; });
     else if (type === 'purchase') { busy = false; if (App.me) handlePurchase(d); }
     else if (type === 'canceled') { busy = false; }
-    else if (type === 'error') { busy = false; toast(d.message || 'Ödeme hatası.', true); }
+    else if (type === 'error') { busy = false; UI.modal(`<h3 class="gold">Google Play</h3><p class="center">${UI.esc(d.message || 'Ödeme hatası.')}</p><p class="small muted center">Uygulama Google Play Console'a yüklenip ürünler tanımlanmadan Play satın alma ekranı açılmaz. (Yerel kurulan APK'da Google "ürün bulunamadı" der.)</p><button class="btn green block" data-close>Tamam</button>`); }
   };
 
   /* ---------- Çevrimdışı ---------- */

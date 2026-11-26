@@ -66,3 +66,19 @@ Test sırasında bulunup düzeltilen hatalar: e-posta doğrulama penceresinin g�
 - **Gerçek Google Play ödemesi**: Play Console hesabı ve servis anahtarı gerektirir. Sunucu tarafı tüm durumlar (satın alındı, bekleyen, iptal, iade, tekrar, hesap uyuşmazlığı) sahte doğrulayıcıyla test edildi; Google API çağrıları belgelenmiş uç noktalara göre yazıldı ancak canlı denenmedi.
 - **Gerçek e-posta gönderimi**: SMTP bilgisi gerekir; akış outbox tablosu üzerinden test edildi.
 - **Gönderdiğiniz oyun videoları ve eski proje kaynakları**: bana ulaşmadı; yalnızca web prototipinin HTML'i ve tasarım referansı (10 kareli GIF) vardı. Görseller bu yüzden kodla çizildi.
+
+## 5. Güncelleme 2.2 — Bonus satın alma (FREE SPIN SATIN AL)
+
+Fiyatlar, satın alınan bonusun beklenen kazancının %95'i olacak şekilde simülasyonla belirlendi (oyun başına 4 milyon satın alma, ayrı tohumla doğrulama):
+
+| Oyun | Tür | Fiyat (bahis katı) | Doğrulanan RTP |
+|---|---|---|---|
+| Zeus | Free Spin | 51x | 95,28% ±0,22 |
+| Zeus | Süper Free Spin | 91,1x | 95,02% ±0,18 |
+| Kristal Peri | Free Spin | 71,2x | 94,83% ±0,11 |
+| Kristal Peri | Süper Free Spin | 97,8x | 94,91% ±0,11 |
+| Mısır Hazineleri | Free Spin | 49,4x | 94,86% ±0,12 |
+| Ejderha Hazinesi | 10 Free Spin | 44,8x | 94,74% ±0,20 |
+| Korsan Hazinesi | Sandık Altını | 113,8x | 95,04% ±0,16 |
+
+Ham veriler: `simulation-buy-results.json`. Sunucu testi: 23/23 geçti (bonus satın alma testi eklendi).

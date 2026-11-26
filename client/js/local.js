@@ -60,12 +60,14 @@
     'GET /api/games': () => ({ bets: BETS, games: window.SlotEngine.ORDER.map(id => { const g = G()[id]; return { id, name: g.name, family: g.family, tag: THEME[id][0], rib: THEME[id][1], info: g.info, rtp: 0.95, volatility: 'yüksek' }; }) }),
     'POST /api/spin': (b) => {
       const u = me(), g = G()[b.game]; if (!g) err(404, 'unknown_game'); const bet = +b.bet; if (!BETS.includes(bet)) err(400, 'bad_bet', 'Geçersiz bahis.');
-      if (u.balance < bet) err(402, 'insufficient_funds', 'Yetersiz jeton. Günlük ödülünü ve seviye ödüllerini topla.');
-      const result = g.play(new Rng(), true), win = Math.round(result.win * bet), old = lvl(u.xp);
-      u.balance += win - bet; const acc = u.rem + bet; u.xp = Math.min(XPMAX, u.xp + Math.floor(acc / 100)); u.rem = acc % 100; u.spins++; u.wagered += bet; u.won += win; u.big = Math.max(u.big, win);
-      const q = qp(u); q.p[1] = (q.p[1] || 0) + 1; q.p[2] = (q.p[2] || 0) + bet; if (win >= bet * 20) q.p[3] = (q.p[3] || 0) + 1; if (!q.g.includes(b.game)) q.g.push(b.game); q.p[4] = q.g.length;
+      const bk = b.buy || null; if (bk && !g.buyCost[bk]) err(400, 'no_buy', 'Bu oyunda bu bonus satın alınamaz.');
+      const cost = bk ? Math.round(bet * g.buyCost[bk]) : bet;
+      if (u.balance < cost) err(402, 'insufficient_funds', 'Yetersiz jeton. Mağazadan jeton alabilir veya günlük ödülünü toplayabilirsin.');
+      const result = bk ? g.buy(new Rng(), true, bk) : g.play(new Rng(), true), win = Math.round(result.win * bet), old = lvl(u.xp);
+      u.balance += win - cost; const acc = u.rem + cost; u.xp = Math.min(XPMAX, u.xp + Math.floor(acc / 100)); u.rem = acc % 100; u.spins++; u.wagered += cost; u.won += win; u.big = Math.max(u.big, win);
+      const q = qp(u); q.p[1] = (q.p[1] || 0) + 1; q.p[2] = (q.p[2] || 0) + cost; if (!bk && win >= bet * 20) q.p[3] = (q.p[3] || 0) + 1; if (!q.g.includes(b.game)) q.g.push(b.game); q.p[4] = q.g.length;
       const L = lvl(u.xp), mx = L >= MAXL; db.spins.unshift({ id: Date.now(), game: b.game, bet, win, nonce: u.spins, created_at: Date.now(), server_seed_hash: 'yerel' }); db.spins.length = Math.min(db.spins.length, 50); save();
-      return { game: b.game, bet, win, winX: result.win, result, balance: u.balance, xp: { gained: Math.floor(acc / 100), xp: u.xp, level: L, into: mx ? 0 : u.xp - cumXp(L), need: mx ? 0 : cumXp(L + 1) - cumXp(L), max: mx, levelUp: L > old ? L : null }, fair: { serverSeedHash: 'yerel mod', clientSeed: '-', nonce: u.spins } };
+      return { game: b.game, bet, cost, buy: bk, win, winX: result.win, result, balance: u.balance, xp: { gained: Math.floor(acc / 100), xp: u.xp, level: L, into: mx ? 0 : u.xp - cumXp(L), need: mx ? 0 : cumXp(L + 1) - cumXp(L), max: mx, levelUp: L > old ? L : null }, fair: { serverSeedHash: 'yerel mod', clientSeed: '-', nonce: u.spins } };
     },
     'GET /api/spins': () => ({ spins: db.spins }),
     'GET /api/fair': () => ({ serverSeedHash: 'Yerel modda denetlenebilir RNG sunucuda çalışır', clientSeed: '-', nonce: me().spins, revealed: [] }),
@@ -73,8 +75,20 @@
     'POST /api/daily/claim': () => { const u = me(), st = dailyState(u); if (!st.available) err(409, 'not_yet', 'Günlük ödül henüz hazır değil.'); u.lastDaily = Date.now(); u.balance += st.amount; save(); return { amount: st.amount, balance: u.balance, daily: dailyState(u) }; },
     'GET /api/quests': () => { const u = me(), q = qp(u); return { day: q.day, quests: QUESTS.map(x => ({ ...x, progress: Math.min(x.target, q.p[x.id] || 0), claimed: q.c[x.id] ? 1 : 0 })) }; },
     'GET /api/events': () => ({ events: [] }),
-    'GET /api/shop': () => ({ packages: PACKS.map(p => ({ productId: p[0], name: p[1], coins: p[2], priceLabel: p[3], bonusLabel: p[4], oneTime: !!p[5], available: false })), billingAccountId: 'local', emailVerified: true, testMode: false, notice: 'Yerel mod: satın alma için uygulamanın sunucuya bağlı sürümü gerekir (ödemeler sunucuda doğrulanır). Jetonlar nakde çevrilemez.' }),
-    'GET /api/shop/history': () => ({ purchases: [] }),
+    'GET /api/shop': () => { const u = me(); return { packages: PACKS.map(p => ({ productId: p[0], name: p[1], coins: p[2], priceLabel: p[3], bonusLabel: p[4], oneTime: !!p[5], available: !(p[5] && u.starter) })), billingAccountId: 'local-' + u.id, emailVerified: true, testMode: false, notice: 'Ödemeler Google Play üzerinden yapılır. Jetonlar yalnızca oyun içinde kullanılır; nakde çevrilemez, para veya ödül olarak çekilemez.' }; },
+    // Yerel mod: Google Play'in cihaza verdiği satın alma onayına güvenilir (sunucu bağlanınca doğrulama sunucuya geçer)
+    'POST /api/shop/verify': (b) => {
+      const u = me(); const p = PACKS.find(x => x[0] === b.productId); if (!p) err(404, 'unknown_product', 'Ürün bulunamadı.');
+      db.purchases = db.purchases || [];
+      const ex = db.purchases.find(x => x.token === b.purchaseToken);
+      if (b.state === 'pending') { if (!ex) db.purchases.unshift({ id: Date.now(), token: b.purchaseToken, uid: u.id, product_id: p[0], name: p[1], state: 'pending', coins: 0, order_id: b.orderId || '', created_at: Date.now() }); save(); return { status: 'pending', balance: u.balance }; }
+      if (ex && ex.state === 'purchased') return { status: 'purchased', coins: 0, balance: u.balance, alreadyCredited: true };
+      if (p[5] && u.starter) err(409, 'one_time', 'Başlangıç paketi yalnızca bir kez alınabilir.');
+      u.balance += p[2]; if (p[5]) u.starter = 1;
+      if (ex) Object.assign(ex, { state: 'purchased', coins: p[2] }); else db.purchases.unshift({ id: Date.now(), token: b.purchaseToken, uid: u.id, product_id: p[0], name: p[1], state: 'purchased', coins: p[2], order_id: b.orderId || '', created_at: Date.now() });
+      save(); return { status: 'purchased', coins: p[2], balance: u.balance, credited: true };
+    },
+    'GET /api/shop/history': () => { const u = me(); return { purchases: (db.purchases || []).filter(x => x.uid === u.id) }; },
     'GET /api/friends': () => ({ friends: [], incoming: [], outgoing: [], gifts: [], giftAmounts: [1000, 5000, 10000], giftDailyLimit: 5 }),
     'POST /api/friends/request': () => err(400, 'local', 'Arkadaş sistemi sunucu bağlantısı gerektirir.'),
     'GET /api/support': () => ({ tickets: [] }),

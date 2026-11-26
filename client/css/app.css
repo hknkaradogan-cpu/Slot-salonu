@@ -256,3 +256,44 @@ h2.title{margin:6px 0 12px;font-size:22px;text-align:center}
 .gcard .art img.alpha{width:90%;height:90%;object-fit:contain;margin-top:-20px}
 .jpbanner{position:relative;display:flex;align-items:center;justify-content:center;gap:10px;margin:0 0 12px;padding:6px;border-radius:16px;background:linear-gradient(90deg,#7a1230,#c2284f,#7a1230);border:2px solid #ffd34d;overflow:hidden}
 .jpbanner img{height:56px}.jpbanner span{font-weight:900;font-size:13px;color:#fff2c4;text-align:center}
+
+/* ---- v2.2 oyun ekranı (referans video düzeni) ---- */
+.gscreen .bgart{background:radial-gradient(ellipse at 50% 18%,var(--glow) 0%,transparent 45%);opacity:.35}
+.gtop{display:flex;align-items:center;gap:6px;padding:0 8px;z-index:3}
+.gtop .hero{flex:1;height:150px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end}
+.gtop .heroimg{position:relative;bottom:auto;height:140px;width:140px;animation:none}
+.gtop .heroimg.alpha{height:150px;width:auto}
+.gtitle{font-weight:900;font-size:18px;margin-top:-14px;text-shadow:0 2px 6px #000;white-space:nowrap}
+.sidebox{width:88px;min-height:66px;border-radius:12px;background:linear-gradient(180deg,#2a3f9a,#131d5a);border:2px solid #e9b949;box-shadow:inset 0 2px 0 rgba(255,255,255,.2),0 3px 0 rgba(0,0,0,.4);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:4px}
+.sidebox small{font-size:9px;font-weight:800;color:#ffe9a8;line-height:1.1}
+.sidebox b{font-size:24px;font-weight:900;color:#fff;text-shadow:0 2px 0 #000}
+.sidebox.lit{box-shadow:0 0 16px #ffd34d,inset 0 2px 0 rgba(255,255,255,.2)}
+.buyrow{display:flex;gap:8px;padding:6px 10px 2px;z-index:3}
+.buybtn{flex:1;border:2px solid #ffe58a;border-radius:12px;padding:5px 4px;background:linear-gradient(180deg,#ffd34d,#d98a00);color:#3a1600;font-weight:900;font-size:13px;line-height:1.05;box-shadow:0 3px 0 #7a4300;cursor:pointer}
+.buybtn small{display:block;font-size:10px}.buybtn b{display:block;font-size:17px;color:#fff;text-shadow:0 1px 0 #6a3500}
+.buybtn.super{background:linear-gradient(180deg,#ff7ae0,#a0168f);color:#fff;box-shadow:0 3px 0 #55064a}
+.buybtn:active{transform:scale(.96)}
+.machine{margin-top:6px}
+.gbar{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:auto;padding:8px 8px calc(10px + var(--safe-bot));background:linear-gradient(180deg,#24358a,#0e1648);border-top:2px solid #e9b949;z-index:5}
+.gb{width:40px;height:40px;border-radius:50%;border:2px solid #e9b949;background:linear-gradient(180deg,#3a52c0,#18246e);color:#fff;font-weight:900;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;position:relative;flex:none}
+.gb.small{width:34px;height:34px;font-size:15px}.gb.on{background:linear-gradient(180deg,#ffd34d,#e08a00);color:#3a1600}
+.gb.max{width:50px;height:40px;border-radius:10px;font-size:10px;line-height:1.1}
+.gb .autoN{position:absolute;right:-6px;top:-6px;background:var(--red);border-radius:10px;font-size:10px;padding:0 4px}.gb .autoN:empty{display:none}
+.betgrp{display:flex;align-items:center;gap:4px}
+.betv{min-width:70px;text-align:center;background:#0a1038;border:2px solid #e9b949;border-radius:10px;padding:2px 6px}
+.betv b{display:block;font-size:17px;color:#fff}.betv small{font-size:8px;color:#ffe9a8;font-weight:800}
+.spinpill{width:96px;height:56px;border-radius:16px;border:3px solid #d9ffcf;background:linear-gradient(180deg,#7dff6b,#1fa83c 60%,#0f7a2a);box-shadow:0 4px 0 #0b5c1b,0 0 14px rgba(80,255,100,.4);color:#fff;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;flex:none}
+.spinpill .t1{font-size:24px;font-weight:900;text-shadow:0 2px 0 #0b5c1b;line-height:1}.spinpill .t2{font-size:8px;font-weight:800;opacity:.9}
+.spinpill.stop{border-color:#ffd0d0;background:linear-gradient(180deg,#ff7a7a,#e0283c 60%,#9a1020);box-shadow:0 4px 0 #5c0614,0 0 14px rgba(255,80,80,.4)}
+.spinpill:active{transform:scale(.95)}
+.winline{height:40px;font-size:18px}
+.bigwintxt{font-size:72px!important;line-height:.9;background:linear-gradient(180deg,#fff7b0,#7dff6b 40%,#1fa83c 60%,#ffd34d);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-stroke:3px #5a2200;paint-order:stroke fill;filter:drop-shadow(0 6px 0 #3a1400) drop-shadow(0 0 16px rgba(255,220,80,.6))}
+.winpill{background:linear-gradient(180deg,#c06bff,#6a1ec0);border:4px solid #ffd34d;border-radius:40px;padding:4px 30px;font-size:44px!important}
+/* performans: ağır animasyonları kaldır */
+.gcard .rays{display:none}
+.fxi{mix-blend-mode:normal}
+.sym.win .tile{animation:winpulse calc(.45s*var(--speed)) ease-in-out infinite alternate}
+@keyframes winpulse{from{transform:scale(1)}to{transform:scale(1.12)}}
+.sym .tile{filter:none}
+.gscreen.tall .gtop .hero{height:210px}.gscreen.tall .gtop .heroimg{height:195px;width:195px}.gscreen.tall .gtop .heroimg.alpha{height:205px;width:auto}
+@media (max-height:760px){.gscreen.tall .gtop .hero{height:150px}.gscreen.tall .gtop .heroimg{height:140px;width:140px}}

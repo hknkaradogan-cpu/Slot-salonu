@@ -63,14 +63,14 @@
     }
     if (parts.length) requestAnimationFrame(loop); else { running = false; cx.clearRect(0, 0, cv.width, cv.height); }
   }
-  function add(p) { if (parts.length > 600) return; parts.push(p); if (!running) { running = true; requestAnimationFrame(loop); } }
+  function add(p) { if (parts.length > 220) return; parts.push(p); if (!running) { running = true; requestAnimationFrame(loop); } }
   const rnd = (a, b) => a + Math.random() * (b - a);
   function burst(x, y, n = 24, colors = ['#fff6b0', '#ffd34d', '#ff7acf', '#7fd8ff']) {
     for (let i = 0; i < n; i++) { const a = Math.random() * 6.28, v = rnd(2, 8); add({ kind: 'spark', x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, g: 0.12, r: rnd(2, 5), rot: 0, vr: 0, life: rnd(25, 50), c: colors[i % colors.length] }); }
   }
-  function coinShower(n = 80) { for (let i = 0; i < n; i++) add({ kind: 'coin', x: rnd(0, innerWidth), y: rnd(-300, -20), vx: rnd(-1.5, 1.5), vy: rnd(2, 6), g: 0.18, r: rnd(7, 13), rot: Math.random() * 6, vr: rnd(-.25, .25), life: 220 }); }
-  function coinBurst(x, y, n = 30) { for (let i = 0; i < n; i++) { const a = rnd(-Math.PI, 0), v = rnd(4, 11); add({ kind: 'coin', x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 3, g: 0.35, r: rnd(6, 11), rot: Math.random() * 6, vr: rnd(-.3, .3), life: 120 }); } }
-  function confetti(n = 120) { const c = ['#ff5d73', '#35d6ff', '#ffd23f', '#6bff7a', '#c07bff', '#ff9ae8']; for (let i = 0; i < n; i++) add({ kind: 'conf', x: rnd(0, innerWidth), y: rnd(-200, 0), vx: rnd(-2, 2), vy: rnd(1, 4), g: 0.06, r: rnd(4, 8), rot: Math.random() * 6, vr: rnd(-.2, .2), life: 260, c: c[i % c.length] }); }
+  function coinShower(n = 30) { for (let i = 0; i < n; i++) add({ kind: 'coin', x: rnd(0, innerWidth), y: rnd(-300, -20), vx: rnd(-1.5, 1.5), vy: rnd(2, 6), g: 0.18, r: rnd(7, 13), rot: Math.random() * 6, vr: rnd(-.25, .25), life: 220 }); }
+  function coinBurst(x, y, n = 14) { for (let i = 0; i < n; i++) { const a = rnd(-Math.PI, 0), v = rnd(4, 11); add({ kind: 'coin', x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 3, g: 0.35, r: rnd(6, 11), rot: Math.random() * 6, vr: rnd(-.3, .3), life: 120 }); } }
+  function confetti(n = 50) { const c = ['#ff5d73', '#35d6ff', '#ffd23f', '#6bff7a', '#c07bff', '#ff9ae8']; for (let i = 0; i < n; i++) add({ kind: 'conf', x: rnd(0, innerWidth), y: rnd(-200, 0), vx: rnd(-2, 2), vy: rnd(1, 4), g: 0.06, r: rnd(4, 8), rot: Math.random() * 6, vr: rnd(-.2, .2), life: 260, c: c[i % c.length] }); }
 
   window.UI = { $, $$, esc, fmt, short, sleep, show, screen, toast, modal, closeModal, confirm, errMsg, guard, burst, coinShower, coinBurst, confetti, AVATARS, speed: 1 };
 })();

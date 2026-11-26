@@ -263,3 +263,17 @@ test('bozuk istekler ve hız sınırı', async () => {
   for (let i = 0; i < 7; i++) last = await api('POST', '/api/auth/forgot', { email: 'kimse@ornek.com' });
   assert.equal(last.status, 429);
 });
+
+test('bonus satın alma: fiyat %95 RTP katsayısıyla düşer, desteklenmeyen oyunda reddedilir', async () => {
+  await app.close(); await start(mk('buy.db'));
+  const { token, user } = await register('alici2');
+  const cost = Math.round(100 * app.games.zeus.buyCost.fs);
+  const r = await api('POST', '/api/spin', { game: 'zeus', bet: 100, buy: 'fs' }, token);
+  assert.equal(r.status, 200, JSON.stringify(r.body)); assert.equal(r.body.cost, cost);
+  assert.equal(r.body.balance, 50000 - cost + r.body.win);
+  assert.ok(r.body.result.fs && r.body.result.fs.spins.length >= 15);
+  assert.equal(r.body.xp.xp, Math.floor(cost / 100));
+  assert.equal((await api('POST', '/api/spin', { game: 'vegas', bet: 100, buy: 'fs' }, token)).body.error, 'no_buy');
+  assert.equal((await api('POST', '/api/spin', { game: 'zeus', bet: 100000, buy: 'super' }, token)).status, 402);
+  assert.equal(ledgerSum(user.id), r.body.balance);
+});

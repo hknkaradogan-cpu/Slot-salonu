@@ -47,13 +47,13 @@ function tumbleGame(def, S) {
   const free = picker([...def.syms.map(s => s.w), def.scWfs]);
   const mp = picker(def.mults.map(m => m[1]));
   const mv = def.mults.map(m => m[0]);
-  const cell = (rng, fs) => (rng.next() < (fs ? def.multPfs : def.multP)) ? 1000 + mv[mp.pick(rng)] : (fs ? free : base).pick(rng);
+  const cell = (rng, fs, boost) => (rng.next() < (fs ? def.multPfs * (boost ? 2.2 : 1) : def.multP)) ? 1000 + mv[mp.pick(rng)] : (fs ? free : base).pick(rng);
   const payFor = (s, n) => { const p = def.syms[s].pay; return n >= 12 ? p[2] : n >= 10 ? p[1] : n >= 8 ? p[0] : 0; };
   const counts = new Int32Array(nS), winSym = new Uint8Array(nS);
 
-  function sequence(rng, fs, rec) {
+  function sequence(rng, fs, rec, boost) {
     const g = new Int16Array(N);
-    for (let i = 0; i < N; i++) g[i] = cell(rng, fs);
+    for (let i = 0; i < N; i++) g[i] = cell(rng, fs, boost);
     const out = { win: 0, multSum: 0, scat: 0, cascades: 0 };
     if (rec) { out.grid = Array.from(g); out.steps = []; }
     for (;;) {
@@ -75,7 +75,7 @@ function tumbleGame(def, S) {
           if (v < nS && winSym[v]) continue;
           g[c * R + w] = v; w--;
         }
-        for (let r = w; r >= 0; r--) g[c * R + r] = cell(rng, fs);
+        for (let r = w; r >= 0; r--) g[c * R + r] = cell(rng, fs, boost);
       }
       if (rec) out.steps.push({ wins, removed, grid: Array.from(g) });
     }
@@ -89,25 +89,30 @@ function tumbleGame(def, S) {
     const scPay = (def.scPay[Math.min(b.scat, 6)] || 0) * S;
     let total = w + scPay;
     const res = { kind: 'tumble', base: rec ? { ...b, seqWin: w, scPay } : null, fs: null };
-    if (b.scat >= 4) {
-      let left = def.fsCount, acc = 0, fsTotal = 0, n = 0; const spins = rec ? [] : null;
-      while (left > 0 && n < 200) {
-        left--; n++;
-        const q = sequence(rng, true, rec);
-        let sw = q.win, added = 0;
-        if (sw > 0) { added = q.multSum + (def.progressive ? q.cascades : 0); acc += added; if (acc > 0) sw *= acc; }
-        let retrig = 0; if (q.scat >= 3) { left += def.fsRetrig; retrig = def.fsRetrig; }
-        fsTotal += sw;
-        if (rec) spins.push({ ...q, seqWin: sw, acc, added, retrig, left });
-        if (total + fsTotal >= MAX_WIN) break;
-      }
-      total += fsTotal;
-      res.fs = rec ? { count: def.fsCount, spins, total: fsTotal } : true;
-    }
+    if (b.scat >= 4) { const f = fsRun(rng, rec, total, false); total += f.total; res.fs = rec ? f : true; }
     res.win = Math.min(total, MAX_WIN);
     return res;
   }
-  return { play, info: { cols: C, rows: R, syms: def.syms.map((s, i) => ({ id: i, key: s.key, pay: s.pay.map(p => +(p * S).toFixed(2)) })), scPay: Object.fromEntries(Object.entries(def.scPay).map(([k, v]) => [k, +(v * S).toFixed(2)])), fsCount: def.fsCount } };
+  function fsRun(rng, rec, total, boost) {
+    let left = def.fsCount, acc = 0, fsTotal = 0, n = 0; const spins = rec ? [] : null;
+    while (left > 0 && n < 200) {
+      left--; n++;
+      const q = sequence(rng, true, rec, boost);
+      let sw = q.win, added = 0;
+      if (sw > 0) { added = q.multSum + (def.progressive ? q.cascades : 0); acc += added; if (acc > 0) sw *= acc; }
+      let retrig = 0; if (q.scat >= 3) { left += def.fsRetrig; retrig = def.fsRetrig; }
+      fsTotal += sw;
+      if (rec) spins.push({ ...q, seqWin: sw, acc, added, retrig, left });
+      if (total + fsTotal >= MAX_WIN) break;
+    }
+    return { count: def.fsCount, spins, total: fsTotal, boost: !!boost };
+  }
+  // Bonus satın alma: doğrudan ücretsiz dönüş (super: FS'de çarpanlar 2,2 kat daha sık)
+  function buy(rng, rec, kind) {
+    const f = fsRun(rng, rec, 0, kind === 'super');
+    return { kind: 'tumble', bought: kind, base: null, fs: rec ? f : true, win: Math.min(f.total, MAX_WIN) };
+  }
+  return { play, buy, buyKinds: ['fs', 'super'], info: { cols: C, rows: R, syms: def.syms.map((s, i) => ({ id: i, key: s.key, pay: s.pay.map(p => +(p * S).toFixed(2)) })), scPay: Object.fromEntries(Object.entries(def.scPay).map(([k, v]) => [k, +(v * S).toFixed(2)])), fsCount: def.fsCount } };
 }
 
 /* ===================================================================
@@ -171,15 +176,17 @@ function egyptGame(def, S) {
   function play(rng, rec) {
     const b = spin(rng, rec, null);
     let total = b.total; const res = { kind: 'egypt', base: b.rec, fs: null };
-    if (b.nb >= 3) {
-      const special = (rng.next() * 9) | 0; // 0..8 eşit olasılık
-      let left = def.fsCount, n = 0, fsTotal = 0; const spins = rec ? [] : null;
-      while (left > 0 && n < 100) { left--; n++; const q = spin(rng, rec, special); fsTotal += q.total; let rt = 0; if (q.nb >= 3) { left += def.fsCount; rt = def.fsCount; } if (rec) spins.push({ ...q.rec, win: q.total, retrig: rt, left }); if (total + fsTotal >= MAX_WIN) break; }
-      total += fsTotal; res.fs = rec ? { special, count: def.fsCount, spins, total: fsTotal } : true;
-    }
+    if (b.nb >= 3) { const f = fsRun(rng, rec, total); total += f.total; res.fs = rec ? f : true; }
     res.win = Math.min(total, MAX_WIN); return res;
   }
-  return { play, info: lineInfo(def, S) };
+  function fsRun(rng, rec, total) {
+    const special = (rng.next() * 9) | 0; // 0..8 eşit olasılık
+    let left = def.fsCount, n = 0, fsTotal = 0; const spins = rec ? [] : null;
+    while (left > 0 && n < 100) { left--; n++; const q = spin(rng, rec, special); fsTotal += q.total; let rt = 0; if (q.nb >= 3) { left += def.fsCount; rt = def.fsCount; } if (rec) spins.push({ ...q.rec, win: q.total, retrig: rt, left }); if (total + fsTotal >= MAX_WIN) break; }
+    return { special, count: def.fsCount, spins, total: fsTotal };
+  }
+  function buy(rng, rec) { const f = fsRun(rng, rec, 0); return { kind: 'egypt', bought: 'fs', base: null, fs: rec ? f : true, win: Math.min(f.total, MAX_WIN) }; }
+  return { play, buy, buyKinds: ['fs'], info: lineInfo(def, S) };
 }
 
 /* --- Altın Şans: 20 çizgi, wild x2, 3 BONUS = Jackpot Çarkı --- */
@@ -209,8 +216,11 @@ function pirateGame(def, S) {
     for (let i = 0; i < L.N; i++) if (g[i] === COIN) { vals[i] = coinVal(rng); coins++; }
     const lw = evalLines(g, L.lines, L.rows, def, S, rec, {});
     let total = lw.total; let hold = null;
-    if (coins >= def.trigger) {
-      const steps = rec ? [] : null; let left = 3;
+    if (coins >= def.trigger) { const h = holdRun(rng, rec, vals, coins); total += h.win; hold = rec ? h : true; }
+    return { kind: 'pirate', base: rec ? { grid: Array.from(g), values: Array.from(vals), wins: lw.wins } : null, hold, win: Math.min(total, MAX_WIN) };
+  }
+  function holdRun(rng, rec, vals, coins) {
+      const start = Array.from(vals); const steps = rec ? [] : null; let left = 3;
       while (left > 0 && coins < L.N) {
         left--; const landed = rec ? [] : null; let any = false;
         for (let i = 0; i < L.N; i++) if (!vals[i] && rng.next() < def.respinP) { vals[i] = coinVal(rng); coins++; any = true; if (rec) landed.push([i, vals[i]]); }
@@ -220,12 +230,17 @@ function pirateGame(def, S) {
       let sum = 0; for (let i = 0; i < L.N; i++) sum += vals[i];
       const grand = coins === L.N;
       const win = (sum + (grand ? def.grand : 0)) * S;
-      total += win;
-      hold = rec ? { start: Array.from(vals), steps, coins, grand, win } : true;
-    }
-    return { kind: 'pirate', base: rec ? { grid: Array.from(g), values: Array.from(vals), wins: lw.wins } : null, hold, win: Math.min(total, MAX_WIN) };
+      return { start, steps, coins, grand, win };
   }
-  return { play, info: { ...lineInfo(def, S), coinValues: def.coinValues.map(c => +(c[0] * S).toFixed(2)), grand: +(def.grand * S).toFixed(0) } };
+  // Bonus satın alma: 6 sikkeyle doğrudan Sandık Altını
+  function buy(rng, rec) {
+    const g = L.fill(rng, false); const vals = new Int32Array(L.N);
+    for (let i = 0; i < L.N; i++) if (g[i] === COIN) g[i] = (rng.next() * 7) | 0;
+    let placed = 0; while (placed < def.trigger) { const i = (rng.next() * L.N) | 0; if (g[i] !== COIN) { g[i] = COIN; vals[i] = coinVal(rng); placed++; } }
+    const h = holdRun(rng, rec, vals, placed);
+    return { kind: 'pirate', bought: 'fs', base: rec ? { grid: Array.from(g), values: Array.from(vals), wins: [] } : null, hold: rec ? h : true, win: Math.min(h.win, MAX_WIN) };
+  }
+  return { play, buy, buyKinds: ['fs'], info: { ...lineInfo(def, S), coinValues: def.coinValues.map(c => +(c[0] * S).toFixed(2)), grand: +(def.grand * S).toFixed(0) } };
 }
 
 /* --- Vegas Meyveleri: 3x3 klasik, 7 = wild (her biri x2), YILDIZ çarkı, Ekran Dolu x10 --- */
@@ -275,14 +290,16 @@ function dragonGame(def, S) {
   }
   function play(rng, rec) {
     const b = spin(rng, false, rec); let total = b.total; const res = { kind: 'dragon', base: b.rec, fs: null };
-    if (b.sc >= 3) {
-      let left = def.fsBy[Math.min(b.sc, 5)], mult = 1, n = 0, fsTotal = 0; const spins = rec ? [] : null; const cnt = left;
-      while (left > 0 && n < 150) { left--; n++; const q = spin(rng, true, rec); const w = q.total * mult; fsTotal += w; const used = mult; if (q.total > 0) mult++; let rt = 0; if (q.sc >= 3) { rt = 8; left += 8; } if (rec) spins.push({ ...q.rec, win: w, mult: used, retrig: rt, left }); if (total + fsTotal >= MAX_WIN) break; }
-      total += fsTotal; res.fs = rec ? { count: cnt, spins, total: fsTotal } : true;
-    }
+    if (b.sc >= 3) { const f = fsRun(rng, rec, total, def.fsBy[Math.min(b.sc, 5)]); total += f.total; res.fs = rec ? f : true; }
     res.win = Math.min(total, MAX_WIN); return res;
   }
-  return { play, info: { cols, rows, syms: def.keys.map((k, i) => ({ id: i, key: k, pay: def.pays[i] ? def.pays[i].slice(3).map(p => +(p * S).toFixed(2)) : null })), scPay: def.scPay, fsBy: def.fsBy } };
+  function fsRun(rng, rec, total, cnt) {
+    let left = cnt, mult = 1, n = 0, fsTotal = 0; const spins = rec ? [] : null;
+    while (left > 0 && n < 150) { left--; n++; const q = spin(rng, true, rec); const w = q.total * mult; fsTotal += w; const used = mult; if (q.total > 0) mult++; let rt = 0; if (q.sc >= 3) { rt = 8; left += 8; } if (rec) spins.push({ ...q.rec, win: w, mult: used, retrig: rt, left }); if (total + fsTotal >= MAX_WIN) break; }
+    return { count: cnt, spins, total: fsTotal };
+  }
+  function buy(rng, rec) { const f = fsRun(rng, rec, 0, 10); return { kind: 'dragon', bought: 'fs', base: null, fs: rec ? f : true, win: Math.min(f.total, MAX_WIN) }; }
+  return { play, buy, buyKinds: ['fs'], info: { cols, rows, syms: def.keys.map((k, i) => ({ id: i, key: k, pay: def.pays[i] ? def.pays[i].slice(3).map(p => +(p * S).toFixed(2)) : null })), scPay: def.scPay, fsBy: def.fsBy } };
 }
 
 function lineInfo(def, S) {
@@ -409,7 +426,8 @@ function buildGames(scales) {
   for (const id of ORDER) {
     const d = DEFS[id]; const S = (cal[id] && cal[id].scale) || 1;
     const g = d.make(d.def, S);
-    games[id] = { id, name: d.name, family: d.family, scale: S, play: g.play, info: g.info, cal: cal[id] || null };
+    const buyCost = {}; for (const k of (g.buyKinds || [])) { const c = cal[id] && cal[id].buy && cal[id].buy[k]; if (c) buyCost[k] = c; }
+    games[id] = { id, name: d.name, family: d.family, scale: S, play: g.play, buy: g.buy, buyKinds: g.buyKinds || [], buyCost, info: { ...g.info, buyCost }, cal: cal[id] || null };
   }
   return games;
 }

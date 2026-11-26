@@ -2,12 +2,19 @@
   "zeus": {
     "scale": 2.1763747,
     "calibratedWithSpins": 120000000,
-    "date": "2026-11-25T23:15:37.287Z"
+    "date": "2026-11-25T23:15:37.287Z",
+    "buy": {
+      "fs": 51,
+      "super": 91.1
+    }
   },
   "misir": {
     "scale": 1.0585241,
     "calibratedWithSpins": 120000000,
-    "date": "2026-11-25T23:16:14.221Z"
+    "date": "2026-11-25T23:16:14.221Z",
+    "buy": {
+      "fs": 49.4
+    }
   },
   "vegas": {
     "scale": 2.4920074,
@@ -17,17 +24,27 @@
   "peri": {
     "scale": 1.7563051,
     "calibratedWithSpins": 120000000,
-    "date": "2026-11-25T23:17:53.139Z"
+    "date": "2026-11-25T23:17:53.139Z",
+    "buy": {
+      "fs": 71.2,
+      "super": 97.8
+    }
   },
   "ejderha": {
     "scale": 3.8761457,
     "calibratedWithSpins": 120000000,
-    "date": "2026-11-25T23:18:36.467Z"
+    "date": "2026-11-25T23:18:36.467Z",
+    "buy": {
+      "fs": 44.8
+    }
   },
   "korsan": {
     "scale": 2.0382027,
     "calibratedWithSpins": 120000000,
-    "date": "2026-11-25T23:19:15.337Z"
+    "date": "2026-11-25T23:19:15.337Z",
+    "buy": {
+      "fs": 113.8
+    }
   },
   "altin": {
     "scale": 1.1044674,

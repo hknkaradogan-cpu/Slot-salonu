@@ -15,14 +15,14 @@ const path = require('path');
 if (!isMainThread) {
   const { buildGames } = require('../src/games/engine');
   const { FastRng } = require('../src/games/rng');
-  const { id, spins, seed, scales } = workerData;
+  const { id, spins, seed, scales, buyKind } = workerData;
   const g = buildGames(scales)[id];
   const rng = new FastRng(seed);
   let sum = 0, sumSq = 0, hits = 0, feat = 0, max = 0, featWin = 0;
   const buckets = new Float64Array(9); // 0, <1, 1-2, 2-5, 5-20, 20-100, 100-500, 500-1000, 1000+
   const edges = [1e-12, 1, 2, 5, 20, 100, 500, 1000];
   for (let i = 0; i < spins; i++) {
-    const r = g.play(rng, false);
+    const r = buyKind ? g.buy(rng, false, buyKind) : g.play(rng, false);
     const w = r.win;
     sum += w; sumSq += w * w;
     if (w > 0) hits++;
@@ -45,10 +45,10 @@ const threads = Math.max(1, os.cpus().length);
 const calibrate = flag('calibrate');
 const baseSeed = opt('seed', String(Date.now()));
 
-function runGame(id, scales) {
+function runGame(id, scales, buyKind) {
   const per = Math.ceil(spins / threads);
   return Promise.all(Array.from({ length: threads }, (_, t) => new Promise((res, rej) => {
-    const w = new Worker(__filename, { workerData: { id, spins: per, seed: `${baseSeed}:${id}:${t}`, scales } });
+    const w = new Worker(__filename, { workerData: { id, spins: per, seed: `${baseSeed}:${id}:${t}${buyKind || ''}`, scales, buyKind } });
     w.on('message', res); w.on('error', rej);
   }))).then(parts => {
     const a = parts.reduce((x, y) => ({ sum: x.sum + y.sum, sumSq: x.sumSq + y.sumSq, hits: x.hits + y.hits, feat: x.feat + y.feat, featWin: x.featWin + y.featWin, max: Math.max(x.max, y.max), buckets: x.buckets.map((v, i) => v + y.buckets[i]) }));
@@ -63,6 +63,17 @@ function runGame(id, scales) {
   const results = [];
   for (const id of games) {
     const t1 = Date.now();
+    if (flag('buy')) {
+      const G = require('../src/games/engine').buildGames(cal)[id];
+      for (const k of G.buyKinds) {
+        const r = await runGame(id, cal, k);
+        if (flag('set')) { cal[id].buy = cal[id].buy || {}; cal[id].buy[k] = Math.round(r.rtp / 0.95 * 10) / 10; }
+        const cost = (cal[id].buy || {})[k];
+        console.log(`${r.name.padEnd(18)} SATIN AL ${k.padEnd(5)} beklenen ${r.rtp.toFixed(2)}x ±${r.ci95.toFixed(2)} · fiyat ${cost}x bahis · RTP ${cost ? (r.rtp / cost * 100).toFixed(2) + '%' : '-'} · maks ${r.maxWin.toFixed(0)}x (${r.spins} satın alma)`);
+        results.push({ ...r, buyKind: k, cost, buyRtp: cost ? r.rtp / cost : null });
+      }
+      continue;
+    }
     if (calibrate) {
       const raw = await runGame(id, { [id]: { scale: 1 } });
       let scale = 0.95 / raw.rtp;
@@ -77,7 +88,7 @@ function runGame(id, scales) {
       console.log(`${r.name.padEnd(18)} RTP ${(r.rtp * 100).toFixed(3)}% ±${(r.ci95 * 100).toFixed(3)}  hit ${(r.hitRate * 100).toFixed(1)}%  SD ${r.sd.toFixed(2)}  feature 1/${(1 / r.featureRate).toFixed(0)}  max ${r.maxWin.toFixed(0)}x  (${((Date.now() - t1) / 1000).toFixed(0)} s)`);
     }
   }
-  if (calibrate) fs.writeFileSync(CAL_FILE, JSON.stringify(cal, null, 2));
+  if (calibrate || (flag('buy') && flag('set'))) fs.writeFileSync(CAL_FILE, JSON.stringify(cal, null, 2));
   else {
     const out = opt('out', null);
     if (out) fs.writeFileSync(out, JSON.stringify({ date: new Date().toISOString(), seed: baseSeed, spinsPerGame: spins, results }, null, 2));

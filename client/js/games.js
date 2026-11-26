@@ -28,26 +28,43 @@
     const th = G.th;
     const hero = th.heroAlpha ? `<img class="heroimg alpha" src="assets/${th.heroImg}.webp" alt="">` : `<img class="heroimg" src="assets/${th.heroImg}.webp" alt="">`;
     const jpBars = id === 'korsan' ? `<div class="jpbars"><div class="jp major">MAJOR<b id="jpMajor"></b></div><div class="jp grand">GRAND<b id="jpGrand"></b></div></div>` : id === 'altin' ? `<div class="jpbars"><div class="jp grand" style="flex:1">JACKPOT ÇARKI<b id="jpGrand"></b></div></div>` : '';
-    const s = UI.screen('game', `<div class="bgart"><div class="rays"></div></div>
+    const buyC = meta.info.buyCost || {};
+    const buyBtns = (buyC.fs ? `<button class="buybtn" id="buyFs"><small>FREE SPIN</small>SATIN AL<b id="buyFsC"></b></button>` : '') + (buyC.super ? `<button class="buybtn super" id="buySuper"><small>SÜPER</small>FREE SPIN<b id="buySuperC"></b></button>` : '');
+    const s = UI.screen('game', `<div class="bgart"></div>
       <div class="ghead"><button class="iconbtn" id="gBack">◀</button>
         <div class="lvlbox"><div class="nm"><span class="lvl" id="tLvl"></span><span id="tName"></span></div><div class="xpbar"><i id="tXp"></i><em id="tXpT"></em></div></div>
         <div class="coins" id="tCoins"><span class="c">🪙</span><span id="tBal"></span><span class="plus" id="gShop">+</span></div></div>
-      <div class="hero">${hero}<div class="meter meterL hidden" id="mL"></div><div class="meter hidden" id="mR"></div></div>${jpBars}
-      <div class="center gold" style="font-weight:900;font-size:22px;margin-top:-4px;z-index:3">${esc(meta.name)}</div>
+      <div class="gtop">
+        <div class="sidebox" id="mL"><small>TOPLAM ÇARPAN</small><b>x0</b></div>
+        <div class="hero">${hero}<div class="gtitle gold">${esc(meta.name)}</div></div>
+        <div class="sidebox" id="mR"><small>KALAN FREE SPIN</small><b>—</b></div>
+      </div>${jpBars}
+      ${buyBtns ? `<div class="buyrow">${buyBtns}</div>` : ''}
       <div class="machine" id="machine"><div class="reels" id="reels"></div><svg class="linesvg" id="lineSvg"></svg><div id="fsBar"></div></div>
-      <div class="winline winframe" id="winLine"><span class="muted small">${esc(meta.tag)}</span></div>
-      <div class="controls">
-        <button class="imgbtn" id="gInfo"><img src="assets/ui_info.webp" alt="i"></button>
-        <div class="betbox"><span class="lbl">BAHİS</span><div class="row"><button class="imgbtn" id="bMinus"><img src="assets/b_minus.webp" alt="-"></button><div class="val" id="bVal"></div><button class="imgbtn" id="bPlus"><img src="assets/b_plus.webp" alt="+"></button></div></div>
-        <button class="spinbtn img" id="gSpin"><img src="assets/b_spin.webp" alt="DÖNDÜR"></button>
-        <div class="betbox"><span class="lbl">OTO / TURBO</span><div class="row"><button class="imgbtn" id="gAuto"><img src="assets/b_auto.webp" alt="AUTO"><span class="autoN"></span></button><button class="rbtn ${G.turbo ? 'on' : ''}" id="gTurbo">⚡</button></div></div>
+      <div class="winline" id="winLine"><span class="muted small">${esc(meta.tag)}</span></div>
+      <div class="gbar">
+        <button class="gb small" id="gInfo">ℹ</button>
+        <div class="betgrp"><button class="gb" id="bMinus">−</button><div class="betv"><b id="bVal"></b><small>TOPLAM BAHİS</small></div><button class="gb" id="bPlus">+</button></div>
+        <button class="gb max" id="bMax">MAKS<br>BAHİS</button>
+        <button class="spinpill" id="gSpin"><span class="t1">SPIN</span><span class="t2">basılı tut: OTO</span></button>
+        <div class="row" style="flex-direction:column;gap:4px"><button class="gb small" id="gAuto">A<span class="autoN"></span></button><button class="gb small ${G.turbo ? 'on' : ''}" id="gTurbo">⚡</button></div>
       </div>`, 'gscreen');
     s.style.cssText = `--b1:${th.b1};--b2:${th.b2};--glow:${th.glow}`;
     if (G.rows <= 3) s.classList.add('tall');
+    const bc = () => { const b = App.bets[G.betIdx]; if ($('#buyFsC')) $('#buyFsC').textContent = short(Math.round(b * buyC.fs)); if ($('#buySuperC')) $('#buySuperC').textContent = short(Math.round(b * buyC.super)); }; G.updBuy = bc;
     UI.show('game'); Screens.renderTop();
-    sizeGrid(); buildGrid(); initialFill(); renderBet();
+    meter('L'); meter('R'); sizeGrid(); buildGrid(); fitGrid(); initialFill(); renderBet();
     $('#gBack').onclick = close; $('#gShop').onclick = () => { close(); Screens.shop(); };
-    $('#gInfo').onclick = info; $('#gSpin').onclick = () => { if (G.auto) { G.auto = 0; renderAuto(); } else if (G.spinning) G.skip = true; else spin(); };
+    $('#gInfo').onclick = info;
+    // SPIN: dokun = döndür, dönerken dokun = STOP (animasyonu hızlandır), basılı tut = otomatik menü
+    let pressT = null, longFired = false;
+    const sp = $('#gSpin');
+    sp.addEventListener('pointerdown', () => { longFired = false; pressT = setTimeout(() => { longFired = true; if (!G.spinning) autoMenu(); }, 650); });
+    sp.addEventListener('pointerup', () => clearTimeout(pressT)); sp.addEventListener('pointerleave', () => clearTimeout(pressT));
+    sp.onclick = () => { if (longFired) return; if (G.auto) { G.auto = 0; renderAuto(); } else if (G.spinning) { G.skip = true; G.speed = 0.35; } else spin(); };
+    $('#bMax').onclick = () => { if (!G.spinning) { G.betIdx = App.bets.length - 1; while (G.betIdx > 0 && !App.me.unlimited && App.bets[G.betIdx] > App.me.balance) G.betIdx--; renderBet(); Sound.play('click'); } };
+    if ($('#buyFs')) $('#buyFs').onclick = () => buyBonus('fs');
+    if ($('#buySuper')) $('#buySuper').onclick = () => buyBonus('super');
     $('#bMinus').onclick = () => { if (!G.spinning) { G.betIdx = Math.max(0, G.betIdx - 1); renderBet(); Sound.play('click'); } };
     $('#bPlus').onclick = () => { if (!G.spinning) { G.betIdx = Math.min(App.bets.length - 1, G.betIdx + 1); renderBet(); Sound.play('click'); } };
     $('#gTurbo').onclick = (e) => { G.turbo = !G.turbo; G.speed = G.turbo ? 0.5 : 1; e.currentTarget.classList.toggle('on', G.turbo); document.documentElement.style.setProperty('--speed', G.speed); };
@@ -58,9 +75,21 @@
   function renderBet() {
     const b = App.bets[G.betIdx]; $('#bVal').textContent = short(b); localStorage.setItem('slot_bet_' + G.id, b);
     const inf = G.meta.info; if ($('#jpGrand')) $('#jpGrand').textContent = short(Math.round((G.id === 'korsan' ? inf.grand : Math.max(...inf.wheel.map(w => w.value))) * b));
+    G.updBuy && G.updBuy();
     if ($('#jpMajor')) $('#jpMajor').textContent = short(Math.round(inf.coinValues[inf.coinValues.length - 1] * b));
   }
-  function renderAuto() { const b = $('#gAuto'); if (!b) return; b.querySelector('.autoN').textContent = G.auto ? (G.auto > 900 ? '∞' : G.auto) : ''; b.classList.toggle('on', !!G.auto); $('#gSpin').classList.toggle('auto', !!G.auto); }
+  function renderAuto() { const b = $('#gAuto'); if (!b) return; b.querySelector('.autoN').textContent = G.auto ? (G.auto > 900 ? '∞' : G.auto) : ''; b.classList.toggle('on', !!G.auto); spinLabel(); }
+  function spinLabel() { const b = $('#gSpin'); if (!b) return; const stop = G.spinning || G.auto; b.classList.toggle('stop', !!stop); b.querySelector('.t1').textContent = stop ? 'STOP' : 'SPIN'; b.querySelector('.t2').textContent = G.auto ? (G.auto > 900 ? 'OTO ∞' : 'OTO ' + G.auto) : stop ? 'hızlandır' : 'basılı tut: OTO'; }
+  async function buyBonus(kind) {
+    if (G.spinning) return;
+    const bet = App.bets[G.betIdx], cost = Math.round(bet * G.meta.info.buyCost[kind]);
+    const art = G.id === 'zeus' ? 'b_scatter' : G.id === 'peri' ? 'a_scatter' : G.id === 'korsan' ? 'a_chest' : G.id === 'misir' ? 'a_bonus' : 'a_bonus';
+    const desc = kind === 'super' ? 'Süper free spin: çarpan sembolleri 2,2 kat daha sık düşer.' : G.meta.family === 'pirate' ? '6 altın sikkeyle Sandık Altını bonusu başlar.' : G.meta.family === 'ways' ? '10 ücretsiz dönüş, her kazançta çarpan +1.' : `${G.meta.info.fsCount || 10} ücretsiz dönüş hemen başlar.`;
+    const ok = await modal(`<h3 class="gold">${kind === 'super' ? 'SÜPER FREE SPIN' : 'FREE SPIN'} SATIN AL</h3><div class="center"><img src="assets/${art}.webp" style="width:170px;filter:drop-shadow(0 0 16px #ffd34d)" alt=""></div>
+      <div class="center gold" style="font-size:44px;font-weight:900">${fmt(cost)}</div><p class="center small">${desc}<br>Bahis: ${fmt(bet)} · Fiyat bahsin ${G.meta.info.buyCost[kind]} katı · RTP %95</p>
+      <div class="row"><button class="btn red grow" data-close="0">✕</button><button class="btn green grow" data-close="1">✓ SATIN AL</button></div>`);
+    if (ok === '1') spin(kind);
+  }
   function autoMenu() {
     if (G.auto) { G.auto = 0; renderAuto(); return; }
     modal(`<h3 class="gold">Otomatik Dönüş</h3><div class="row wrap" style="justify-content:center">${[10, 25, 50, 100, 999].map(n => `<button class="btn purple" data-n="${n}">${n > 900 ? '∞' : n}</button>`).join('')}</div><p class="small muted center">Bonus özelliği tetiklendiğinde veya bakiye yetmediğinde durur. Durdurmak için dönüş butonuna dokun.</p>`, {
@@ -68,10 +97,18 @@
     });
   }
   function sizeGrid() {
-    const W = Math.min(innerWidth, 520) - 24 - 28; const H = innerHeight - 380;
+    const W = Math.min(innerWidth, 520) - 16 - 28; const H = innerHeight - (G.meta.info.buyCost && Object.keys(G.meta.info.buyCost).length ? 450 : 400);
     const byW = Math.floor((W - 4 * (G.cols - 1)) / G.cols); const byH = Math.floor((H - 4 * (G.rows - 1)) / G.rows);
-    const cell = Math.max(40, Math.min(byW, byH, G.cols <= 3 ? 104 : 84));
+    const cell = Math.max(40, Math.min(byW, byH, G.cols <= 3 ? 110 : 92));
     $('#game').style.setProperty('--cell', cell + 'px'); G.cell = cell; G.step = cell + 4;
+  }
+  // Izgarayı ekranda kalan dikey boşluğu dolduracak kadar büyüt (genişlik sınırı içinde)
+  function fitGrid() {
+    const bar = $('.gbar'), wl = $('#winLine'); if (!bar || !wl) return;
+    const free = bar.getBoundingClientRect().top - wl.getBoundingClientRect().bottom - 6;
+    const W = Math.min(innerWidth, 520) - 16 - 28; const byW = Math.floor((W - 4 * (G.cols - 1)) / G.cols);
+    const cell = Math.max(40, Math.min(byW, G.cell + Math.floor(free / G.rows), G.cols <= 3 ? 116 : 96));
+    if (cell !== G.cell) { $('#game').style.setProperty('--cell', cell + 'px'); G.cell = cell; G.step = cell + 4; }
   }
   function buildGrid() {
     const r = $('#reels'); r.style.gridTemplateColumns = `repeat(${G.cols}, var(--cell))`; r.innerHTML = ''; G.boxes = [];
@@ -88,7 +125,11 @@
   function initialFill() { for (let i = 0; i < G.boxes.length; i++) setCell(i, randCode(), '', -G.step * (G.rows + 1), ((i / G.rows) | 0) * 0.05); }
   function center(i) { const r = G.boxes[i].getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }
   function setWin(amount, label) { $('#winLine').innerHTML = amount > 0 ? `<span>${label || 'KAZANÇ'}</span><span class="v">${fmt(amount)}</span>` : `<span class="muted small">${esc(G.meta.tag)}</span>`; }
-  function meter(side, html) { const m = $(side === 'L' ? '#mL' : '#mR'); if (!html) { m.classList.add('hidden'); return; } m.classList.remove('hidden'); m.innerHTML = html; }
+  function meter(side, html) {
+    const m = $(side === 'L' ? '#mL' : '#mR'); if (!m) return;
+    if (!html) { m.innerHTML = side === 'L' ? `<small>${G.meta.family === 'ways' ? 'ÇARPAN' : G.meta.family === 'tumble' ? 'TOPLAM ÇARPAN' : 'BONUS'}</small><b>${G.meta.family === 'ways' ? 'x1' : G.meta.family === 'tumble' ? 'x0' : '—'}</b>` : `<small>KALAN FREE SPIN</small><b>—</b>`; m.classList.remove('lit'); return; }
+    const mm = /^(.*?)<b[^>]*>(.*)<\/b>$/.exec(html); m.innerHTML = mm ? `<small>${mm[1]}</small><b>${mm[2]}</b>` : html; m.classList.add('lit');
+  }
   function fsBar(text) { $('#fsBar').innerHTML = text ? `<div class="fsbar">${text}</div>` : ''; }
   function clearLines() { $('#lineSvg').innerHTML = ''; $$('.expandcol').forEach(e => e.remove()); }
   function dimAll(on) { G.boxes.forEach(b => b.firstElementChild && b.firstElementChild.classList.toggle('dim', on)); }
@@ -96,32 +137,33 @@
   function unmark() { G.boxes.forEach(b => { const s = b.firstElementChild; if (s) s.classList.remove('win', 'dim'); }); }
 
   /* ---------- spin ---------- */
-  async function spin() {
+  async function spin(buyKind) {
     if (G.spinning || !G.open) return;
     const bet = App.bets[G.betIdx], me = App.me;
-    if (!me.unlimited && me.balance < bet) {
+    const cost = buyKind ? Math.round(bet * G.meta.info.buyCost[buyKind]) : bet;
+    if (!me.unlimited && me.balance < cost) {
       G.auto = 0; renderAuto(); Sound.play('error');
       const go = await UI.confirm('Bu bahis için yeterli jetonun yok. Mağazaya gitmek ister misin?', 'Mağaza'); if (go) { close(); Screens.shop(); }
       return;
     }
-    G.spinning = true; G.skip = false; $('#gSpin').classList.add('busy'); clearLines(); unmark(); setWin(0); meter('L'); meter('R'); fsBar('');
-    if (!me.unlimited) Screens.setBalance(me.balance - bet);
+    G.spinning = true; G.skip = false; G.speed = G.turbo ? 0.5 : 1; spinLabel(); clearLines(); unmark(); setWin(0); meter('L'); meter('R'); fsBar('');
+    if (!me.unlimited) Screens.setBalance(me.balance - cost);
     Sound.play('spin'); Sound.vibrate(15);
     const key = Api.uuid();
-    const vis = startVisual();
+    const vis = buyKind && G.meta.family !== 'pirate' ? null : startVisual();
     let r;
-    try { r = G.demo.length ? demoResp(G.demo.shift(), bet) : await Api.retrying('POST', '/api/spin', { game: G.id, bet, key }); }
+    try { r = G.demo.length ? demoResp(G.demo.shift(), bet) : await Api.retrying('POST', '/api/spin', { game: G.id, bet, key, buy: buyKind || undefined }); }
     catch (e) {
       stopVisualRandom(vis); toast(e.message, true); G.auto = 0; renderAuto();
-      await Screens.refresh().catch(() => {}); G.spinning = false; $('#gSpin').classList.remove('busy'); return;
+      await Screens.refresh().catch(() => {}); G.spinning = false; spinLabel(); return;
     }
     const myGen = G.gen;
     try { await ANIM[G.meta.family](r, vis, bet); } catch (e) { if (e !== ABORT) console.error(e); }
     if (vis && vis.iv) clearInterval(vis.iv);
     if (myGen !== G.gen || !G.open) { finishQuiet(r); return; }
     setWin(r.win, r.win >= bet * 10 ? 'TOPLAM KAZANÇ' : 'KAZANÇ');
-    if (r.win >= bet * 10) await bigWin(r.win, r.win / bet);
-    else if (r.win > 0) { Sound.play('win'); const c = $('#reels').getBoundingClientRect(); UI.coinBurst(c.left + c.width / 2, c.top + c.height / 2, Math.min(40, 8 + r.win / bet * 3)); }
+    if (r.win >= (r.cost || bet) * 10 || (r.buy && r.win >= bet * 20)) await bigWin(r.win, r.win / bet);
+    else if (r.win > 0) { Sound.play('win'); const c = $('#reels').getBoundingClientRect(); UI.coinBurst(c.left + c.width / 2, c.top + c.height / 2, Math.min(18, 4 + r.win / bet * 2)); }
     finish(r);
     const feature = !!(r.result.fs || r.result.hold || r.result.wheel);
     if (G.auto && G.open) {
@@ -136,7 +178,7 @@
   function finish(r) {
     const me = App.me; Screens.setBalance(r.balance, r.win > 0);
     Object.assign(me, { xp: r.xp.xp, level: r.xp.level, xpInto: r.xp.into, xpNeed: r.xp.need, maxLevel: r.xp.max });
-    Screens.renderTop(); G.spinning = false; const b = $('#gSpin'); b && b.classList.remove('busy');
+    Screens.renderTop(); G.spinning = false; G.speed = G.turbo ? 0.5 : 1; spinLabel();
     if (r.xp.levelUp) levelUp(r.xp.levelUp);
   }
   async function levelUp(L) {
@@ -156,6 +198,8 @@
     return vis;
   }
   function stopVisualRandom(vis) { if (vis && vis.iv) clearInterval(vis.iv); initialFill(); }
+  function sideL(label, val) { const m = $('#mL'); if (m) m.innerHTML = `<small>${label}</small><b>${val}</b>`; }
+  function sideR(label, val) { const m = $('#mR'); if (m) m.innerHTML = `<small>${label}</small><b>${val}</b>`; }
   async function stopReels(vis, grid, decor) {
     for (let c = 0; c < G.cols; c++) {
       await sleep(c === 0 ? 260 : 130);
@@ -235,16 +279,16 @@
     });
   }
   function bigWin(win, x) {
-    const t = x >= 100 ? 'EFSANE KAZANÇ!' : x >= 50 ? 'SÜPER KAZANÇ!' : x >= 25 ? 'MEGA KAZANÇ!' : 'BÜYÜK KAZANÇ!';
+    const t = x >= 100 ? 'EPIC<br>WIN' : x >= 50 ? 'SUPER<br>WIN' : x >= 25 ? 'MEGA<br>WIN' : 'BIG<br>WIN';
     return new Promise(res => {
       const d = document.createElement('div'); d.className = 'bigwin';
       const tier = x >= 50 ? 2 : 1;
-      d.innerHTML = `<div class="rays"></div><img class="bwfx pl" src="assets/fx_pillar.webp" alt=""><img class="bwfx pr" src="assets/fx_pillar.webp" alt=""><img class="bwfx sun" src="assets/fx_orange.webp" alt=""><img class="bwfx sun2" src="assets/fx_burstp.webp" alt="">
+      d.innerHTML = `<div class="rays"></div><img class="bwfx sun" src="assets/fx_orange.webp" alt="">
         ${tier >= 2 ? '<img src="assets/a_jackpot.webp" style="position:relative;width:300px;animation:pulse 1s infinite;filter:drop-shadow(0 0 20px #ff59d6)" alt="">' : ''}
-        <div class="t gold">${t}</div><div class="n" id="bwN">0</div>${tier >= 2 ? '<img src="assets/b_chest.webp" style="position:relative;width:240px;margin-top:6px;animation:floaty 2s infinite" alt="">' : ''}<div class="s">x${(Math.round(x * 10) / 10)} · Geçmek için dokun</div>`;
+        <div class="t bigwintxt">${t}</div><div class="n winpill" id="bwN">0</div>${tier >= 2 ? '<img src="assets/b_chest.webp" style="position:relative;width:240px;margin-top:6px;animation:floaty 2s infinite" alt="">' : ''}<div class="s">x${(Math.round(x * 10) / 10)} · Geçmek için dokun</div>`;
       document.body.appendChild(d); Sound.play('bigwin'); Sound.vibrate([60, 40, 60]);
       const dur = Math.min(5000, 1800 + x * 15) * G.speed; const t0 = performance.now(); let done = false;
-      const iv = setInterval(() => { UI.coinShower(25); fxs(Math.random() < .5 ? 'fx_coins' : 'fx_crystal', innerWidth * (.2 + Math.random() * .6), innerHeight * (.25 + Math.random() * .4), 220, .9, { s: 1.5 }); if (x >= 50) fxs('fx_confetti', innerWidth / 2, innerHeight * .35, 320, 1, { s: 1.4, r1: 0 }); }, 350);
+      UI.coinShower(40); const iv = setInterval(() => UI.coinShower(10), 700);
       const step = (now) => { if (done) return; const bn = $('#bwN'); if (!bn) { end(); return; } const p = Math.min(1, (now - t0) / dur); bn.textContent = fmt(win * (1 - Math.pow(1 - p, 3))); if (p < 1) requestAnimationFrame(step); else { Sound.play('coin'); setTimeout(end, 1300); } };
       const end = () => { if (done) return; done = true; clearInterval(iv); const n = $('#bwN'); n && (n.textContent = fmt(win)); setTimeout(() => { d.remove(); res(); }, 150); };
       d.onclick = end; requestAnimationFrame(step);
@@ -282,8 +326,8 @@
       const rem = new Set(st.removed); rem.forEach(i => G.boxes[i].firstElementChild.classList.add('win'));
       running += st.wins.reduce((a, w) => a + w.pay, 0) * bet; setWin(Math.round(running), 'ZİNCİR');
       Sound.play('win'); await sleep(G.skip ? 150 : 650);
-      rem.forEach((i, k) => { const s = G.boxes[i].firstElementChild; s.classList.remove('win'); s.classList.add('pop'); const c = center(i); UI.burst(c.x, c.y, 10); if (k % 2 === 0) fxs(G.id === 'zeus' ? 'fx_blue' : 'fx_orange', c.x, c.y, G.cell * 1.5, 0.6, { s: 1.3 }); });
-      { const m = reelsMid(); const pay = st.wins.reduce((a, w) => a + w.pay, 0); if (pay >= 5) fxs('fx_coins', m.x, m.y, m.w * 0.7, 0.9, { s: 1.5, r1: 10 }); if (pay >= 12) fxs('fx_crystal', m.x, m.y, m.w * 0.8, 1, { s: 1.5, r1: 20 }); }
+      rem.forEach((i, k) => { const s = G.boxes[i].firstElementChild; s.classList.remove('win'); s.classList.add('pop'); const c = center(i); UI.burst(c.x, c.y, 5); });
+      { const m = reelsMid(); const pay = st.wins.reduce((a, w) => a + w.pay, 0); if (pay >= 5) fxs('fx_coins', m.x, m.y, m.w * 0.6, 0.9, { s: 1.4, r1: 10 }); }
       Sound.play('pop'); Sound.vibrate(20); await sleep(380);
       for (let c = 0; c < G.cols; c++) {
         const removedRows = []; for (let r = 0; r < R; r++) if (rem.has(c * R + r)) removedRows.push(r);
@@ -319,28 +363,31 @@
   ANIM.tumble = async (r, vis, bet) => {
     const res = r.result, b = res.base;
     await sleep(120);
-    await playSequence(b, bet, null);
-    let shown = b.seqWin * bet + b.scPay * bet;
-    if (b.seqWin) setWin(Math.round(b.seqWin * bet));
-    const scPos = []; b.steps && (b.steps.length ? b.steps[b.steps.length - 1].grid : b.grid).forEach((v, i) => { if (v === nSyms()) scPos.push(i); });
+    let shown = 0;
+    if (b) {
+      await playSequence(b, bet, null);
+      shown = b.seqWin * bet + b.scPay * bet;
+      if (b.seqWin) setWin(Math.round(b.seqWin * bet));
+      const scPos = []; (b.steps.length ? b.steps[b.steps.length - 1].grid : b.grid).forEach((v, i) => { if (v === nSyms()) scPos.push(i); });
+      if (res.fs) { markWin(scPos); scPos.forEach(i => { const c = center(i); UI.burst(c.x, c.y, 16, ['#fff', '#ffd34d']); }); await sleep(900); unmark(); }
+    }
     if (res.fs) {
-      markWin(scPos); scPos.forEach(i => { const c = center(i); UI.burst(c.x, c.y, 24, ['#fff', '#ffd34d']); }); await sleep(900); unmark();
-      await overlayBanner(`${res.fs.count} ÜCRETSİZ DÖNÜŞ!`, b.scPay ? `Scatter ödülü: ${fmt(b.scPay * bet)}` : '', 2200, G.id === 'zeus' ? '⚡' : '🧚');
+      await overlayBanner(`${res.fs.count} ÜCRETSİZ DÖNÜŞ!`, res.fs.boost ? 'SÜPER: çarpanlar daha sık!' : b && b.scPay ? `Scatter ödülü: ${fmt(b.scPay * bet)}` : '', 2200, G.id === 'zeus' ? '⚡' : '🧚');
       let total = 0, n = 0;
       for (const sp of res.fs.spins) {
         if (!G.open) break; n++;
-        fsBar(`ÜCRETSİZ DÖNÜŞ ${n} · Kalan ${sp.left}`);
-        meter('R', `TOPLAM ÇARPAN<b>x${sp.acc - (sp.seqWin ? sp.added : 0)}</b>`);
-        meter('L', `BONUS KAZANÇ<b>${short(Math.round(total))}</b>`);
+        fsBar(`BONUS KAZANÇ ${fmt(Math.round(total))}`);
+        meter('L', `TOPLAM ÇARPAN<b>x${sp.acc - (sp.seqWin ? sp.added : 0)}</b>`);
+        meter('R', `KALAN FREE SPIN<b>${sp.left}</b>`);
         G.boxes.forEach((bx) => { const s = bx.firstElementChild; if (s) { s.style.transition = `transform ${0.25 * G.speed}s ease-in, opacity .25s`; s.style.transform = `translateY(${G.step * (G.rows + 1)}px)`; s.style.opacity = '0'; } });
         await sleep(260);
         await playSequence(sp, bet, sp.seqWin ? sp.acc : null);
-        meter('R', `TOPLAM ÇARPAN<b>x${sp.acc}</b>`);
-        total += sp.seqWin * bet; meter('L', `BONUS KAZANÇ<b>${short(Math.round(total))}</b>`);
+        meter('L', `TOPLAM ÇARPAN<b>x${sp.acc}</b>`);
+        total += sp.seqWin * bet; fsBar(`BONUS KAZANÇ ${fmt(Math.round(total))}`);
         if (sp.retrig) { await overlayBanner(`+${sp.retrig} DÖNÜŞ!`, 'Ekstra ücretsiz dönüş kazandın', 1400, '✨'); }
         await sleep(G.skip ? 120 : 380);
       }
-      fsBar(''); await overlayBanner('BONUS BİTTİ', `Toplam: ${fmt(Math.round(total))} jeton`, 2000, '🏆');
+      fsBar(''); meter('L'); meter('R'); await overlayBanner('BONUS BİTTİ', `Toplam: ${fmt(Math.round(total))} jeton`, 2000, '🏆');
       shown += total;
     }
     return shown;
@@ -349,10 +396,10 @@
   // 2) MISIR HAZİNELERİ
   ANIM.egypt = async (r, vis, bet) => {
     const res = r.result, b = res.base;
-    await stopReels(vis, b.grid);
-    let shown = await showWins(b.wins, bet);
-    const books = []; b.grid.forEach((v, i) => { if (v === 9) books.push(i); });
-    if (b.scPay) { dimAll(true); markWin(books); setWin(Math.round(b.scPay * bet), 'KİTAP ÖDÜLÜ'); Sound.play('feature'); await sleep(1200); unmark(); }
+    let shown = 0;
+    const books = [];
+    if (b) { await stopReels(vis, b.grid); shown = await showWins(b.wins, bet); b.grid.forEach((v, i) => { if (v === 9) books.push(i); }); }
+    if (b && b.scPay) { dimAll(true); markWin(books); setWin(Math.round(b.scPay * bet), 'KİTAP ÖDÜLÜ'); Sound.play('feature'); await sleep(1200); unmark(); }
     if (res.fs) {
       await overlayBanner(`${res.fs.count} ÜCRETSİZ DÖNÜŞ!`, 'Özel genişleyen sembol seçiliyor…', 1600, '📖');
       await new Promise(rs => {
@@ -367,7 +414,7 @@
       meter('L', `ÖZEL<div class="cellbox" style="--cell:46px;width:46px;height:46px;margin:2px auto 0">${Sym.symHtml('misir', res.fs.special)}</div>`);
       let total = 0, n = 0;
       for (const sp of res.fs.spins) {
-        if (!G.open) break; n++; fsBar(`ÜCRETSİZ DÖNÜŞ ${n} · Kalan ${sp.left}`);
+        if (!G.open) break; n++; fsBar(`BONUS KAZANÇ ${fmt(Math.round(total))}`); meter('R', `KALAN FREE SPIN<b>${sp.left}</b>`);
         const v = spinVisualAgain(); await sleep(300); await stopReels(v, sp.grid);
         const lw = await showWins(sp.wins, bet);
         if (sp.expand) {
@@ -379,11 +426,11 @@
           }
           setWin(Math.round(sp.expand.pay * bet), 'GENİŞLEYEN'); Sound.play('bigwin'); await sleep(1500); clearLines();
         }
-        total += sp.win * bet; meter('R', `BONUS<b>${short(Math.round(total))}</b>`);
+        total += sp.win * bet; fsBar(`BONUS KAZANÇ ${fmt(Math.round(total))}`);
         if (sp.retrig) await overlayBanner(`+${sp.retrig} DÖNÜŞ!`, '', 1400, '📖');
         await sleep(300);
       }
-      fsBar(''); meter('L'); await overlayBanner('BONUS BİTTİ', `Toplam: ${fmt(Math.round(total))} jeton`, 2000, '🏆');
+      fsBar(''); meter('L'); meter('R'); await overlayBanner('BONUS BİTTİ', `Toplam: ${fmt(Math.round(total))} jeton`, 2000, '🏆');
       shown += total;
     }
     return shown;
@@ -416,22 +463,24 @@
   function labelWilds(grid, wm) { grid.forEach((v, i) => { if (v === 8 && wm[i] > 1) { const l = G.boxes[i].querySelector('.lbl'); if (l) { l.textContent = 'x' + wm[i]; l.style.color = '#ffd34d'; l.style.fontSize = 'calc(var(--cell)*.26)'; } } }); }
   ANIM.ways = async (r, vis, bet) => {
     const res = r.result, b = res.base;
-    await stopReels(vis, b.grid); labelWilds(b.grid, b.wm);
-    if (b.wm.some(m => m > 1)) { b.wm.forEach((m, i) => { if (m > 1) { const c = center(i); UI.burst(c.x, c.y, 18, ['#ff8a3d', '#ffd34d', '#fff']); } }); Sound.play('orb'); await sleep(400); }
-    await showWins(b.wins, bet, { noLines: true });
+    if (b) {
+      await stopReels(vis, b.grid); labelWilds(b.grid, b.wm);
+      if (b.wm.some(m => m > 1)) { b.wm.forEach((m, i) => { if (m > 1) { const c = center(i); UI.burst(c.x, c.y, 12, ['#ff8a3d', '#ffd34d', '#fff']); } }); Sound.play('orb'); await sleep(400); }
+      await showWins(b.wins, bet, { noLines: true });
+    }
     if (res.fs) {
-      const pos = []; b.grid.forEach((v, i) => { if (v === 9) pos.push(i); }); dimAll(true); markWin(pos); await sleep(1000); unmark();
+      if (b) { const pos = []; b.grid.forEach((v, i) => { if (v === 9) pos.push(i); }); dimAll(true); markWin(pos); await sleep(1000); unmark(); }
       await overlayBanner(`${res.fs.count} ÜCRETSİZ DÖNÜŞ!`, 'Her kazançlı dönüşte çarpan +1', 2000, '🐉');
       let total = 0, n = 0;
       for (const sp of res.fs.spins) {
-        if (!G.open) break; n++; fsBar(`ÜCRETSİZ DÖNÜŞ ${n} · Kalan ${sp.left}`); meter('L', `ÇARPAN<b>x${sp.mult}</b>`);
+        if (!G.open) break; n++; fsBar(`BONUS KAZANÇ ${fmt(Math.round(total))}`); meter('L', `ÇARPAN<b>x${sp.mult}</b>`); meter('R', `KALAN FREE SPIN<b>${sp.left}</b>`);
         const v = spinVisualAgain(); await sleep(280); await stopReels(v, sp.grid); labelWilds(sp.grid, sp.wm);
         if (sp.wins.length) { await showWins(sp.wins, bet, { noLines: true }); if (sp.mult > 1) { badge('x' + sp.mult, '#ff8a3d'); await sleep(700); } }
-        total += sp.win * bet; meter('R', `BONUS<b>${short(Math.round(total))}</b>`);
+        total += sp.win * bet; fsBar(`BONUS KAZANÇ ${fmt(Math.round(total))}`);
         if (sp.retrig) await overlayBanner(`+${sp.retrig} DÖNÜŞ!`, '', 1300, '🔮');
         await sleep(250);
       }
-      fsBar(''); meter('L'); await overlayBanner('BONUS BİTTİ', `Toplam: ${fmt(Math.round(total))} jeton`, 2000, '🏆');
+      fsBar(''); meter('L'); meter('R'); await overlayBanner('BONUS BİTTİ', `Toplam: ${fmt(Math.round(total))} jeton`, 2000, '🏆');
     }
   };
 
@@ -447,14 +496,14 @@
       await overlayBanner('SANDIK ALTINI!', 'Sikkeler kilitlendi · 3 yeniden dönüş', 1800, '🏴‍☠️');
       G.boxes.forEach((bx, i) => { if (!vals[i]) bx.innerHTML = ''; else setCell(i, coin(vals[i]), 'win'); });
       for (const st of h.steps) {
-        fsBar(`YENİDEN DÖNÜŞ · Kalan ${st.left}`);
+        fsBar(`SANDIK ALTINI`); meter('R', `KALAN DÖNÜŞ<b>${st.left}</b>`);
         G.boxes.forEach((bx, i) => { if (!vals[i]) { bx.innerHTML = Sym.symHtml('korsan', (Math.random() * 7) | 0, 'dim'); } });
         await sleep(450);
         G.boxes.forEach((bx, i) => { if (!vals[i]) bx.innerHTML = ''; });
         for (const [i, v] of st.landed) { vals[i] = v; setCell(i, coin(v), 'win', -G.step, 0); const c = center(i); UI.burst(c.x, c.y, 20, ['#ffd34d', '#fff']); fxs('fx_goldring', c.x, c.y, G.cell * 1.8, .7, { s: 1.3, r1: 0 }); Sound.play('coin'); await sleep(200); }
-        fsBar(`YENİDEN DÖNÜŞ · Kalan ${st.left}`); await sleep(st.landed.length ? 450 : 650);
+        meter('R', `KALAN DÖNÜŞ<b>${st.left}</b>`); await sleep(st.landed.length ? 450 : 650);
       }
-      fsBar('');
+      fsBar(''); meter('R');
       let sum = 0; for (let i = 0; i < 15; i++) if (vals[i]) { sum += vals[i] * S * bet; G.boxes[i].firstElementChild && G.boxes[i].firstElementChild.classList.add('pop'); setWin(Math.round(sum), 'SANDIK'); Sound.play('coin'); await sleep(110); }
       if (h.grand) await overlayBanner('GRAND JACKPOT!', `+${fmt(Math.round(G.meta.info.grand * bet))}`, 2600, '💰');
       await sleep(500);

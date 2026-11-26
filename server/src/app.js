@@ -251,36 +251,40 @@ function createApp(cfg) {
     const game = games[gid]; if (!game) throw err(404, 'unknown_game');
     const bet = int(ctx.body.bet, 'bet'); if (!BETS.includes(bet)) throw err(400, 'bad_bet', 'Geçersiz bahis.');
     const key = ctx.body.key ? str(ctx.body.key, 'key', 64) : crypto.randomUUID();
+    // Bonus satın alma: fiyat, simülasyonla %95 RTP'ye ayarlanmış bahis katıdır (calibration.json)
+    const buyKind = ctx.body.buy ? str(ctx.body.buy, 'buy', 10) : null;
+    if (buyKind && !game.buyCost[buyKind]) throw err(400, 'no_buy', 'Bu oyunda bu bonus satın alınamaz.');
+    const cost = buyKind ? Math.round(bet * game.buyCost[buyKind]) : bet;
     limit(ctx, 'spin:' + ctx.user.id, 20, 1000);
     const prev = db.prepare('SELECT response FROM spins WHERE user_id=? AND client_key=?').get(ctx.user.id, key);
     if (prev) { if (!prev.response) throw err(409, 'spin_expired'); return { ...JSON.parse(prev.response), replay: true }; }
     return db.tx(() => {
       const u = getUser(ctx.user.id);
-      if (!u.unlimited && u.balance < bet) throw err(402, 'insufficient_funds', 'Yetersiz jeton. Mağazadan jeton alabilir veya günlük ödülünü toplayabilirsin.');
+      if (!u.unlimited && u.balance < cost) throw err(402, 'insufficient_funds', 'Yetersiz jeton. Mağazadan jeton alabilir veya günlük ödülünü toplayabilirsin.');
       const s = seedRow(u.id);
       db.prepare('UPDATE seeds SET nonce=nonce+1 WHERE user_id=?').run(u.id);
-      C.applyCoins(db, u, -bet, 'bet', gid, now());
+      C.applyCoins(db, u, -cost, buyKind ? 'buy_' + buyKind : 'bet', gid, now());
       const rng = new FairRng(s.server_seed, s.client_seed, s.nonce);
-      const result = game.play(rng, true);
+      const result = buyKind ? game.buy(rng, true, buyKind) : game.play(rng, true);
       const win = Math.round(result.win * bet);
       let w = { balance: getUser(u.id).balance };
       if (win > 0) w = C.applyCoins(db, u, win, 'win', gid, now());
       // XP: her 100 jeton bahis = 1 XP (etkinlik çarpanı uygulanabilir)
       const xpMult = Math.max(1, ...activeEvents().map(e => e.xp_mult));
-      const acc = u.wager_rem + bet;
+      const acc = u.wager_rem + cost;
       const gained = Math.floor(acc / 100) * xpMult;
       const oldLevel = C.levelFromXp(u.xp);
       const xp = Math.min(C.XP_MAX, u.xp + gained);
       const level = C.levelFromXp(xp);
-      db.prepare('UPDATE users SET xp=?, level=?, wager_rem=?, total_wagered=total_wagered+?, total_won=total_won+?, spins=spins+1, biggest_win=MAX(biggest_win,?) WHERE id=?').run(xp, level, acc % 100, bet, win, win, u.id);
-      questTick(u.id, { bet, win, game: gid });
+      db.prepare('UPDATE users SET xp=?, level=?, wager_rem=?, total_wagered=total_wagered+?, total_won=total_won+?, spins=spins+1, biggest_win=MAX(biggest_win,?) WHERE id=?').run(xp, level, acc % 100, cost, win, win, u.id);
+      questTick(u.id, { bet: cost, win: buyKind ? 0 : win, game: gid });
       const li = C.levelInfo(xp);
       const resp = {
-        game: gid, bet, win, winX: result.win, result, balance: w.balance,
+        game: gid, bet, cost, buy: buyKind, win, winX: result.win, result, balance: w.balance,
         xp: { gained, xp, level, into: li.into, need: li.need, max: li.max, levelUp: level > oldLevel ? level : null },
         fair: { serverSeedHash: s.server_seed_hash, clientSeed: s.client_seed, nonce: s.nonce },
       };
-      db.prepare('INSERT INTO spins(user_id,game,bet,win,client_key,server_seed_hash,client_seed,nonce,response,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)').run(u.id, gid, bet, win, key, s.server_seed_hash, s.client_seed, s.nonce, JSON.stringify(resp), now());
+      db.prepare('INSERT INTO spins(user_id,game,bet,win,client_key,server_seed_hash,client_seed,nonce,response,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)').run(u.id, gid, cost, win, key, s.server_seed_hash, s.client_seed, s.nonce, JSON.stringify(resp), now());
       return resp;
     });
   });
