@@ -13,7 +13,8 @@
     "simulate": "node tools/simulate.js --spins 10000000",
     "build:edge": "node tools/build-edge.js",
     "build:client-engine": "node tools/build-client-engine.js",
-    "build:okey-rules": "node tools/build-okey-rules.js"
+    "build:okey-rules": "node tools/build-okey-rules.js",
+    "build:tavla-rules": "node tools/build-tavla-rules.js"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.3.0",

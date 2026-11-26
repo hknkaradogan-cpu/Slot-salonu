@@ -2,6 +2,8 @@
 // Supabase Edge Function (supabase/functions/slot-api) üzerinde çalışır.
 import { registerOkey } from './okey/routes.js';
 import { registerSocial } from './social.js';
+import { registerTavla } from './tavla/routes.js';
+import { registerAviator } from './aviator/routes.js';
 import crypto from 'node:crypto';
 import { Buffer } from 'node:buffer';
 import * as C from './core.js';
@@ -234,7 +236,7 @@ export async function createApi(cfg) {
     const u = await one(Q, 'SELECT * FROM slot.users WHERE lower(email)=lower($1) OR lower(username)=lower($1)', [id]);
     if (u) {
       const code = await issueToken(u.id, 'reset', 30 * 60e3);
-      await mailer.send(u.email, `${cfg.brandName || 'SLOT SALONU'} şifre sıfırlama`, `Merhaba ${u.username},\n\nŞifre sıfırlama kodun: ${code}\nUygulamada "Şifremi Unuttum" ekranına bu kodu girerek yeni şifreni belirleyebilirsin. Kod 30 dakika geçerlidir ve tek kullanımlıktır.\nBu isteği sen yapmadıysan bu e-postayı yok say.`);
+      await mailer.send(u.email, `${cfg.brandName || 'SPINOVA 101 OKEY'} şifre sıfırlama`, `Merhaba ${u.username},\n\nŞifre sıfırlama kodun: ${code}\nUygulamada "Şifremi Unuttum" ekranına bu kodu girerek yeni şifreni belirleyebilirsin. Kod 30 dakika geçerlidir ve tek kullanımlıktır.\nBu isteği sen yapmadıysan bu e-postayı yok say.`);
     }
     return { ok: true };
   });
@@ -723,5 +725,7 @@ export async function createApi(cfg) {
   const S = { r, auth, admin, db, Q, one, applyCoins, err, int, str, now, limit, C, audit, hooks };
   registerSocial(S); notify = S.notify; addTickets = S.addTickets; ensureTournaments = S.ensureTournaments;
   registerOkey({ r, auth, authLite, db, Q, one, applyCoins, err, int, str, now, limit, C, setting, setSetting, audit, admin, hooks, notify: S.notify });
+  const G2 = { r, auth, authLite, db, Q, one, applyCoins, err, int, str, now, limit, C, setting, setSetting, audit, admin, hooks, notify: S.notify };
+  registerTavla(G2); registerAviator(G2);
   return { handle, db, games, verifier, refreshGames: () => games(true) };
 }

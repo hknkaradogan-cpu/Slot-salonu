@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const { $, $$, esc, fmt, toast, modal, closeModal, guard } = UI;
-  const TABS = [['stats', '📊 Özet'], ['users', '👥 Oyuncular'], ['tourn', '🏆 Turnuvalar'], ['gift', '🎁 Hediye Gönder'], ['chat', '💬 Sohbet Denetimi'], ['games', '🎰 Oyunlar & RTP'], ['gstats', '📈 İstatistikler'], ['okey', '🀄 101 Okey'], ['rewards', '🎁 Ödüller'], ['packages', '🛒 Paketler'], ['purchases', '💳 Satın Almalar'], ['events', '🎉 Etkinlikler'], ['quests', '📜 Görevler'], ['tickets', '💬 Destek'], ['perf', '⚡ Performans'], ['audit', '🧾 İşlem Geçmişi']];
+  const TABS = [['stats', '📊 Özet'], ['users', '👥 Oyuncular'], ['aviator', '✈️ Aviator & Tavla'], ['tourn', '🏆 Turnuvalar'], ['gift', '🎁 Hediye Gönder'], ['chat', '💬 Sohbet Denetimi'], ['games', '🎰 Oyunlar & RTP'], ['gstats', '📈 İstatistikler'], ['okey', '🀄 101 Okey'], ['rewards', '🎁 Ödüller'], ['packages', '🛒 Paketler'], ['purchases', '💳 Satın Almalar'], ['events', '🎉 Etkinlikler'], ['quests', '📜 Görevler'], ['tickets', '💬 Destek'], ['perf', '⚡ Performans'], ['audit', '🧾 İşlem Geçmişi']];
   let tab = 'stats';
   const dt = (t) => t ? new Date(t).toLocaleString('tr-TR') : '—';
   const toLocal = (t) => { const d = new Date(t - new Date().getTimezoneOffset() * 60000); return d.toISOString().slice(0, 16); };
@@ -16,6 +16,23 @@
   function go(t) { tab = t; $$('[data-t]').forEach(b => b.classList.toggle('on', b.dataset.t === t)); const body = $('#aBody'); body.innerHTML = '<p class="center muted">Yükleniyor…</p>'; V[t](body).catch(e => { if (e.status === 403) { body.innerHTML = '<p class="center">Yönetici oturumu gerekli.</p>'; Screens.adminLogin(); return; } body.innerHTML = `<p class="err center">${esc(e.message)}</p>`; }); }
   const V = {};
 
+  V.aviator = async (b) => {
+    const [a, t] = await Promise.all([Api.get('/api/admin/aviator'), Api.get('/api/admin/tavla')]);
+    const rtp = (x) => (Number(x.bet) ? (Number(x.win) / Number(x.bet) * 100).toFixed(2) + '%' : '—');
+    b.innerHTML = `<div class="card"><div class="section-t">✈️ Aviator</div>
+      <div class="kv"><b>Hedef RTP</b><span>%${(a.config.rtp * 100).toFixed(1)}</span><b>Gerçekleşen (tümü)</b><span>${rtp(a.all)} · ${fmt(a.all.rounds)} tur · ${fmt(a.all.players)} oyuncu</span><b>Son 7 gün</b><span>${rtp(a.last7)} · ${fmt(a.last7.rounds)} tur</span></div>
+      <div class="agrid" style="margin-top:8px"><label class="field"><span>RTP (%85–99)</span><input id="avR" type="number" min="85" max="99" step="0.1" value="${(a.config.rtp * 100).toFixed(1)}"></label>
+      <label class="field"><span>En yüksek çarpan</span><input id="avM" type="number" min="10" max="10000" value="${a.config.maxMult}"></label>
+      <label class="field"><span>En az bahis</span><input id="avMin" type="number" value="${a.config.minBet}"></label><label class="field"><span>En çok bahis</span><input id="avMax" type="number" value="${a.config.maxBet}"></label>
+      <label class="field"><span>Durum</span><select id="avE"><option value="1" ${a.config.enabled ? 'selected' : ''}>Açık</option><option value="0" ${a.config.enabled ? '' : 'selected'}>Bakımda</option></select></label></div>
+      <button class="btn green block" id="avSave">Kaydet</button><p class="small muted">Dağılım herkes için aynıdır (P(≥x) = RTP/x); oyuncuya özel ayar yapılamaz. Değişiklik yeni turlarda geçerli olur ve denetim kaydına yazılır.</p></div>
+      <div class="card"><div class="section-t">🎲 Tavla</div><div class="kv"><b>Son 7 gün oynayan</b><span>${fmt(t.players.played7d)}</span><b>Giriş / ödeme</b><span>${fmt(t.players.entries7d)} / ${fmt(t.players.paid7d)}</span><b>Masalar (7g)</b><span>${t.summary.map(x => x.status + ': ' + x.n).join(' · ') || '—'}</span></div>
+      <div class="agrid" style="margin-top:8px"><label class="field"><span>Hamle süresi (sn)</span><input id="tvT" type="number" min="15" max="120" value="${t.config.turnSeconds}"></label><label class="field"><span>Bot</span><select id="tvB"><option value="1" ${t.config.botsAllowed ? 'selected' : ''}>İzinli</option><option value="0" ${t.config.botsAllowed ? '' : 'selected'}>Kapalı</option></select></label>
+      <label class="field"><span>Durum</span><select id="tvE"><option value="1" ${t.config.enabled ? 'selected' : ''}>Açık</option><option value="0" ${t.config.enabled ? '' : 'selected'}>Bakımda</option></select></label></div><button class="btn green block" id="tvSave">Kaydet</button>
+      <table class="tbl"><tr><th>#</th><th>Kod</th><th>Durum</th><th>Giriş</th></tr>${t.tables.map(x => `<tr><td>${x.id}</td><td>${x.code || '—'}</td><td>${x.status}</td><td>${fmt(x.stake)}</td></tr>`).join('')}</table></div>`;
+    $('#avSave').onclick = () => guard($('#avSave'), async () => { await Api.put('/api/admin/aviator', { rtp: +$('#avR').value / 100, maxMult: +$('#avM').value, minBet: +$('#avMin').value, maxBet: +$('#avMax').value, enabled: $('#avE').value === '1' }); toast('Aviator ayarları kaydedildi.'); go('aviator'); });
+    $('#tvSave').onclick = () => guard($('#tvSave'), async () => { await Api.put('/api/admin/tavla', { turnSeconds: +$('#tvT').value, botsAllowed: $('#tvB').value === '1', enabled: $('#tvE').value === '1' }); toast('Tavla ayarları kaydedildi.'); go('aviator'); });
+  };
   V.tourn = async (b) => {
     const r = await Api.get('/api/admin/tournaments');
     const st = { active: '<span class="pill ok">aktif</span>', settled: '<span class="pill">bitti</span>', cancelled: '<span class="pill warn">iptal</span>' };

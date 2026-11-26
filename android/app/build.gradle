@@ -4,7 +4,7 @@ plugins { id 'com.android.application' }
 // Her müşteri için: -PappId=com.musteri.slot -PappName="Müşteri Slot" -PslotApiBase=https://... ile derleyin.
 def apiBase = (project.findProperty('slotApiBase') ?: '').toString()          // boşsa "yerel mod"
 def appIdProp = (project.findProperty('appId') ?: 'com.slotsalonu.app').toString()
-def appNameProp = (project.findProperty('appName') ?: 'SLOT SALONU').toString()
+def appNameProp = (project.findProperty('appName') ?: 'SPINOVA 101 OKEY').toString()
 def vCode = (project.findProperty('versionCode') ?: '6').toString().toInteger()
 def vName = (project.findProperty('versionName') ?: '3.0.0').toString()
 def selfUpdate = (project.findProperty('selfUpdate') ?: 'true').toString().toBoolean() // Play Store sürümünde false

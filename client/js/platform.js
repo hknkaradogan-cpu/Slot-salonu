@@ -1,4 +1,4 @@
-/* SLOT SALONU — YATAY PLATFORM
+/* SPINOVA 101 OKEY — YATAY PLATFORM
  * Bütün uygulama 960×440 tasarım sahnesinde çizilir ve ekrana ölçeklenir (telefon, tablet, bilgisayar).
  * Ana menü, paneller (profil, turnuvalar, mesajlar, canlı sohbet, başarımlar, istatistik, hediyeler, çark, bulmaca, diğer oyunlar)
  * ve dikey ekranda "telefonu yan çevir" uyarısı burada. Her buton gerçek bir sunucu işlevine bağlıdır. */
@@ -30,7 +30,7 @@
     lockLandscape(); fit();
     addEventListener('resize', fit); addEventListener('orientationchange', () => setTimeout(fit, 250));
     const r = document.createElement('div'); r.id = 'rotateMsg';
-    r.innerHTML = `<div class="rphone">📱</div><b>Telefonunu yan çevir</b><span>SLOT SALONU yatay ekranda oynanır.</span><button class="btn gold" id="rotGo">Tam ekran · Yatay</button>`;
+    r.innerHTML = `<div class="rphone">📱</div><b>Telefonunu yan çevir</b><span>SPINOVA 101 OKEY yatay ekranda oynanır.</span><button class="btn gold" id="rotGo">Tam ekran · Yatay</button>`;
     document.body.appendChild(r); $('#rotGo').onclick = webLandscape;
   }
 
@@ -40,44 +40,44 @@
     return `<div class="htop">
       <div class="hprof" data-p="profile"><div class="avatar" id="tAv"></div><div class="lvlbox"><div class="nm"><span id="tName"></span></div><div class="row" style="gap:4px"><span class="lvl" id="tLvl"></span><div class="xpbar grow"><i id="tXp"></i><em id="tXpT"></em></div></div></div></div>
       <div class="hcur" data-p="shop" id="tCoins"><i class="hcoin"></i><b id="tBal"></b><span class="hplus">+</span></div>
-      <div class="hcur" data-p="tickets"><i class="htk">🎟️</i><b id="tTk"></b><span class="hplus">+</span></div>
-      ${home ? `<div class="hwel"><span class="crown">👑</span><small>Hoş Geldin</small><b id="tWel"></b></div>` : '<div class="grow"></div>'}
-      <div class="hicons">${icon('gifts', '🎁', 'Hediye', 'bGift')}${icon('achievements', '🏆', 'Başarılar', 'bAch')}${icon('stats', '📊', 'İstatistik')}${icon('settings', '⚙️', 'Ayarlar')}${icon('logout', '🚪', 'Çıkış')}</div></div>`;
+      <div class="hcur" data-p="tickets"><i class="hchip"></i><b id="tTk"></b><span class="hplus">+</span></div>
+      <div class="grow"></div>
+      <div class="hicons">${icon('gifts', '🎁', 'Hediye', 'bGift')}${icon('achievements', '🏆', 'Başarılar', 'bAch')}${icon('settings', '⚙️', 'Ayarlar')}${icon('logout', '🚪', 'Çıkış')}</div></div>`;
   }
   function bottomHtml(active) {
     const b = (id, ic, t, badge) => `<button class="bnav ${active === id ? 'on' : ''}" data-p="${id}"><span class="i">${ic}</span><span class="t">${t}</span>${badge ? `<span id="${badge}" class="hb"></span>` : ''}</button>`;
-    return `<div class="hbottom"><button class="hchest" data-p="daily"><img src="assets/ic_chest.webp" alt=""><span>Günlük Ödül<br>Topla</span><span id="bDaily2" class="hb"></span></button>
-      ${b('home', '🏠', 'Ana Sayfa')}${b('profile', '👤', 'Profilim')}${b('tournaments', '🏆', 'Turnuvalar')}
-      <button class="hquick" data-p="quick"><span>⚡</span><b>HIZLI GİRİŞ</b></button>
-      ${b('messages', '✉️', 'Mesajlar', 'bMsg')}${b('support', '🎧', 'Destek')}${b('chat', '💬', 'Canlı Sohbet')}</div>`;
+    return `<div class="hbottom">${b('friends', '👥', 'Arkadaşlar', 'bMsg')}${b('leaders', '📊', 'Liderlik Tablosu')}
+      <button class="bhome ${active === 'home' ? 'on' : ''}" data-p="home"><span class="i">🏠</span><span class="t">Ana Sayfa</span></button>
+      ${b('chat', '💬', 'Sohbet')}${b('quests', '📅', 'Görevler')}</div>`;
   }
+  const rail = (id, ic, t, badge) => `<button class="rbtn" data-p="${id}"><span class="i">${ic}</span><span class="t">${t}</span>${badge ? `<span id="${badge}" class="hb"></span>` : ''}</button>`;
+  const GAMES = [['okey101', '101 OKEY', 'g_okey101'], ['duz', 'DÜZ OKEY', 'g_duzokey'], ['tavla', 'TAVLA', 'g_tavla'], ['aviator', 'AVIATOR', 'g_aviator'], ['slots', 'SLOT SALONU', 'g_slot']];
   function home() {
     stopPanelTimers(); P.panel = 'home';
-    UI.screen('main', `<div class="hbg"><img class="hcastle" src="assets/menu_castle.webp" alt=""><div class="hstars"></div><i class="hcr c1"></i><i class="hcr c2"></i><i class="hcr c3"></i></div>
+    UI.screen('main', `<div class="spbg"><img src="assets/hall_bg.webp" alt=""><i class="spfloor"></i></div>
       ${topHtml(true)}
-      <div class="hfairy" data-p="peri"><img src="assets/menu_fairy.webp" alt="Kristal Peri"><div class="hfname"><b>KRİSTAL PERİ</b><span class="hbtn pink">Oyna ▶</span></div></div>
-      <div class="hcard okey" data-p="okey"><img src="assets/card_okey101.webp" alt="101 Okey"><span class="hlive">ONLINE</span><span class="hbtn green">HEMEN OYNA ▶</span></div>
-      <div class="hcard online"><div class="hct"><span>🌐</span><b>ONLINE MASA AÇ</b></div><small>Davet kodu ile arkadaşlarını davet et</small>
-        <div class="hcode"><input id="hCode" maxlength="6" placeholder="KOD GİR" autocomplete="off"><button class="hcopy" id="hJoin" title="Koda katıl">➜</button></div>
-        <span class="hbtn green" data-p="online">🔗 Masa Aç · Davet Et</span></div>
-      <div class="hcard ozel" data-p="private"><div class="hct"><span>👑</span><b>ÖZEL MASA</b></div>
-        <ul><li>Katlamalı / Katlamasız</li><li>Eşli / Tekli</li><li>1 / 2 / 3 / 4 El</li><li>İsteğe bağlı şifre</li></ul><span class="hbtn gold">Masa Aç ▶</span></div>
-      <div class="hcard g zeus" data-p="zeus"><img src="assets/card_zeusslot.webp" alt="Zeus"><span class="hbtn gold">Hemen Oyna ▶</span></div>
-      <div class="hcard g puzzle" data-p="puzzle"><b class="hgt">BULMACA</b><img src="assets/card_puzzle.webp" alt=""><span class="hbtn blue">Oyna ▶</span></div>
-      <div class="hcard g whc" data-p="wheel"><b class="hgt">ŞANS ÇARKI</b><img src="assets/card_wheel.webp" alt=""><span class="hbtn gold">Çevir ▶</span><span id="bWheel" class="hb"></span></div>
-      <div class="hcard g more" data-p="others"><b class="hgt">DİĞER OYUNLAR</b><img src="assets/card_more.webp" alt=""><span class="hbtn gold">Oyna ▶</span></div>
-      <div class="hcard winner" id="hWinner"><b class="hgt">SON KAZANAN</b><div id="hWinBody"><small class="muted">Yükleniyor…</small></div></div>
+      <img class="spking" src="assets/king_logo.webp" alt="SPINOVA 101 OKEY — Şansın En Eğlenceli Hali!">
+      <div class="sprail l">${rail('tournaments', '🏆', 'Turnuvalar')}${rail('wheel', '🎡', 'Şans Çarkı', 'bWheel')}${rail('puzzle', '🧩', 'Bulmaca')}${rail('shop', '💎', 'Mağaza')}</div>
+      <div class="sprail r">${rail('messages', '✉️', 'Mesajlar', 'bMsg2')}${rail('stats', '📈', 'İstatistik')}${rail('support', '🎧', 'Destek')}<div class="spcode"><input id="hCode" maxlength="6" placeholder="KOD" autocomplete="off"><button id="hJoin" title="Kodla masaya katıl">➜</button></div></div>
+      <div class="spcards">${GAMES.map(([id, t, img]) => `<button class="spcard ${id}" data-p="${id}"><b class="spct">${t}</b><span class="spart"><img src="assets/${img}.webp" alt=""></span><span class="spplay">Oyna ▸</span></button>`).join('')}</div>
+      <button class="spchest" data-p="daily"><img src="assets/ic_chest.webp" alt=""><span>Günlük<br>Ödül</span><span id="bDaily2" class="hb"></span></button>
+      <div class="spsig" aria-label="By-Hkn imzası"><i>👑</i>By-Hkn</div>
       ${bottomHtml('home')}`);
     UI.show('main'); bind($('#main')); Screens.renderTop(); renderBadges();
     $('#hJoin').onclick = () => joinCode($('#hCode').value);
     $('#hCode').onkeydown = (e) => { if (e.key === 'Enter') joinCode(e.target.value); };
-    loadWinners();
     Api.get('/api/wheel').then(w => { const e = $('#bWheel'); if (e) e.innerHTML = w.freeAvailable ? '<span class="dot">!</span>' : ''; }).catch(() => {});
   }
   async function joinCode(code) {
     code = String(code || '').trim().toUpperCase(); if (code.length !== 6) return toast('6 karakterlik masa kodunu gir.', true);
-    try { const r = await Api.post('/api/okey/join', { code }); Okey.openTable(r.tableId); }
-    catch (e) { if (e.code === 'bad_password') { const pw = await askText('🔒 Şifreli masa', 'Masa şifresi'); if (pw) { try { const r = await Api.post('/api/okey/join', { code, password: pw }); Okey.openTable(r.tableId); } catch (e2) { toast(e2.message, true); } } } else toast(e.message, true); }
+    // aynı kod hem okey hem tavla masaları için çalışır: önce okey, bulunamazsa tavla
+    const tryJoin = async (pw) => {
+      try { const r = await Api.post('/api/okey/join', { code, ...(pw ? { password: pw } : {}) }); Okey.openTable(r.tableId); return true; }
+      catch (e) { if (e.code !== 'no_table') throw e; }
+      const r = await Api.post('/api/tavla/join', { code, ...(pw ? { password: pw } : {}) }); Tavla.openTable(r.tableId); return true;
+    };
+    try { await tryJoin(); }
+    catch (e) { if (e.code === 'bad_password') { const pw = await askText('🔒 Şifreli masa', 'Masa şifresi'); if (pw) { try { await tryJoin(pw); } catch (e2) { toast(e2.message, true); } } } else toast(e.code === 'no_table' ? 'Bu kodla masa bulunamadı.' : e.message, true); }
   }
   function askText(title, label, max = 20) {
     return modal(`<h3 class="gold">${title}</h3><label class="field"><span>${label}</span><input id="askI" type="password" maxlength="${max}"></label><button class="btn green block" id="askGo">Tamam</button>`, {
@@ -97,13 +97,14 @@
   function renderBadges() {
     const st = S(), n = st.badges || {}; const d = (id, v) => { const e = $('#' + id); if (e) e.innerHTML = v ? `<span class="dot">${v}</span>` : ''; };
     d('bGift', (n.gifts || 0) + (n.notifications || 0) + (st.levelRewards && st.levelRewards.pending ? st.levelRewards.pending.count : 0) || '');
-    d('bMsg', (n.messages || 0) + (n.friendRequests || 0) || ''); d('bDaily2', st.daily && st.daily.available ? '!' : '');
+    d('bMsg', (n.friendRequests || 0) || ''); d('bMsg2', (n.messages || 0) || ''); d('bDaily2', st.daily && st.daily.available ? '!' : '');
     $$('#tTk').forEach(e => { e.textContent = st.me ? (st.me.unlimited ? '∞' : fmt(st.me.tickets || 0)) : ''; });
     $$('#tWel').forEach(e => { e.textContent = st.me ? st.me.username : ''; });
   }
 
   /* ===================== GEZİNME ===================== */
   function bind(root) {
+    if (root.__spBound) return; root.__spBound = true; // ekran öğesi yeniden kullanılır: dinleyici yalnızca bir kez eklenir
     root.addEventListener('click', (e) => {
       const t = e.target.closest('[data-p]'); if (!t || t.tagName === 'INPUT') return;
       if (e.target.closest('#hCode,#hJoin')) return;
@@ -114,9 +115,12 @@
     const st = S();
     switch (id) {
       case 'home': return home();
-      case 'okey': return Okey.lobby();
-      case 'online': return Okey.createPrivate();
-      case 'private': return Okey.createPrivate();
+      case 'okey': case 'okey101': return Entry.open('okey101');
+      case 'duz': return Entry.open('duz');
+      case 'tavla': return Entry.open('tavla');
+      case 'aviator': return Aviator.open();
+      case 'slots': return Entry.open('slots');
+      case 'online': case 'private': return Okey.createPrivate('101');
       case 'quick': return quick();
       case 'zeus': return Games.open('zeus');
       case 'peri': return Games.open('peri');
@@ -144,7 +148,7 @@
   }
 
   /* ===================== PANELLER ===================== */
-  const TITLES = { profile: '👤 Profilim', tournaments: '🏆 Turnuvalar', messages: '✉️ Mesajlar ve Arkadaşlar', chat: '💬 Canlı Sohbet', achievements: '🏅 Başarılar ve Görevler', stats: '📊 İstatistiklerim',
+  const TITLES = { leaders: '📊 Liderlik Tablosu', profile: '👤 Profilim', tournaments: '🏆 Turnuvalar', messages: '✉️ Mesajlar ve Arkadaşlar', chat: '💬 Canlı Sohbet', achievements: '🏅 Başarılar ve Görevler', stats: '📊 İstatistiklerim',
     gifts: '🎁 Hediyeler ve Bildirimler', wheel: '🎡 Şans Çarkı', puzzle: '🧩 Bulmaca', others: '🎰 Diğer Oyunlar', shop: '💎 Mağaza', friends: '👥 Arkadaşlar', quests: '📜 Günlük Görevler' };
   function stopPanelTimers() { clearInterval(P.chatTimer); clearInterval(P.threadTimer); clearInterval(P.winTimer); P.chatTimer = P.threadTimer = P.winTimer = null; }
   function panel(id, arg) {
@@ -154,7 +158,7 @@
       <div class="pbody" id="pBody"><p class="center muted">Yükleniyor…</p></div>${bottomHtml(id)}`);
     UI.show('main'); bind($('#main')); Screens.renderTop(); renderBadges();
     const body = $('#pBody');
-    const R = { profile: () => Screens.profile(body), shop: () => Screens.shop(body), friends: () => friendsTab(body), quests: () => Screens.quests(body),
+    const R = { leaders: () => leaders(body, arg), profile: () => Screens.profile(body), shop: () => Screens.shop(body), friends: () => friendsTab(body), quests: () => Screens.quests(body),
       tournaments: () => tournaments(body), messages: () => messages(body, arg), chat: () => chat(body), achievements: () => achievements(body, arg), stats: () => stats(body),
       gifts: () => gifts(body), wheel: () => wheel(body), puzzle: () => puzzle(body), others: () => others(body) };
     Promise.resolve((R[id] || (() => { body.innerHTML = '<p class="center">Bulunamadı</p>'; }))()).catch(e => { body.innerHTML = `<p class="err center">${esc(e.message)}</p>`; });
@@ -163,6 +167,14 @@
   const left = (ms) => { if (ms <= 0) return 'bitti'; const d = Math.floor(ms / 86400e3), h = Math.floor(ms % 86400e3 / 3600e3), m = Math.floor(ms % 3600e3 / 60e3); return d ? `${d}g ${h}s` : h ? `${h}s ${m}dk` : `${m}dk`; };
   const GAME_N = { slots: '🎰 Slot', okey: '🀄 101 Okey' };
 
+  async function leaders(body, by) {
+    by = by || 'level';
+    tabs([['level', 'Seviye'], ['okey', 'Okey'], ['tavla', 'Tavla'], ['aviator', 'Aviator'], ['slots', 'Slot']], by, (t) => leaders(body, t));
+    const r = await Api.get('/api/leaderboard?by=' + by);
+    const val = (x) => by === 'level' ? `Sv${x.level} · ${fmt(x.value)} XP` : by === 'aviator' ? `${x.value.toFixed(2)}x en iyi tahsil` : by === 'slots' ? `${fmt(x.value)} en büyük kazanç` : `${x.value} galibiyet · ${x.played} oyun`;
+    body.innerHTML = `<div class="ldr">${r.top.map((x, i) => `<div class="ldrow ${x.me ? 'me' : ''} ${i < 3 ? 'top' + (i + 1) : ''}"><b class="ldn">${i < 3 ? ['🥇', '🥈', '🥉'][i] : i + 1}</b><span class="avatar sm">${AVATARS[x.avatar] || '🙂'}</span><b class="grow">${esc(x.username)}</b><span class="ldv">${val(x)}</span></div>`).join('') || '<p class="center muted">Henüz kayıt yok — ilk sen ol!</p>'}</div>
+      <p class="small muted center">${by === 'aviator' || by === 'slots' ? 'Son 7 gün · ' : ''}Gerçek oyun kayıtlarından · yöneticiler listelenmez</p>`;
+  }
   async function tournaments(body) {
     const r = await Api.get('/api/tournaments'); const now = r.now;
     body.innerHTML = `<div class="pgrid">${r.tournaments.map(t => `<div class="tcard ${t.kind} ${t.status}">
@@ -174,7 +186,7 @@
       <div class="row">${t.status === 'active' && !t.joined ? `<button class="btn green sm grow" data-j="${t.id}">KATIL</button>` : ''}<button class="btn ghost sm grow" data-lb="${t.id}">Sıralama</button>${t.status === 'active' && t.joined ? `<button class="btn gold sm grow" data-go="${t.game}">Oyna ▶</button>` : ''}</div></div>`).join('')}</div>`;
     $$('[data-j]', body).forEach(b => b.onclick = (e) => { e.stopPropagation(); guard(b, async () => { await Api.post(`/api/tournaments/${b.dataset.j}/join`, {}); toast('Turnuvaya katıldın! Puanların bundan sonra sayılır.'); await Screens.refresh(); tournaments(body); }); });
     $$('[data-lb]', body).forEach(b => b.onclick = (e) => { e.stopPropagation(); board(+b.dataset.lb); });
-    $$('[data-go]', body).forEach(b => b.onclick = (e) => { e.stopPropagation(); b.dataset.go === 'okey' ? Okey.lobby() : panel('others'); });
+    $$('[data-go]', body).forEach(b => b.onclick = (e) => { e.stopPropagation(); b.dataset.go === 'okey' ? Entry.open('okey101') : Entry.open('slots'); });
   }
   async function board(id) {
     const r = await Api.get('/api/tournaments/' + id);
@@ -216,10 +228,10 @@
     await Screens.friends(body);
     const st = S(); const ref = st.me.username;
     const inv = document.createElement('div'); inv.className = 'card invite';
-    inv.innerHTML = `<div class="section-t">📨 Arkadaşını SLOT SALONU'na davet et</div><p class="small">Davetle katılan arkadaşın <b>+2 bilet</b>, sen <b>10.000 jeton + 2 bilet</b> kazanırsın. Kayıtta davet kodu olarak kullanıcı adını yazması yeterli: <b class="gold">${esc(ref)}</b></p>
+    inv.innerHTML = `<div class="section-t">📨 Arkadaşını SPINOVA'ya davet et</div><p class="small">Davetle katılan arkadaşın <b>+2 bilet</b>, sen <b>10.000 jeton + 2 bilet</b> kazanırsın. Kayıtta davet kodu olarak kullanıcı adını yazması yeterli: <b class="gold">${esc(ref)}</b></p>
       <div class="row"><button class="btn green sm grow" id="invWa">WhatsApp ile paylaş</button><button class="btn ghost sm grow" id="invCp">Kopyala</button></div>`;
     body.prepend(inv);
-    const text = `SLOT SALONU'nda 101 Okey ve slot oynuyorum, sen de gel! Kayıt olurken davet kodu: ${ref} (sanal jeton, eğlence amaçlı)`;
+    const text = `SPINOVA 101 OKEY'de okey, tavla ve slot oynuyorum, sen de gel! Kayıt olurken davet kodu: ${ref} (sanal jeton, eğlence amaçlı)`;
     $('#invWa').onclick = () => share(text); $('#invCp').onclick = () => copy(text);
   }
   function chat(body) {
@@ -335,5 +347,5 @@
     catch (e) { const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select(); try { document.execCommand('copy'); toast('Kopyalandı ✓'); } catch (x) { toast('Kopyalanamadı', true); } t.remove(); }
   }
 
-  window.Platform = { initStage, fit, home, panel, open, renderBadges, share, copy, current: () => P.panel, stop: stopPanelTimers, joinCode, askText };
+  window.Platform = { initStage, fit, home, panel, open, renderBadges, share, copy, current: () => P.panel, setCurrent: (x) => { stopPanelTimers(); P.panel = x; }, stop: stopPanelTimers, joinCode, askText };
 })();

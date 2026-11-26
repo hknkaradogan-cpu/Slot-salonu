@@ -79,8 +79,8 @@ jobs:
         working-directory: android
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon assembleRelease -PslotApiBase="$SLOT_API" -PversionCode=$((100 + ${{ github.run_number }})) -PversionName="3.0.${{ github.run_number }}"
-          cp app/build/outputs/apk/release/app-release.apk ../SlotSalonu.apk
+          ./gradlew --no-daemon assembleRelease -PslotApiBase="$SLOT_API" -PversionCode=$((100 + ${{ github.run_number }})) -PversionName="5.0.${{ github.run_number }}"
+          cp app/build/outputs/apk/release/app-release.apk ../Spinova101Okey.apk
       - name: Güncellemeyi yayınla (uygulama içi güncelleme + GitHub Releases)
         if: github.ref == 'refs/heads/main'
         env:
@@ -88,6 +88,6 @@ jobs:
         run: |
           OIDC=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=slot-salonu-release" | jq -r .value)
           NOTES=$(git log -1 --pretty=%s | head -c 300 | jq -sRr @uri)
-          curl -fsS -X POST -H "Authorization: Bearer $OIDC" -H "Content-Type: application/vnd.android.package-archive" --data-binary @SlotSalonu.apk "$SLOT_API/api/release?code=$((100 + ${{ github.run_number }}))&name=3.0.${{ github.run_number }}&notes=$NOTES"
+          curl -fsS -X POST -H "Authorization: Bearer $OIDC" -H "Content-Type: application/vnd.android.package-archive" --data-binary @Spinova101Okey.apk "$SLOT_API/api/release?code=$((100 + ${{ github.run_number }}))&name=5.0.${{ github.run_number }}&notes=$NOTES"
           echo
-          gh release create "build-${{ github.run_number }}" SlotSalonu.apk --title "SLOT SALONU 3.0.${{ github.run_number }}" --notes "$(git log -1 --pretty=%B)" --latest
+          gh release create "build-${{ github.run_number }}" Spinova101Okey.apk --title "SPINOVA 101 OKEY 5.0.${{ github.run_number }}" --notes "$(git log -1 --pretty=%B)" --latest

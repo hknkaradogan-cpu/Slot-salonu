@@ -28,7 +28,10 @@
   const faceId = (c, n) => (c * 13 + n - 1) * 2;
 
   /* ===================== LOBİ (dikey) ===================== */
-  async function lobby() {
+  /** Masadan çıkınca oyunun kendi SPINOVA giriş ekranına dönülür (101 Okey / Düz Okey). */
+  function lobby() { const vr = O.variant; stopTable(); O.screen = null; if (window.Entry) return Entry.open(vr === 'duz' ? 'duz' : 'okey101'); return lobbyOld(); }
+  const isDuzV = () => !!(O.v && O.v.cfg && O.v.cfg.variant === 'duz');
+  async function lobbyOld() {
     stopTable(); O.screen = 'lobby'; setOrient('landscape');
     UI.screen('okeyLobby', `<div class="topbar"><button class="iconbtn" id="olBack">◀</button><div class="grow center"><b class="gold" style="font-size:21px;letter-spacing:1px">101 OKEY</b><div class="small muted" id="olOnline">çevrim içi</div></div><div class="pill" id="olCoins">🪙 ${App.me.unlimited ? '∞' : fmt(App.me.balance)}</div></div><div class="scroll nonav" id="olBody"><p class="center muted">Yükleniyor…</p></div>`);
     UI.show('okeyLobby');
@@ -63,15 +66,16 @@
     $('#olPriv').onclick = () => optionsModal('private'); $('#olCode').onclick = codeModal; $('#olRules').onclick = rulesModal; $('#olTop').onclick = topModal;
   }
   /** "Oyun Seçenekleri": oyun türü (katlamalı/katlamasız, eşli/tekli) + el sayısı (1–4). Seçim masadaki herkes için aynıdır. */
-  function optionsModal(kind, stake) {
+  function optionsModal(kind, stake, variant) {
+    if (variant) O.variant = variant; const duz = O.variant === 'duz';
     const d = O.lobbyData, cfg = d.config || {}, o = O.opts;
     const allowR = (r) => !cfg.rounds || cfg.rounds.includes(r), allowM = (m) => !cfg.modes || cfg.modes.includes(m), allowK = (k) => !cfg.katlamali || cfg.katlamali.includes(k);
     if (!allowR(o.rounds)) o.rounds = (cfg.rounds || [1])[0]; if (!allowM(o.mode)) o.mode = (cfg.modes || ['tekli'])[0]; if (!allowK(o.katlamali)) o.katlamali = (cfg.katlamali || [true])[0];
     const stakes = d.stakes.filter(st => !cfg.stakes || cfg.stakes.includes(st));
     let st = stake != null ? stake : stakes[0];
-    modal(`<div class="okopt"><div class="okopt-h">Oyun Seçenekleri</div>
+    modal(`<div class="okopt ${duz ? 'duzopt' : ''}"><div class="okopt-h">${duz ? 'Düz Okey' : '101 Okey'} · Oyun Seçenekleri</div>
       <div class="okopt-cols"><div><div class="okopt-t">Oyun Türü</div>
-        <button class="okob" data-k="1" ${allowK(true) ? '' : 'disabled'}>Katlamalı</button><button class="okob" data-k="0" ${allowK(false) ? '' : 'disabled'}>Katlamasız</button>
+        ${duz ? '' : `<button class="okob" data-k="1" ${allowK(true) ? '' : 'disabled'}>Katlamalı</button><button class="okob" data-k="0" ${allowK(false) ? '' : 'disabled'}>Katlamasız</button>`}
         <button class="okob" data-m="esli" ${allowM('esli') ? '' : 'disabled'}>Eşli</button><button class="okob" data-m="tekli" ${allowM('tekli') ? '' : 'disabled'}>Tekli</button></div>
       <div><div class="okopt-t">El Sayısı</div>${[1, 2, 3, 4].map(r => `<button class="okob" data-r="${r}" ${allowR(r) ? '' : 'disabled'}>${r} El</button>`).join('')}</div></div>
       ${kind === 'private' ? `<div class="okopt-t" style="margin-top:8px">Masa</div><div class="okstk">${stakes.map(x => `<button class="okob sm" data-s="${x}">${(STAKE_NAMES[x] || ['', '🎲'])[1]} ${x ? fmt(x) : 'Ücretsiz'}</button>`).join('')}</div>`
@@ -86,7 +90,8 @@
           $$('[data-m]', m).forEach(b => b.classList.toggle('on', b.dataset.m === o.mode));
           $$('[data-r]', m).forEach(b => b.classList.toggle('on', +b.dataset.r === o.rounds));
           $$('[data-s]', m).forEach(b => b.classList.toggle('on', +b.dataset.s === st));
-          $('#okoDesc').textContent = `${o.mode === 'esli' ? 'Eşli: karşılıklı oturanlar takım' : 'Tekli: herkes kendi için'} · ${o.katlamali ? 'Katlamalı: her açan bir öncekini geçmeli' : 'Katlamasız: açma sınırı hep 101 / 5 çift'} · ${o.rounds} el sonunda en düşük puan kazanır`;
+          $('#okoDesc').textContent = duz ? `${o.mode === 'esli' ? 'Eşli: karşılıklı oturanlar takım' : 'Tekli: herkes kendi için'} · 14 taş, açma yok · elini ilk bitiren kazanır (okeyle/çiftle bitiş ×2) · ${o.rounds} el`
+            : `${o.mode === 'esli' ? 'Eşli: karşılıklı oturanlar takım' : 'Tekli: herkes kendi için'} · ${o.katlamali ? 'Katlamalı: her açan bir öncekini geçmeli' : 'Katlamasız: açma sınırı hep 101 / 5 çift'} · ${o.rounds} el sonunda en düşük puan kazanır`;
           sv('okey_opts', o);
         };
         $$('[data-k]', m).forEach(b => b.onclick = () => { o.katlamali = b.dataset.k === '1'; paint(); });
@@ -96,18 +101,18 @@
         paint();
         $('#okoGo').onclick = () => guard($('#okoGo'), async () => {
           const pw = kind === 'private' && $('#okoPw') ? $('#okoPw').value.trim() : '';
-          const r = await Api.post(kind === 'private' ? '/api/okey/private' : '/api/okey/quick', { ...o, stake: st, ...(pw ? { password: pw } : {}) });
+          const r = await Api.post(kind === 'private' ? '/api/okey/private' : '/api/okey/quick', { ...o, variant: duz ? 'duz' : '101', stake: st, ...(pw ? { password: pw } : {}) });
           closeModal(); if (r.existing) toast('Zaten bir masadasın — oraya dönüyorsun.'); openTable(r.tableId);
         });
       },
     });
   }
-  async function openTables() {
-    const el = $('#olOpen'); if (!el) return;
-    let d; try { d = await Api.get('/api/okey/tables'); } catch (e) { el.innerHTML = `<p class="small muted center">Masalar alınamadı: ${esc(e.message)}</p>`; return; }
+  async function openTables(elArg, variant) {
+    const el = elArg || $('#olOpen'); if (!el) return; if (variant) O.variant = variant;
+    let d; try { d = await Api.get('/api/okey/tables?variant=' + (O.variant === 'duz' ? 'duz' : '101')); } catch (e) { el.innerHTML = `<p class="small muted center">Masalar alınamadı: ${esc(e.message)}</p>`; return; }
     if (!document.body.contains(el)) return;
     if (!d.tables.length) { el.innerHTML = '<p class="small muted center">Şu an bekleyen açık masa yok. Hızlı oyna ya da masa aç.</p>'; return; }
-    el.innerHTML = d.tables.map(t => `<div class="li"><div class="grow"><b>${t.locked ? '🔒 ' : ''}${t.mode === 'esli' ? 'Eşli' : 'Tekli'} · ${t.katlamali ? 'Katlamalı' : 'Katlamasız'} · ${t.rounds} el</b><small>${t.stake ? '🪙 ' + fmt(t.stake) + ' giriş' : 'Ücretsiz'} · ${t.seats.map(x => x ? esc(x.name) : '—').join(', ')}</small></div><b class="okfill">${t.filled}/4</b><button class="btn green sm" data-ot="${t.id}" data-lk="${t.locked ? 1 : 0}">OTUR</button></div>`).join('');
+    el.innerHTML = d.tables.map(t => `<div class="li"><div class="grow"><b>${t.locked ? '🔒 ' : ''}${t.mode === 'esli' ? 'Eşli' : 'Tekli'} · ${O.variant === 'duz' ? 'Düz' : t.katlamali ? 'Katlamalı' : 'Katlamasız'} · ${t.rounds} el</b><small>${t.stake ? '🪙 ' + fmt(t.stake) + ' giriş' : 'Ücretsiz'} · ${t.seats.map(x => x ? esc(x.name) : '—').join(', ')}</small></div><b class="okfill">${t.filled}/4</b><button class="btn green sm" data-ot="${t.id}" data-lk="${t.locked ? 1 : 0}">OTUR</button></div>`).join('');
     $$('[data-ot]', el).forEach(b => b.onclick = () => guard(b, async () => {
       const body = { tableId: +b.dataset.ot };
       if (b.dataset.lk === '1') { const pw = await Platform.askText('🔒 Şifreli masa', 'Masa şifresi'); if (!pw) return; body.password = pw; }
@@ -124,6 +129,11 @@
     modal(`<h3 class="gold">🏆 101 Okey Sıralaması</h3><div class="list">${r.top.map((x, i) => `<div class="li"><b style="width:26px">${i + 1}.</b><span class="avatar" style="width:34px;height:34px;font-size:18px">${AVATARS[x.avatar] || '🙂'}</span><div class="grow"><b>${esc(x.username)}</b><small>${x.played} oyun · ${x.won} galibiyet</small></div><span class="gold">${fmt(x.coins_won)}</span></div>`).join('') || '<p class="center muted">Henüz oyun yok.</p>'}</div>`);
   }
   function rulesModal() {
+    if (O.variant === 'duz') return modal(`<h3 class="gold">📖 Düz Okey Kuralları</h3><div class="small okrules">
+      <p><b>Taşlar:</b> 106 taş (4 renk × 1–13 × 2 + 2 sahte okey). Başlayan 15, diğerleri 14 taş alır. Göstergenin aynı renkte bir büyüğü okeydir; okey her taşın yerine geçer, sahte okey (♣) okeyin yerine sayılır.</p>
+      <p><b>Sıra:</b> Ortadan taş çek ya da solundakinin attığı son taşı al, sonra bir taş at. Atılan okey alınamaz.</p>
+      <p><b>Bitirme:</b> 15. taşı atarken kalan 14 taşın tamamı perlere (aynı renk ardışık en az 3 — 12-13-1 geçersiz — ya da aynı sayı farklı renk 3–4) veya 7 çifte ayrılıyorsa <b>BİTİR</b>. Son taşı göstergeye sürükleyebilir ya da BİTİR'e basabilirsin. Kontrol sunucuda yapılır.</p>
+      <p><b>Puan:</b> Biten −2; çiftle bitiş ×2, okey atarak bitiş ×2. Seçilen el sayısı sonunda en düşük toplam kazanır (eşlide takım toplamı). Deste biterse el berabere.</p></div>`);
     modal(`<h3 class="gold">📖 101 Okey Kuralları</h3><div class="small okrules">
       <p><b>Taşlar:</b> 4 renk (kırmızı, sarı, mavi, siyah) × 1–13, her taştan 2 tane + 2 sahte okey (♣) = 106 taş. Başlayan 22, diğerleri 21 taş alır.</p>
       <p><b>Gösterge ve okey:</b> Göstergenin aynı renkte bir büyüğü okeydir (13 → 1). Okey her taşın yerine geçer. Sahte okey (♣) okeyin kendisi yerine sayılır.</p>
@@ -162,13 +172,14 @@
         <button class="okbuy" id="okBuy">$ SATIN AL</button>
         <button class="okic" id="okMenu" title="Menü">▾</button>
       </div>
-      <div class="okarea"><div class="okmark"><b>101</b><span>OKEY</span></div><div class="okinfo" id="okInfo"></div><div class="okmelds" id="okMelds"></div><div class="okstatus" id="okStatus"></div></div>
+      <div class="okarea"><img class="oklogo" src="assets/spinova_logo.webp" alt=""><div class="okinfo" id="okInfo"></div><div class="okmelds" id="okMelds"></div><div class="okstatus" id="okStatus"></div></div>
       <div class="okseat side" data-pos="3"></div><div class="okseat side right" data-pos="1"></div>
       <div class="okdisc" data-dpos="2"></div><div class="okdisc" data-dpos="1"></div><div class="okdisc" data-dpos="3" data-zone="take"></div><div class="okdisc mine" data-dpos="0" data-zone="discard"></div>
       <div class="okcol" id="okCol">
         <button class="okcb" id="okRuns">Seri Diz</button><button class="okcb" id="okPairs">Çift Diz</button>
         <button class="okcb" id="okOpenRun">Seri Aç</button><button class="okcb" id="okOpenPair">Çift Aç</button>
         <button class="okcb" id="okCommit">Taş İşle</button><button class="okcb" id="okUndo">Topla</button>
+        <button class="okcb fin" id="okFinish">BİTİR</button>
       </div>
       <div class="okpile" id="okPile" data-zone="pile"></div>
       <div class="okseat me" data-pos="0"></div>
@@ -182,7 +193,7 @@
     $('#okLeave').onclick = leaveTable; $('#okChat').onclick = chatModal; $('#okMenu').onclick = menuModal; $('#okBuy').onclick = buyModal;
     $('#okRuns').onclick = () => arrangeRuns(true); $('#okPairs').onclick = () => arrangePairs(true);
     $('#okOpenRun').onclick = () => openWith('points'); $('#okOpenPair').onclick = () => openWith('pairs');
-    $('#okCommit').onclick = commitTiles; $('#okUndo').onclick = undoTurn;
+    $('#okCommit').onclick = commitTiles; $('#okUndo').onclick = undoTurn; $('#okFinish').onclick = () => finishDuz(O.sel);
     bindPointer();
     await poll(true);
     loop();
@@ -230,7 +241,7 @@
     const b = $('#okNetRe'); b && (b.onclick = () => { O.fail = 1; poll(true).then(loop); });
   }
   function apply(v) {
-    const prev = O.v; O.v = v; O.seq = v.seq; O.skew = Date.now() - v.now;
+    const prev = O.v; O.v = v; O.seq = v.seq; O.skew = Date.now() - v.now; O.variant = v.cfg && v.cfg.variant === 'duz' ? 'duz' : '101'; const stg = $('#okStage'); stg && stg.classList.toggle('duz', O.variant === 'duz');
     if (v.hand) syncRack();
     events(prev, v);
     render();
@@ -318,8 +329,9 @@
 
   /* ---------- buton durumları (kurallara göre etkin/pasif) ---------- */
   function abilities() {
-    const v = O.v, H = v && v.hand; const out = { openRun: false, openPair: false, commit: false, undo: false, why: {} };
+    const v = O.v, H = v && v.hand; const out = { openRun: false, openPair: false, commit: false, undo: false, finish: false, why: {} };
     if (!H || v.status !== 'playing' || v.me == null) return out;
+    if (isDuzV()) { const f = playPhase() && OR.findFinish(H.rack, OR.kit(H.okey)); out.finish = !!f; O.finTile = f ? f.tile : null; out.why.finish = playPhase() ? 'Elin henüz bitmeye hazır değil: 14 taşın tamamı seri/per ya da 7 çift olmalı.' : myTurn() ? 'Önce ortadan ya da yandan taş al.' : 'Sıra sende değil.'; return out; }
     const K = OR.kit(H.okey), op = H.opened[v.me], th = H.threshold || { points: 101, pairs: 5 }, rack = H.rack;
     const play = playPhase();
     const pairsArea = H.opened.some(o => o && o.route === 'pairs');
@@ -348,7 +360,7 @@
   function render() {
     const v = O.v; if (!v || O.screen !== 'table') return;
     $('#okBal').textContent = App.me.unlimited ? '∞' : fmt(App.me.balance);
-    $('#okInfo').innerHTML = `<b>${v.cfg.mode === 'esli' ? 'Eşli' : 'Tekli'}</b> · ${v.cfg.katlamali ? 'Katlamalı' : 'Katlamasız'} · El ${Math.max(1, v.round)}/${v.cfg.rounds} · ${v.cfg.stake ? '🪙 ' + fmt(v.cfg.stake) : 'Ücretsiz'}${v.code ? ` · Kod <b class="gold">${v.code}</b>` : ''}`;
+    $('#okInfo').innerHTML = `<b>${isDuzV() ? 'Düz Okey' : '101 Okey'}</b> · <b>${v.cfg.mode === 'esli' ? 'Eşli' : 'Tekli'}</b>${isDuzV() ? '' : ` · ${v.cfg.katlamali ? 'Katlamalı' : 'Katlamasız'}`} · El ${Math.max(1, v.round)}/${v.cfg.rounds} · ${v.cfg.stake ? '🪙 ' + fmt(v.cfg.stake) : 'Ücretsiz'}${v.code ? ` · Kod <b class="gold">${v.code}</b>` : ''}`;
     for (let p = 0; p < 4; p++) renderSeat(p);
     renderDiscards(); renderPile(); renderMelds(); renderCol(); renderStatus(); if (!O.drag) renderRack(); renderWait(); timers();
   }
@@ -385,7 +397,7 @@
     const can = myTurn() && H.phase === 'draw';
     el.classList.toggle('can', can);
     el.innerHTML = `<div class="okstack" data-zone="pile">${H.pile ? backTile() + backTile('o2') : '<div class="okslot0">BİTTİ</div>'}<em>${H.pile}</em>${can ? '<i class="okhint">ÇEK</i>' : ''}</div>
-      <div class="okind"><small>GÖSTERGE</small>${tileHtml(H.indicator, 'ind')}</div>`;
+      <div class="okind" ${isDuzV() ? 'data-zone="finish"' : ''}><small>${isDuzV() && playPhase() ? 'BİTİR ⇩' : 'GÖSTERGE'}</small>${tileHtml(H.indicator, 'ind')}</div>`;
   }
   function renderMelds() {
     const v = O.v, H = v.hand, el = $('#okMelds'); if (!H) { el.innerHTML = ''; return; }
@@ -398,12 +410,17 @@
     $('#okRuns').classList.toggle('act', O.arr === 'runs'); $('#okPairs').classList.toggle('act', O.arr === 'pairs');
     const noHand = !v.hand || v.status !== 'playing'; $('#okRuns').classList.toggle('off', noHand); $('#okPairs').classList.toggle('off', noHand);
     set('#okOpenRun', a.openRun, op ? 'Per Koy' : 'Seri Aç'); set('#okOpenPair', a.openPair, op ? 'Çift Koy' : 'Çift Aç');
-    set('#okCommit', a.commit); set('#okUndo', a.undo);
+    set('#okCommit', a.commit); set('#okUndo', a.undo); set('#okFinish', a.finish);
     O.why = a.why;
   }
   function renderStatus() {
     const v = O.v, H = v.hand, el = $('#okStatus');
     if (!H || v.status !== 'playing') { el.innerHTML = v.status === 'round_end' ? '<span>El bitti — sonraki el birazdan</span>' : v.status === 'finished' ? '<span>Oyun bitti</span>' : ''; return; }
+    if (isDuzV()) {
+      const mine = myTurn(); const a = mine && H.phase === 'play' ? abilities() : null;
+      const msg = !mine ? `Sıra: <b>${esc(v.seats[H.turn].name)}</b>` : H.phase === 'draw' ? '<b class="gold">Sıra sende:</b> ortadan çek ya da soldaki taşı al' : a && a.finish ? '<b class="gold">Elin hazır!</b> BİTİR\'e bas ya da son taşı göstergeye sürükle' : '<b class="gold">Taş at:</b> sağ alttaki alana sürükle';
+      el.innerHTML = `<span>${msg}</span>`; return;
+    }
     const ge = groupEval(), th = H.threshold || { points: 101, pairs: 5 }, op = H.opened[v.me], mine = myTurn();
     let msg;
     if (!mine) msg = `Sıra: <b>${esc(v.seats[H.turn].name)}</b>`;
@@ -414,8 +431,9 @@
   }
   function renderRack() {
     const el = $('#okRack'); const H = O.v.hand;
-    if (!H) { el.innerHTML = '<div class="okrackmark">101</div>'; return; }
-    let html = '<div class="okrackmark">101</div>'; for (let i = 0; i < SLOTS; i++) { const id = O.slots[i]; html += `<div class="okslot" data-slot="${i}">${id != null ? tileHtml(id, `${O.sel === id ? 'sel' : ''} ${O.fresh === id ? 'fresh' : ''} ${H.took && H.took.id === id ? 'took' : ''}`, `data-rack="${i}"`) : ''}</div>`; }
+    const marks = '<div class="okrackmark">SPINOVA</div><div class="okracksig">By-Hkn</div>';
+    if (!H) { el.innerHTML = marks; return; }
+    let html = marks; for (let i = 0; i < SLOTS; i++) { const id = O.slots[i]; html += `<div class="okslot" data-slot="${i}">${id != null ? tileHtml(id, `${O.sel === id ? 'sel' : ''} ${O.fresh === id ? 'fresh' : ''} ${H.took && H.took.id === id ? 'took' : ''}`, `data-rack="${i}"`) : ''}</div>`; }
     el.innerHTML = html; O.fresh = null;
   }
   function renderWait() {
@@ -429,7 +447,7 @@
       <p class="small">Masa doluluğu: <b>${v.seats.filter(Boolean).length}/4</b></p>
       <div class="row" style="justify-content:center;gap:8px"><button class="okbtn2" id="okInvite">👥 Arkadaş Davet Et</button>${(v.cfg.private && !v.owner) || v.cfg.bots === false ? '' : '<button class="okbtn2 go" id="okStart">🤖 Botlarla Başlat</button>'}</div>
       ${v.cfg.mode === 'esli' ? '<p class="small">Eşli: karşılıklı oturanlar takım. Boş koltuktaki “Otur” ile yerini seçebilirsin.</p>' : ''}`;
-    const inv = () => `101 Okey masama gel! Slot Salonu'nda "Kodla Katıl"a ${v.code} yaz.${v.locked ? ' (Şifreyi ayrıca söyleyeceğim.)' : ''} Jetonlar sanaldır.`;
+    const inv = () => `101 Okey masama gel! SPINOVA 101 OKEY'de "Kodla Katıl"a ${v.code} yaz.${v.locked ? ' (Şifreyi ayrıca söyleyeceğim.)' : ''} Jetonlar sanaldır.`;
     $('#okCopy') && ($('#okCopy').onclick = () => Platform.copy(v.code)); $('#okWa') && ($('#okWa').onclick = () => Platform.share(inv()));
     $('#okInvite').onclick = inviteModal; $('#okStart') && ($('#okStart').onclick = () => guard($('#okStart'), async () => { await Api.post(`/api/okey/${O.id}/start`, {}); poll(true); }));
   }
@@ -485,12 +503,20 @@
     const H = O.v.hand, K = OR.kit(H.okey);
     if (O.acting) return;
     if (!myTurn() || H.phase !== 'play') { toast(H.phase === 'draw' && myTurn() ? 'Önce taş çekmelisin.' : 'Sıra sende değil.', true); return; }
-    if (H.rack.length > 1) {
+    if (H.rack.length > 1 && !isDuzV()) {
       if (K.isJoker(id) && !(await UI.confirm('Okey atarsan 101 ceza yazılır ve sonraki oyuncu alamaz. Yine de atılsın mı?', 'At'))) return;
       if (!K.isJoker(id) && OR.isCommittable(id, H.melds, K) && !(await UI.confirm('Bu taş masadaki bir pere işlenebilir. Atarsan 101 ceza yazılır. Yine de atılsın mı?', 'At'))) return;
     }
     const i = O.slots.indexOf(id); if (i >= 0) { O.slots[i] = null; renderRack(); }
     O.sel = null; Sound.play('stop'); await act({ type: 'discard', tile: id });
+  }
+  /** Düz Okey: seçili (ya da çözücünün bulduğu) taşı atarak eli bitir. Doğrulama sunucuda. */
+  async function finishDuz(id) {
+    if (!isDuzV()) return; const a = abilities();
+    if (!a.finish) return toast(a.why.finish, true);
+    const H = O.v.hand, K = OR.kit(H.okey); const tile = id != null && OR.finishGroups(H.rack, id, K) ? id : O.finTile;
+    const i = O.slots.indexOf(tile); if (i >= 0) { O.slots[i] = null; renderRack(); }
+    O.sel = null; const r = await act({ type: 'finish', tile }); if (r) { Sound.play('bigwin'); UI.confetti && UI.confetti(60); }
   }
   const need = (k) => { const a = abilities(); if (!a[k]) { toast(a.why[k] || 'Şu anda yapılamaz.', true); return false; } return true; };
   /** Seri Aç / Çift Aç (açmadıysa) — Per Koy / Çift Koy (açtıysa). Önce istakadaki dizilişi, yetmezse en iyi dizilişi kullanır. */
@@ -587,6 +613,7 @@
       if (D.kind === 'rack') {
         if (tgt.slot != null) { moveTile(D.from, tgt.slot); renderRack(); renderStatus(); renderCol(); }
         else if (tgt.zone === 'discard') discard(D.id);
+        else if (tgt.zone === 'finish') finishDuz(D.id);
         else if (tgt.meld != null) toMeld(D.id, tgt.meld, tgt.side);
         else renderRack();
       } else if (D.kind === 'pile') drawTo(tgt.slot != null && O.slots[tgt.slot] == null ? tgt.slot : null);
@@ -617,7 +644,7 @@
   function hilite(cx, cy) {
     $$('.okhl').forEach(x => x.classList.remove('okhl')); if (cx == null) return;
     const el = document.elementFromPoint(cx, cy); if (!el) return;
-    const t = el.closest('.okslot,[data-zone="discard"],[data-meld]'); if (t) t.classList.add('okhl');
+    const t = el.closest('.okslot,[data-zone="discard"],[data-zone="finish"],[data-meld]'); if (t) t.classList.add('okhl');
   }
 
   /* ---------- modallar ---------- */
@@ -666,7 +693,8 @@
   function scoresModal() { if (!O.v) return; modal(`<h3 class="gold">📊 Puan Tablosu</h3>${scoresTable(O.v)}<p class="small muted center">En düşük puan kazanır.</p>`); }
   function roundModal(v, thenFinal) {
     const r = v.hand.result, fin = r.finisher;
-    modal(`<h3 class="gold">${fin != null ? `🏁 ${esc(v.seats[fin].name)} bitirdi!` : '🀫 Deste bitti'}</h3>
+    modal(`<h3 class="gold">${fin != null ? `🏁 ${esc(v.seats[fin].name)} bitirdi!${r.okeyFinish ? ' (okey atarak)' : ''}${r.pairs ? ' (çiftle)' : ''}` : '🀫 Deste bitti'}</h3>
+      ${r.show ? `<div class="okshow">${r.show.groups.map(g => `<span class="okgrp">${g.map(id => tileHtml(id, 'xs')).join('')}</span>`).join('')}</div>` : ''}
       <div class="list">${r.detail.map(d => `<div class="li"><b style="color:${SEATCOL[d.s]};min-width:80px">${esc(v.seats[d.s].name)}</b><div class="grow"><small>${esc(d.note || '')}${d.penalties ? ` · ceza +${d.penalties}` : ''}${d.siler ? ' · siler −101' : ''}</small><div class="okrev">${(r.racks[d.s] || []).slice(0, 22).map(id => tileHtml(id, 'xs')).join('')}</div></div><b class="${d.score < 0 ? 'okneg' : ''}">${d.score > 0 ? '+' : ''}${d.score}</b></div>`).join('')}</div>
       ${scoresTable(v)}${thenFinal ? '<button class="btn gold block" data-close="1">Sonuçlar ▶</button>' : `<p class="center small muted">Sonraki el birkaç saniye içinde başlar.</p>`}`).then(() => { if (thenFinal) finalModal(O.v); });
     if (!thenFinal) setTimeout(() => { if (O.v && O.v.status !== 'round_end') closeModal(); }, 9500);
@@ -680,7 +708,7 @@
       ${F.teams ? `<p class="center">Takım puanları: A ${F.teams[0]} · B ${F.teams[1]}</p>` : ''}
       <div class="row"><button class="btn ghost grow" data-close="lobby">Lobiye Dön</button>${v.cfg.private ? '' : '<button class="btn green grow" data-close="again">Tekrar Oyna</button>'}</div>`, { noClose: true }).then(async (x) => {
       Screens.refresh && Screens.refresh().catch(() => {});
-      if (x === 'again') { try { await Api.post(`/api/okey/${O.id}/leave`, {}); const r = await Api.post('/api/okey/quick', { mode: v.cfg.mode, stake: v.cfg.stake, rounds: v.cfg.rounds, katlamali: v.cfg.katlamali }); openTable(r.tableId); } catch (e) { toast(e.message, true); lobby(); } }
+      if (x === 'again') { try { await Api.post(`/api/okey/${O.id}/leave`, {}); const r = await Api.post('/api/okey/quick', { variant: v.cfg.variant || '101', mode: v.cfg.mode, stake: v.cfg.stake, rounds: v.cfg.rounds, katlamali: v.cfg.katlamali }); openTable(r.tableId); } catch (e) { toast(e.message, true); lobby(); } }
       else { try { await Api.post(`/api/okey/${O.id}/leave`, {}); } catch (e) { /* */ } lobby(); }
     });
   }
@@ -697,6 +725,9 @@
     if (!t || O.screen) return;
     UI.modal(`<h3 class="gold">🀄 101 Okey</h3><p class="center">${t.status === 'waiting' ? 'Oyuncu beklediğin bir masan var.' : 'Devam eden bir 101 Okey oyunun var.'}</p><div class="row"><button class="btn ghost grow" data-close="0">Sonra</button><button class="btn green grow" data-close="1">MASAYA DÖN</button></div>`).then(x => { if (x === '1') openTable(t.id); });
   }
-  async function createPrivate() { try { O.lobbyData = O.lobbyData || await Api.get('/api/okey/lobby'); optionsModal('private'); } catch (e) { toast(e.message, true); } }
-  window.Okey = { lobby, openTable, offerResume, createPrivate, isOpen: () => !!O.screen && (($('#okeyRoot') && $('#okeyRoot').classList.contains('show')) || ($('#okeyLobby') && $('#okeyLobby').classList.contains('active'))), back, close: () => { stopTable(); O.screen = null; } };
+  async function lobbyData(force) { if (force || !O.lobbyData) O.lobbyData = await Api.get('/api/okey/lobby'); return O.lobbyData; }
+  async function createPrivate(variant) { try { await lobbyData(true); optionsModal('private', null, variant || O.variant || '101'); } catch (e) { toast(e.message, true); } }
+  async function quickOpts(variant, stake) { try { await lobbyData(true); optionsModal('quick', stake, variant); } catch (e) { toast(e.message, true); } }
+  function setVariant(v) { O.variant = v === 'duz' ? 'duz' : '101'; }
+  window.Okey = { lobby, openTable, offerResume, createPrivate, quickOpts, lobbyData, openTables, codeModal, rulesModal, topModal, setVariant, variant: () => O.variant, isOpen: () => !!O.screen && (($('#okeyRoot') && $('#okeyRoot').classList.contains('show')) || ($('#okeyLobby') && $('#okeyLobby').classList.contains('active'))), back, close: () => { stopTable(); O.screen = null; } };
 })();

@@ -249,6 +249,17 @@ export function registerSocial(A) {
   r('DELETE', '/api/admin/chat/:id', admin, async (ctx) => { await Q('UPDATE slot.chat_messages SET deleted=TRUE WHERE id=$1', [int(ctx.params.id, 'id', 1)]); await audit(Q, ctx, 'chat_delete', null, { id: ctx.params.id }); return { ok: true }; });
   r('POST', '/api/admin/users/:id/mute', admin, async (ctx) => { const mins = int(ctx.body.minutes ?? 60, 'minutes', 0, 60 * 24 * 30); await Q('UPDATE slot.users SET muted_until=$1 WHERE id=$2', [mins ? now() + mins * 60e3 : null, int(ctx.params.id, 'id', 1)]); await audit(Q, ctx, 'mute', int(ctx.params.id, 'id', 1), { mins }); return { ok: true }; });
 
+  /* ---------- Liderlik tablosu (gerçek kayıtlardan) ---------- */
+  r('GET', '/api/leaderboard', auth, async (ctx) => {
+    const by = ctx.query.get('by') || 'level'; let rows;
+    if (by === 'okey') rows = await Q("SELECT u.id, u.username, u.avatar, u.level, s.won v, s.played p FROM slot.okey_stats s JOIN slot.users u ON u.id=s.user_id WHERE u.role='player' ORDER BY s.won DESC, s.coins_won DESC LIMIT 30");
+    else if (by === 'tavla') rows = await Q("SELECT u.id, u.username, u.avatar, u.level, s.won v, s.played p FROM slot.tavla_stats s JOIN slot.users u ON u.id=s.user_id WHERE u.role='player' ORDER BY s.won DESC, s.coins_won DESC LIMIT 30");
+    else if (by === 'aviator') rows = await Q("SELECT u.id, u.username, u.avatar, u.level, MAX(a.cash_mult) v, COUNT(*)::int p FROM slot.aviator_rounds a JOIN slot.users u ON u.id=a.user_id WHERE a.status='cashed' AND u.role='player' AND a.created_at>$1 GROUP BY u.id, u.username, u.avatar, u.level ORDER BY v DESC LIMIT 30", [now() - 7 * 86400e3]);
+    else if (by === 'slots') rows = await Q("SELECT u.id, u.username, u.avatar, u.level, MAX(s.win) v, COUNT(*)::int p FROM slot.spins s JOIN slot.users u ON u.id=s.user_id WHERE s.created_at>$1 AND u.role='player' GROUP BY u.id, u.username, u.avatar, u.level ORDER BY v DESC LIMIT 30", [now() - 7 * 86400e3]);
+    else rows = await Q("SELECT id, username, avatar, level, xp v, 0 p FROM slot.users WHERE role='player' AND NOT banned ORDER BY xp DESC LIMIT 30");
+    return { by, top: rows.map(x => ({ id: Number(x.id), username: x.username, avatar: x.avatar, level: x.level, value: Number(x.v), played: Number(x.p), me: Number(x.id) === ctx.user.id })) };
+  });
+
   /* ---------- Son kazananlar (gerçek oyun kayıtlarından) ---------- */
   r('GET', '/api/winners/recent', auth, async () => ({ winners: await Q("SELECT u.username, u.avatar, s.game, s.win, s.bet, s.created_at FROM slot.spins s JOIN slot.users u ON u.id=s.user_id WHERE s.created_at>$1 AND s.win >= s.bet*10 AND u.role='player' ORDER BY s.win DESC LIMIT 10", [now() - 7 * DAY]) }));
 

@@ -7,8 +7,7 @@
   /* ===================== GİRİŞ / KAYIT ===================== */
   // Yatay giriş ekranı: solda oyun dünyası (Kristal Peri + 101 Okey + Zeus), sağda form
   function authShell(inner) {
-    return `<div class="authw"><div class="authart"><img class="aafairy" src="assets/menu_fairy.webp" alt=""><img class="aaokey" src="assets/card_okey101.webp" alt=""><img class="aazeus" src="assets/card_zeusslot.webp" alt="">
-        <div class="logo"><span class="crown">👑</span><b>SLOT</b><b>SALONU</b></div></div>
+    return `<div class="authw"><div class="authart sp"><img class="aaking" src="assets/king_wave.webp" alt=""><img class="aalogo" src="assets/spinova_logo.webp" alt="SPINOVA 101 OKEY"><span class="byhkn">By-Hkn</span></div>
       <div class="authform"><div class="card">${inner}</div><p class="small muted center">18 yaş ve üzeri içindir. Sanal jetonlar yalnızca eğlence amaçlıdır; gerçek para veya ödül kazandırmaz.</p></div></div>`;
   }
   // Giriş ekranı: üstte kullanıcı adı + şifre (Giriş Yap / Kayıt Ol), altta e-posta ile giriş ve Şifremi Unuttum
@@ -183,7 +182,7 @@
     renderTop();
   }
   function go(tab) {
-    if (window.Platform) { if (!tab || tab === 'lobby' || tab === 'home') return Platform.home(); return Platform.panel(tab); }
+    if (window.Platform) { if (!tab || tab === 'lobby' || tab === 'home') return Platform.home(); if (String(tab).startsWith('entry:')) return Entry.open(tab.slice(6)); return Platform.panel(tab); }
     S.tab = tab; show('main');
     $$('.nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
     const body = $('#mainBody'); body.scrollTop = 0;
@@ -194,7 +193,7 @@
   /* ===================== LOBİ ===================== */
   function lobby(body) {
     body.innerHTML = `
-      <div class="banner"><img src="img/hero.png" alt="SLOT SALONU"><div class="cta"><button class="btn green sm" id="playRand">▶ HEMEN OYNA</button></div></div>
+      <div class="banner"><img src="img/hero.png" alt="SPINOVA 101 OKEY"><div class="cta"><button class="btn green sm" id="playRand">▶ HEMEN OYNA</button></div></div>
       <div class="quick">
         <div class="qbtn" id="qDaily"><span class="i">🎁</span>Günlük<span class="t" id="dailyT"></span><span id="bDaily"></span></div>
         <div class="qbtn" id="qLvl"><span class="i">🏆</span>Seviye<span class="t">Ödülleri</span><span id="bLvl"></span></div>
@@ -400,7 +399,7 @@
       <p><b>Saklama ve haklar:</b> KVKK ve GDPR kapsamındaki erişim, düzeltme ve silme taleplerin için uygulama içi destekten bize ulaşabilirsin. Hesap silindiğinde kişisel veriler yasal saklama süreleri dışında silinir.</p>
       <p class="muted">Bu metin bir şablondur; yayımlamadan önce kendi şirket bilgilerinle ve bir hukukçu ile gözden geçir.</p></div>`;
     const T = `<h3 class="gold">Kullanım Koşulları</h3><div class="small" style="line-height:1.55">
-      <p>SLOT SALONU yalnızca eğlence amaçlı bir sosyal casino oyunudur ve <b>18 yaş ve üzeri</b> kullanıcılar içindir.</p>
+      <p>SPINOVA 101 OKEY yalnızca eğlence amaçlı bir sosyal casino oyunudur ve <b>18 yaş ve üzeri</b> kullanıcılar içindir.</p>
       <p><b>Gerçek para kumarı yoktur.</b> Oyunda kazanılan veya satın alınan sanal jetonlar hiçbir koşulda nakde, paraya, hediye çekine veya gerçek bir ödüle çevrilemez, hesaplar arasında satılamaz. Sosyal casino oyunlarındaki başarı, gerçek para kumarında başarı anlamına gelmez.</p>
       <p>Satın alınan jetonlar bir lisans niteliğindedir; Google Play iade politikası saklıdır. İade edilen satın alımlara ait jetonlar hesaptan düşülür.</p>
       <p>Hile, otomasyon, açık istismarı veya başka hesapların kötüye kullanımı hesabın askıya alınmasına yol açar.</p>

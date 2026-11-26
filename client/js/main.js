@@ -57,6 +57,8 @@
     try {
       // Okey masası kendi geri davranışını yönetir (ayrılma onayı)
       if (window.Okey && Okey.isOpen()) return Okey.back();
+      if (window.Tavla && Tavla.isOpen()) return Tavla.back();
+      if (window.Aviator && Aviator.isOpen()) return Aviator.back();
       // Slot oyunu açıksa: modal/kazanç ekranı ne olursa olsun tek geri hareketiyle lobiye dön
       if (Games.isOpen()) { Games.close(); return true; }
       if ($('#overlay').classList.contains('show')) { closeModal(true); return true; }

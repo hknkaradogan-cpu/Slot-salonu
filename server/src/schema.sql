@@ -98,3 +98,15 @@ CREATE INDEX IF NOT EXISTS messages_pair ON slot.messages(from_id, to_id, id);
 CREATE INDEX IF NOT EXISTS messages_to ON slot.messages(to_id, read_at);
 CREATE TABLE IF NOT EXISTS slot.chat_messages (id BIGSERIAL PRIMARY KEY, user_id BIGINT NOT NULL REFERENCES slot.users(id) ON DELETE CASCADE, body TEXT NOT NULL, created_at BIGINT NOT NULL, deleted BOOLEAN NOT NULL DEFAULT FALSE);
 REVOKE ALL ON SCHEMA slot FROM PUBLIC;
+
+-- 5.0: SPINOVA — Düz Okey, Tavla, Aviator
+ALTER TABLE slot.okey_tables ADD COLUMN IF NOT EXISTS variant TEXT NOT NULL DEFAULT '101';
+CREATE TABLE IF NOT EXISTS slot.tavla_tables (id BIGSERIAL PRIMARY KEY, code TEXT UNIQUE, status TEXT NOT NULL, stake BIGINT NOT NULL DEFAULT 0, private BOOLEAN NOT NULL DEFAULT FALSE, owner_id BIGINT, state TEXT NOT NULL, created_at BIGINT NOT NULL, updated_at BIGINT NOT NULL);
+CREATE INDEX IF NOT EXISTS tavla_tables_match ON slot.tavla_tables(status, private, stake);
+CREATE TABLE IF NOT EXISTS slot.tavla_players (table_id BIGINT NOT NULL REFERENCES slot.tavla_tables(id) ON DELETE CASCADE, user_id BIGINT NOT NULL REFERENCES slot.users(id) ON DELETE CASCADE, seat INT NOT NULL, active BOOLEAN NOT NULL DEFAULT TRUE, paid BIGINT NOT NULL DEFAULT 0, payout BIGINT, joined_at BIGINT NOT NULL, PRIMARY KEY (table_id, user_id));
+CREATE INDEX IF NOT EXISTS tavla_players_user ON slot.tavla_players(user_id, active);
+CREATE TABLE IF NOT EXISTS slot.tavla_invites (id BIGSERIAL PRIMARY KEY, table_id BIGINT NOT NULL REFERENCES slot.tavla_tables(id) ON DELETE CASCADE, from_id BIGINT NOT NULL, to_id BIGINT NOT NULL, created_at BIGINT NOT NULL);
+CREATE TABLE IF NOT EXISTS slot.tavla_stats (user_id BIGINT PRIMARY KEY REFERENCES slot.users(id) ON DELETE CASCADE, played INT NOT NULL DEFAULT 0, won INT NOT NULL DEFAULT 0, coins_won BIGINT NOT NULL DEFAULT 0, mars INT NOT NULL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS slot.aviator_rounds (id BIGSERIAL PRIMARY KEY, user_id BIGINT NOT NULL REFERENCES slot.users(id) ON DELETE CASCADE, bet BIGINT NOT NULL, auto NUMERIC(10,2), crash NUMERIC(10,2) NOT NULL, salt TEXT NOT NULL, hash TEXT NOT NULL, start_at BIGINT NOT NULL, status TEXT NOT NULL, cash_mult NUMERIC(10,2), win BIGINT NOT NULL DEFAULT 0, ended_at BIGINT, created_at BIGINT NOT NULL);
+CREATE INDEX IF NOT EXISTS aviator_rounds_user ON slot.aviator_rounds(user_id, id DESC);
+CREATE INDEX IF NOT EXISTS aviator_rounds_time ON slot.aviator_rounds(created_at);

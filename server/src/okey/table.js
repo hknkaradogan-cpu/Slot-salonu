@@ -2,6 +2,7 @@
 // Tüm hamleler sunucuda doğrulanır; istemci yalnızca niyet gönderir.
 import * as R from './rules.js';
 import { botTurn, botDiscard } from './bot.js';
+import * as D from './duz.js';
 
 export const TURN_MS = 30000, BOT_MIN_MS = 1100, BOT_MAX_MS = 2600, ROUND_PAUSE_MS = 9000, FILL_BOTS_MS = 20000;
 export const BOT_NAMES = ['Ayşe', 'Mehmet', 'Zeynep', 'Emre', 'Elif', 'Burak', 'Selin', 'Hakan', 'Derya', 'Kerem', 'Merve', 'Oğuz', 'Gizem', 'Serkan', 'Ece', 'Tolga', 'Pınar', 'Cem', 'Ebru', 'Murat'];
@@ -13,7 +14,7 @@ const fail = (code, msg) => { throw new OkeyError(code, msg); };
 
 export function newTable(cfg, now) {
   const bots = cfg.bots !== false, fillMs = cfg.fillMs || FILL_BOTS_MS;
-  return { cfg: { mode: cfg.mode === 'esli' ? 'esli' : 'tekli', rounds: cfg.rounds || 1, katlamali: cfg.katlamali !== false, stake: cfg.stake || 0, private: !!cfg.private, turnMs: cfg.turnMs || TURN_MS, bots },
+  return { cfg: { variant: cfg.variant === 'duz' ? 'duz' : '101', mode: cfg.mode === 'esli' ? 'esli' : 'tekli', rounds: cfg.rounds || 1, katlamali: cfg.katlamali !== false, stake: cfg.stake || 0, private: !!cfg.private, turnMs: cfg.turnMs || TURN_MS, bots },
     status: 'waiting', seats: [null, null, null, null], round: 0, startSeat: Math.floor(Math.random() * 4), totals: [0, 0, 0, 0], history: [], hand: null,
     createdAt: now, fillAt: cfg.private || !bots ? null : now + fillMs, deadline: null, botAt: null, seq: 0, chat: [] };
 }
@@ -40,6 +41,7 @@ export function fillBots(T, rnd = Math.random) {
   }
 }
 const isAuto = (seat) => seat.bot || seat.left || seat.away;
+export const isDuz = (T) => T.cfg.variant === 'duz';
 const log = (T, e) => { const H = T.hand; H.log.push({ k: ++T.seq, ...e }); if (H.log.length > 40) H.log.shift(); };
 
 export function startRound(T, now, rnd = Math.random) {
@@ -49,7 +51,7 @@ export function startRound(T, now, rnd = Math.random) {
   let ii = deck.findIndex(id => id < 104); const indicator = deck.splice(ii, 1)[0]; // gösterge sahte okey olamaz
   const okey = R.okeyOf(indicator);
   const racks = [[], [], [], []];
-  for (let k = 0; k < 4; k++) { const s = (start + k) % 4; racks[s] = deck.splice(0, s === start ? 22 : 21); }
+  for (let k = 0; k < 4; k++) { const s = (start + k) % 4; racks[s] = deck.splice(0, isDuz(T) ? (s === start ? 15 : 14) : (s === start ? 22 : 21)); }
   T.hand = { start, indicator, okey, pile: deck, racks, discards: [[], [], [], []], melds: [], opened: [null, null, null, null], penalties: [0, 0, 0, 0], siler: [0, 0, 0, 0],
     turn: start, phase: 'play', took: null, laidThisTurn: false, okeyBlocked: false, turnNo: 1, openTurn: [0, 0, 0, 0], meldSeq: 0, log: [], result: null };
   log(T, { t: 'deal', s: start });
@@ -94,6 +96,7 @@ export function act(T, s, a, now, rnd = Math.random) {
   if (!seat) fail('no_seat', 'Masada değilsin.');
   if (a.type !== 'auto') { seat.timeouts = 0; if (seat.away && !seat.bot) seat.away = false; }
   const k = H && K(T);
+  if (isDuz(T)) return actDuz(T, s, a, now, rnd, k);
   switch (a.type) {
     case 'draw': {
       needTurn(T, s, 'draw');
@@ -197,6 +200,59 @@ export function act(T, s, a, now, rnd = Math.random) {
   }
 }
 
+/* ===================== DÜZ OKEY HAMLELERİ ===================== */
+function actDuz(T, s, a, now, rnd, k) {
+  const H = T.hand;
+  switch (a.type) {
+    case 'draw': {
+      needTurn(T, s, 'draw');
+      if (!H.pile.length) return endRound(T, null, now);
+      const id = H.pile.shift(); H.racks[s].push(id); H.phase = 'play'; H.took = null; H.okeyBlocked = false;
+      log(T, { t: 'draw', s }); return { drawn: id };
+    }
+    case 'take': {
+      needTurn(T, s, 'draw');
+      const d = H.discards[prev(s)]; if (!d.length) fail('empty', 'Alınacak taş yok.');
+      if (H.okeyBlocked) fail('okey_blocked', 'Atılan okey alınamaz.');
+      const id = d.pop(); H.racks[s].push(id); H.phase = 'play'; H.took = { id, from: prev(s) };
+      log(T, { t: 'take', s, tile: id }); return { taken: id };
+    }
+    case 'discard': {
+      needTurn(T, s, 'play');
+      const id = a.tile, rack = H.racks[s]; if (!inRack(rack, [id])) fail('not_in_rack', 'Bu taş elinde değil.');
+      takeFromRack(rack, [id]); H.discards[s].push(id); const joker = k.isJoker(id);
+      log(T, { t: 'discard', s, tile: id });
+      H.turn = next(s); H.phase = 'draw'; H.took = null; H.turnNo++; H.okeyBlocked = joker;
+      beginTurn(T, now, rnd); return {};
+    }
+    case 'finish': { // bu taşı atarak el bitir: kalan 14 taş sunucuda perlere/7 çifte ayrılmalı
+      needTurn(T, s, 'play');
+      const id = a.tile, rack = H.racks[s]; if (!inRack(rack, [id])) fail('not_in_rack', 'Bu taş elinde değil.');
+      const fin = D.finishGroups(rack, id, k);
+      if (!fin) fail('cannot_finish', 'Elin henüz bitmeye hazır değil: kalan 14 taş seri/per ya da 7 çift olmalı.');
+      takeFromRack(rack, [id]); H.discards[s].push(id);
+      H.finishShow = { seat: s, kind: fin.kind, groups: fin.groups };
+      log(T, { t: 'discard', s, tile: id, finish: true });
+      return endRound(T, { seat: s, okey: k.isJoker(id), pairs: fin.kind === 'pairs' }, now);
+    }
+    case 'auto': return autoTurnDuz(T, s, now, rnd, k);
+    default: fail('bad_action', 'Düz Okey\'de bu hamle yok.');
+  }
+}
+function autoTurnDuz(T, s, now, rnd, k) {
+  const H = T.hand, seat = T.seats[s];
+  if (!(seat.bot || seat.left || seat.away)) { seat.timeouts++; if (seat.timeouts >= 2) seat.away = true; }
+  const smart = seat.bot || seat.left || seat.away;
+  if (H.phase === 'draw') {
+    const d = H.discards[prev(s)], top = d.length ? d[d.length - 1] : null;
+    if (smart && top != null && !H.okeyBlocked && D.duzWantTake(H.racks[s], top, k)) actDuz(T, s, { type: 'take' }, now, rnd, k);
+    else { const r = actDuz(T, s, { type: 'draw' }, now, rnd, k); if (T.status !== 'playing' || T.hand !== H) return r; }
+  }
+  const f = D.findFinish(H.racks[s], k);
+  if (f) return actDuz(T, s, { type: 'finish', tile: f.tile }, now, rnd, k);
+  return actDuz(T, s, { type: 'discard', tile: D.duzDiscard(H.racks[s], k) }, now, rnd, k);
+}
+
 /** Zaman aşımı / bot: tüm turu kurallara uygun oynar. */
 function autoTurn(T, s, now, rnd) {
   const H = T.hand, seat = T.seats[s];
@@ -213,6 +269,19 @@ function autoTurn(T, s, now, rnd) {
 /* ===================== EL SONU / PUANLAMA ===================== */
 export function endRound(T, fin, now) {
   const H = T.hand, k = K(T), sc = [0, 0, 0, 0], detail = [];
+  if (isDuz(T)) { // klasik okey: biten oyuncu puan kazanır (düşük toplam önde), okeyle/çiftle bitiş katlar
+    let v = 0, note = '';
+    if (fin) { v = -2; note = 'Bitti'; if (fin.pairs) { v *= 2; note = 'Çiftle bitti'; } if (fin.okey) { v *= 2; note += ' (okey atarak)'; } }
+    for (let s = 0; s < 4; s++) {
+      const mine = fin && s === fin.seat, mate = fin && T.cfg.mode === 'esli' && s === partner(fin.seat);
+      sc[s] = mine ? v : 0; detail.push({ s, base: sc[s], penalties: 0, siler: 0, score: sc[s], note: mine ? note : mate ? 'Eşi bitti' : fin ? 'Kaybetti' : 'Taşlar bitti — kazanan yok', left: H.racks[s].length });
+    }
+    for (let s = 0; s < 4; s++) T.totals[s] += sc[s];
+    H.result = { finisher: fin ? fin.seat : null, okeyFinish: fin ? fin.okey : false, pairs: fin ? !!fin.pairs : false, scores: sc, detail, racks: H.racks.map(r => r.slice()), show: H.finishShow || null };
+    T.history.push(sc); log(T, { t: 'round_end', s: fin ? fin.seat : -1 });
+    if (T.round >= T.cfg.rounds) finishGame(T, now); else { T.status = 'round_end'; T.deadline = now + ROUND_PAUSE_MS; T.botAt = null; }
+    return { roundEnd: true };
+  }
   const anyOpen = H.opened.some(Boolean);
   if (!fin && !anyOpen) {
     for (let s = 0; s < 4; s++) detail.push({ s, note: 'Kimse açmadı — el sayılmadı', score: 0 });
@@ -274,7 +343,7 @@ export function tick(T, now, rnd = Math.random) {
       catch (e) { // güvenlik ağı: botun hamlesi reddedilirse en basit geçerli hamle
         const H = T.hand; if (H.phase === 'play' && H.took && !H.laidThisTurn) { try { act(T, s, { type: 'return' }, now, rnd); } catch (e2) { /* */ } }
         if (H.phase === 'draw') act(T, s, { type: 'draw' }, now, rnd);
-        if (T.status === 'playing' && T.hand.turn === s) act(T, s, { type: 'discard', tile: botDiscard(T, s), force: true }, now, rnd);
+        if (T.status === 'playing' && T.hand.turn === s) act(T, s, { type: 'discard', tile: isDuz(T) ? D.duzDiscard(T.hand.racks[s], K(T)) : botDiscard(T, s), force: true }, now, rnd);
       }
       changed = changed || T.seq !== before; continue;
     }
@@ -291,7 +360,7 @@ export function view(T, me, now) {
   if (H) {
     v.hand = { start: H.start, indicator: H.indicator, okey: H.okey, pile: H.pile.length, discards: H.discards, melds: H.melds, opened: H.opened, penalties: H.penalties, siler: H.siler,
       turn: H.turn, phase: H.phase, took: H.took, laidThisTurn: H.laidThisTurn, okeyBlocked: H.okeyBlocked, counts: H.racks.map(r => r.length), log: H.log.slice(-12),
-      threshold: me != null ? { points: openThreshold(T, me, 'points'), pairs: openThreshold(T, me, 'pairs') } : null,
+      threshold: me != null && !isDuz(T) ? { points: openThreshold(T, me, 'points'), pairs: openThreshold(T, me, 'pairs') } : null,
       rack: me != null ? H.racks[me] : null, result: H.result };
   }
   return v;

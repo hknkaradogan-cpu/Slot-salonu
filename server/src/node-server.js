@@ -27,7 +27,7 @@ export async function startNodeServer(opts = {}) {
     corsOrigin: env.CORS_ORIGIN || '*', tzOffsetMin: Number(env.TZ_OFFSET_MIN || 180),
     billingMode: env.BILLING_MODE || 'mock', packageName: env.ANDROID_PACKAGE || 'com.slotsalonu.app',
     serviceAccount: env.GOOGLE_SERVICE_ACCOUNT_JSON || (env.GOOGLE_SERVICE_ACCOUNT_FILE && fs.readFileSync(env.GOOGLE_SERVICE_ACCOUNT_FILE, 'utf8')),
-    rtdnSecret: env.RTDN_SECRET, resendKey: env.RESEND_API_KEY, mailFrom: env.MAIL_FROM || 'SLOT SALONU <no-reply@slotsalonu.app>',
+    rtdnSecret: env.RTDN_SECRET, resendKey: env.RESEND_API_KEY, mailFrom: env.MAIL_FROM || 'SPINOVA 101 OKEY <no-reply@slotsalonu.app>',
     brandName: env.BRAND_NAME, setupToken: env.SETUP_TOKEN, quiet: opts.quiet, allowDevMail: opts.allowDevMail,
     admin: { email: env.ADMIN_EMAIL, username: env.ADMIN_USERNAME || 'yonetici', password: env.ADMIN_PASSWORD },
     limitOverrides: opts.limitOverrides,
