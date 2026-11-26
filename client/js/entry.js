@@ -23,7 +23,7 @@
     root.onclick = (e) => { const x = e.target.closest('[data-x]'); if (!x) return; Sound.play('click'); const k = x.dataset.x; if (k === 'back') return Platform.home(); if (k === 'shop') return Platform.panel('shop'); };
     return root;
   }
-  const seatHtml = (pos, x) => `<div class="enseat ${pos} ${x ? '' : 'empty'}" ${x ? '' : 'data-sit="1"'}><span class="enav">${x ? AVATARS[x.avatar] || '🙂' : '+'}</span><b>${x ? esc(x.name) : 'Boş koltuk'}</b><small>${x ? 'Sv' + (x.level || 1) : 'Dokun, otur'}</small></div>`;
+  const seatHtml = (pos, x) => `<div class="enseat ${pos} ${x ? '' : 'empty'}" ${x ? '' : 'data-sit="1"'}><span class="enav">${x ? AVATARS[x.avatar] || UI.AVATARS[0] : '+'}</span><b>${x ? esc(x.name) : 'Boş koltuk'}</b><small>${x ? 'Sv' + (x.level || 1) : 'Dokun, otur'}</small></div>`;
 
   /* ===================== 101 OKEY / DÜZ OKEY — oda lobisi (referans: 101 Plus) ===================== */
   const ROOMS = [[0, 'KLASİK', 'ODALAR', 'Ücretsiz · XP kazan', 'cl'], [1000, 'ÇAYLAK', 'MASALARI', 'Giriş 1.000', 'cy'], [10000, 'USTA', 'MASALARI', 'Giriş 10.000', 'us'], [100000, 'SALON', 'MASALARI', 'Giriş 100.000', 'sa'], [1000000, 'KRAL', 'MASALARI', 'Giriş 1.000.000', 'kr']];
@@ -35,7 +35,7 @@
     const root = show(id, `
       <div class="olbg ${duz ? 'duz' : ''}"></div>
       <div class="oltop"><button class="enback" data-x="back">◀</button>
-        <div class="olprof"><span class="enav">${AVATARS[me().avatar] || '🙂'}</span><div><b>${esc(me().username || '')}</b><small>⭐ Seviye: ${me().level || 1}</small></div></div>
+        <div class="olprof"><span class="enav">${AVATARS[me().avatar] || UI.AVATARS[0]}</span><div><b>${esc(me().username || '')}</b><small>⭐ Seviye: ${me().level || 1}</small></div></div>
         <div class="olgame"><b>${duz ? 'DÜZ OKEY' : '101 OKEY'}</b><small>${duz ? 'klasik kahvehane okeyi' : 'katlamalı · katlamasız · eşli · tekli'}</small></div>
         <div class="grow"></div><div class="encoin" data-x="shop"><i class="hcoin"></i><b id="enBal">${balTxt()}</b><span class="hplus">+</span></div><button class="olbuy" data-x="shop">🛒</button></div>
       <div class="olev">
@@ -80,7 +80,7 @@
   async function tavla() {
     let pts = +(localStorage.getItem('tavla_points') || 1);
     const scene = `<div class="enscene tv">
-        <div class="tvchair l"><span class="enav">${AVATARS[me().avatar] || '🙂'}</span><b>${esc(me().username || '')}</b><small>Beyaz pullar</small></div>
+        <div class="tvchair l"><span class="enav">${AVATARS[me().avatar] || UI.AVATARS[0]}</span><b>${esc(me().username || '')}</b><small>Beyaz pullar</small></div>
         <div class="tvchair r empty" data-sit="1"><span class="enav">?</span><b>Rakip</b><small>Dokun, eşleş</small></div>
         <div class="tvboardwrap">${Tavla.boardHtml(TavlaRules.newBoard(), { small: true })}</div>
         <button class="tvdice" id="enDice" title="Zar at (deneme)">${Tavla.dieHtml(5)}${Tavla.dieHtml(3)}</button>

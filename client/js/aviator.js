@@ -10,6 +10,11 @@
   const multAt = (ms) => Math.max(1, Math.floor(Math.exp(A.k * Math.max(0, ms) / 1000) * 100) / 100);
 
   async function open() {
+    if (!window.Trans || A.open) return openRaw();
+    await Trans.story('aviator', 'king_wave', ['Hoş geldin pilot! Ben Kral, bu gece gökyüzü senin.', 'Uçak kalkınca çarpan yükselir. Uçak uçup gitmeden <b>ÇEK</b>e bas, jetonların çarpanla katlansın!', 'Her turun sonucu önceden şifrelenir; tur bitince doğrulayabilirsin. Sadece sanal jeton — iyi uçuşlar!']);
+    return Trans.run('night', openRaw);
+  }
+  async function openRaw() {
     stop(); A.open = true; Platform.setCurrent('aviator');
     try { A.bet = +(localStorage.getItem('av_bet') || 1000); A.autoOn = localStorage.getItem('av_auto_on') === '1'; A.auto = +(localStorage.getItem('av_auto') || 2) || 2; } catch (e) { /* */ }
     UI.screen('aviator', `<div class="av">

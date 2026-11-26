@@ -44,6 +44,11 @@
 
   /* ---------- masa ekranı ---------- */
   async function openTable(id) {
+    if (!window.Trans || T.open) return openTableRaw(id);
+    await Trans.story('tavla', 'king_wave', ['Tavla masama hoş geldin! Zarlar her hamlede adil şekilde sunucuda atılır.', 'Pullarını sürükle ya da dokun; büyük zarı oynama kuralı otomatik uygulanır. Hepsini topla, rakibini mars et!']);
+    return Trans.run('wood', () => openTableRaw(id));
+  }
+  async function openTableRaw(id) {
     closeModal(); stop(); Object.assign(T, { open: true, id, v: null, seq: -1, part: [], pboard: null, sel: null, fail: 0, shownGame: 0, shownFinal: false, lastSeenMove: null });
     Platform.setCurrent('tavla'); Sound.stopMusic && Sound.stopMusic();
     UI.screen('tavla', `<div class="tvg">
@@ -111,7 +116,7 @@
     $('#tvBoard').innerHTML = boardHtml(b, { me, hl, sel: T.sel, last: lastV });
     $$('#tvBoard .tvpt, #tvBoard .tvbar.bot').forEach(el => { const r = +el.dataset.r; if (froms.has(r)) el.classList.add('can'); });
     const pl = (s, el) => { const x = v.seats[s]; if (!el) return; if (!x) { el.innerHTML = '<span class="enav">?</span><b>Bekleniyor</b>'; return; } const turn = v.status === 'playing' && v.turn === s;
-      el.className = `tvpl ${s === me ? 'me' : 'opp'} ${turn ? 'turn' : ''}`; el.innerHTML = `<div class="okav"><span>${AVATARS[x.avatar] || '🙂'}</span><svg class="okring" viewBox="0 0 44 44"><circle cx="22" cy="22" r="20"/></svg></div><div><b>${esc(x.name)}</b>${x.bot ? '<i class="okbot">BOT</i>' : x.left ? '<i class="okbot">AYRILDI</i>' : x.away ? '<i class="okbot">OTO</i>' : ''}<small>${s === 0 ? 'Beyaz' : 'Siyah'} · ${TR.pips(board(), s)} pip · ${board().off[s]}/15</small></div>`; };
+      el.className = `tvpl ${s === me ? 'me' : 'opp'} ${turn ? 'turn' : ''}`; el.innerHTML = `<div class="okav"><span>${AVATARS[x.avatar] || UI.AVATARS[0]}</span><svg class="okring" viewBox="0 0 44 44"><circle cx="22" cy="22" r="20"/></svg></div><div><b>${esc(x.name)}</b>${x.bot ? '<i class="okbot">BOT</i>' : x.left ? '<i class="okbot">AYRILDI</i>' : x.away ? '<i class="okbot">OTO</i>' : ''}<small>${s === 0 ? 'Beyaz' : 'Siyah'} · ${TR.pips(board(), s)} pip · ${board().off[s]}/15</small></div>`; };
     pl(opp, $('#tvOpp')); pl(me, $('#tvMe'));
     const dz = $('#tvDice');
     if (v.dice && !dz.classList.contains('rolling')) { const used = usedDice(); dz.innerHTML = v.dice.map((d, i) => dieHtml(d, used[i])).join('') + (v.dice[0] === v.dice[1] ? `<small class="dbl">ÇİFT ×4 · ${4 - T.part.length} kaldı</small>` : ''); }
@@ -214,7 +219,7 @@
   }
   async function invite() {
     let fr = []; try { fr = (await Api.get('/api/friends')).friends; } catch (e) { /* */ }
-    modal(`<h3 class="gold">👥 Arkadaş Davet Et</h3>${T.v.code ? `<p class="center">Masa kodu: <b class="okcode">${T.v.code}</b></p>` : ''}<div class="list">${fr.map(f => `<div class="li"><span class="avatar sm">${AVATARS[f.avatar] || '🙂'}</span><div class="grow"><b>${esc(f.username)}</b></div><button class="btn green sm" data-f="${f.id}">Davet</button></div>`).join('') || '<p class="center muted small">Henüz arkadaşın yok.</p>'}</div>`, {
+    modal(`<h3 class="gold">👥 Arkadaş Davet Et</h3>${T.v.code ? `<p class="center">Masa kodu: <b class="okcode">${T.v.code}</b></p>` : ''}<div class="list">${fr.map(f => `<div class="li"><span class="avatar sm">${AVATARS[f.avatar] || UI.AVATARS[0]}</span><div class="grow"><b>${esc(f.username)}</b></div><button class="btn green sm" data-f="${f.id}">Davet</button></div>`).join('') || '<p class="center muted small">Henüz arkadaşın yok.</p>'}</div>`, {
       onOpen(m) { $$('[data-f]', m).forEach(b => b.onclick = () => guard(b, async () => { await Api.post(`/api/tavla/${T.id}/invite`, { friendId: +b.dataset.f }); b.textContent = 'Gönderildi ✓'; })); } });
   }
   function rulesModal() {

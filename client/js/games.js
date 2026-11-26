@@ -19,7 +19,9 @@
   };
 
   /* ---------- ekran ---------- */
-  function open(id) {
+  /** Slota giriş: mor kadife perde geçişi */
+  function open(id) { return window.Trans && !G.open ? Trans.run('curtain', () => openRaw(id)) : openRaw(id); }
+  function openRaw(id) {
     const meta = App.games.find(g => g.id === id); if (!meta) return;
     G.gen++; Object.assign(G, { open: true, id, meta, th: Sym.THEMES[id], auto: 0, spinning: false });
     G.turbo = localStorage.getItem('slot_turbo') === '1'; G.speed = G.turbo ? 0.5 : 1;

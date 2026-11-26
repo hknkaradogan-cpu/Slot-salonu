@@ -7,7 +7,8 @@
   const fmt = (n) => Math.round(n).toLocaleString('tr-TR');
   const short = (n) => n >= 1e9 ? (n / 1e9).toFixed(n % 1e9 ? 1 : 0) + 'B' : n >= 1e6 ? (n / 1e6).toFixed(n % 1e6 ? 1 : 0) + 'M' : n >= 1e4 ? Math.round(n / 1e3) + 'K' : fmt(n);
   const sleep = (ms) => new Promise(r => setTimeout(r, ms * (window.UI && UI.speed || 1)));
-  const AVATARS = ['🧙‍♂️', '🧚', '🤴', '👸', '🧛', '🦸', '🧝‍♀️', '🐉', '🦁', '🐺', '🦄', '😎'];
+  // Çizim avatarlar (oyunun kendi karakterlerinden): HTML olarak her yerde aynı kullanılır
+  const AVATARS = Array.from({ length: 12 }, (_, i) => `<img class="avimg" src="assets/av${i}.webp" alt="" draggable="false">`);
 
   function show(id) {
     $$('#app > .screen').forEach(s => s.classList.toggle('active', s.id === id));

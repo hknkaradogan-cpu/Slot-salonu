@@ -139,7 +139,7 @@
   }
   async function topModal() {
     const r = await Api.get('/api/okey/leaderboard').catch(() => ({ top: [] }));
-    modal(`<h3 class="gold">🏆 101 Okey Sıralaması</h3><div class="list">${r.top.map((x, i) => `<div class="li"><b style="width:26px">${i + 1}.</b><span class="avatar" style="width:34px;height:34px;font-size:18px">${AVATARS[x.avatar] || '🙂'}</span><div class="grow"><b>${esc(x.username)}</b><small>${x.played} oyun · ${x.won} galibiyet</small></div><span class="gold">${fmt(x.coins_won)}</span></div>`).join('') || '<p class="center muted">Henüz oyun yok.</p>'}</div>`);
+    modal(`<h3 class="gold">🏆 101 Okey Sıralaması</h3><div class="list">${r.top.map((x, i) => `<div class="li"><b style="width:26px">${i + 1}.</b><span class="avatar" style="width:34px;height:34px;font-size:18px">${AVATARS[x.avatar] || UI.AVATARS[0]}</span><div class="grow"><b>${esc(x.username)}</b><small>${x.played} oyun · ${x.won} galibiyet</small></div><span class="gold">${fmt(x.coins_won)}</span></div>`).join('') || '<p class="center muted">Henüz oyun yok.</p>'}</div>`);
   }
   function rulesModal() {
     if (O.variant === 'duz') return modal(`<h3 class="gold">📖 Düz Okey Kuralları</h3><div class="small okrules">
@@ -169,7 +169,9 @@
     const r = $('#okeyRoot'); if (r) { r.classList.remove('show'); r.innerHTML = ''; }
     document.body.classList.remove('okey-on'); window.removeEventListener('resize', layout);
   }
-  async function openTable(id) {
+  /** Masaya giriş: taş yağmuru geçişi (yeni masa arkada yüklenir) */
+  function openTable(id) { return window.Trans && !O.open ? Trans.run('tiles', () => openTableRaw(id)) : openTableRaw(id); }
+  async function openTableRaw(id) {
     closeModal(); O.id = id; O.screen = 'table'; O.v = null; O.seq = -1; O.sel = null; O.slotsKey = null; O.shownRound = 0; O.shownFinal = false; O.lastLog = 0; O.lastChat = 0; O.fail = 0; O.sameN = 0; O.arr = null;
     setOrient('landscape'); Sound.stopMusic();
     const r = root(); r.className = 'show'; document.body.classList.add('okey-on');
@@ -186,6 +188,7 @@
         <button class="okic" id="okMenu" title="Menü">▾</button>
       </div>
       <div class="okarea"><img class="oklogo" src="assets/spinova_logo.webp" alt=""><div class="okinfo" id="okInfo"></div><div class="okmelds" id="okMelds"></div><div class="okstatus" id="okStatus"></div></div>
+      <div class="okturnbar" id="okTurnBar"><i></i><span></span></div><div class="okchips" id="okChips"></div>
       <div class="okseat side" data-pos="3"></div><div class="okseat side right" data-pos="1"></div>
       <div class="okdisc" data-dpos="2"></div><div class="okdisc" data-dpos="1"></div><div class="okdisc" data-dpos="3" data-zone="take"></div><div class="okdisc mine" data-dpos="0" data-zone="discard"></div>
       <div class="okcol" id="okCol">
@@ -256,6 +259,10 @@
   function apply(v) {
     const prev = O.v; O.v = v; O.seq = v.seq; O.skew = Date.now() - v.now; O.variant = v.cfg && v.cfg.variant === 'duz' ? 'duz' : '101'; const stg = $('#okStage'); if (stg) { stg.classList.toggle('duz', O.variant === 'duz'); stg.classList.toggle('nohelp', v.cfg && v.cfg.helper === false); stg.classList.toggle('p2', v.cfg && v.cfg.players === 2); }
     if (v.hand) syncRack();
+    if (prev && prev.id === v.id && v.me != null) {
+      if (prev.status === 'waiting' && v.status === 'playing' && v.cfg.stake && !v.cfg.private) coinFloat('-' + fmt(v.cfg.stake), false);
+      if (prev.status !== 'finished' && v.status === 'finished' && v.payouts && v.payouts[v.me] > 0) coinFloat('+' + fmt(v.payouts[v.me]), true);
+    }
     events(prev, v);
     render();
     if (prev && prev.status === 'waiting' && v.status === 'playing') { const b = document.createElement('div'); b.className = 'okgo2'; b.textContent = 'Oyun başlıyor!'; $('#okStage').appendChild(b); Sound.play('orb'); setTimeout(() => b.remove(), 1500); }
@@ -385,6 +392,9 @@
     const v = O.v; if (!v || O.screen !== 'table') return;
     $('#okBal').textContent = App.me.unlimited ? '∞' : fmt(App.me.balance);
     $('#okInfo').innerHTML = `<b>${isDuzV() ? 'Düz Okey' : '101 Okey'}</b> · <b>${v.cfg.mode === 'esli' ? 'Eşli' : 'Tekli'}</b>${isDuzV() ? '' : ` · ${v.cfg.katlamali ? 'Katlamalı' : 'Katlamasız'}`} · ${helped() ? 'Yardımlı' : 'Yardımsız'}${v.cfg.players === 2 ? ' · 2 Kişilik' : ''}${v.cfg.risk ? ' · <b style="color:#ff7a7a">RİZİKOLU</b>' : ''} · El ${Math.max(1, v.round)}/${v.cfg.rounds} · ${v.cfg.stake ? '🪙 ' + fmt(v.cfg.stake) : 'Ücretsiz'}${v.code ? ` · Kod <b class="gold">${v.code}</b>` : ''}`;
+    const c = v.cfg, chips = [c.players === 2 ? '2 Kişi' : (c.mode === 'esli' ? 'Eşli' : 'Tek'), helped() ? 'Yardımlı' : 'Yardımsız', isDuzV() ? 'Düz' : (c.katlamali ? 'Katlamalı' : 'Katlamasız'), c.risk ? 'Rizikolu' : null, `${Math.max(1, v.round)}/${c.rounds} El`].filter(Boolean);
+    const ch = $('#okChips'); if (ch) { const html = chips.map(x => `<b class="${x === 'Rizikolu' ? 'rz' : ''}">${x}</b>`).join(''); if (ch.innerHTML !== html) ch.innerHTML = html; }
+    const st = $('#okStage'); st && st.classList.toggle('myturn', !!(v.hand && v.status === 'playing' && myTurn()));
     for (let p = 0; p < 4; p++) renderSeat(p);
     renderDiscards(); renderPile(); renderMelds(); renderCol(); renderStatus(); if (!O.drag) renderRack(); renderWait(); timers();
   }
@@ -399,7 +409,7 @@
     const score = `<span class="okscore ${v.totals[s] < 0 ? 'neg' : ''}">${v.totals[s] > 0 ? '+' : ''}${v.totals[s]}</span>`;
     const opened = op ? `<span class="okop">${op.route === 'pairs' ? op.value + ' ÇİFT' : op.value}</span>` : '';
     el.className = `${base} ${turn ? 'turn' : ''} ${x.left ? 'left' : ''}`;
-    const av = `<div class="okav" style="--sc:${SEATCOL[s]}"><span>${AVATARS[x.avatar] || '🙂'}</span><svg class="okring" viewBox="0 0 44 44"><circle cx="22" cy="22" r="20"/></svg></div>`;
+    const av = `<div class="okav" style="--sc:${SEATCOL[s]}"><span>${AVATARS[x.avatar] || UI.AVATARS[0]}</span><svg class="okring" viewBox="0 0 44 44"><circle cx="22" cy="22" r="20"/></svg></div>`;
     if (p === 1 || p === 3) el.innerHTML = `${av}<div class="okvname">${esc(x.name)}</div>${tag}<div class="okside-b">${opened}${score}${H ? `<span class="okcnt2"><i class="tico"></i>${H.counts[s]}</span>` : ''}</div>${team ? `<small class="okteam">${team}</small>` : ''}`;
     else el.innerHTML = `${av}<div class="oknm"><b>${esc(x.name)}</b>${tag}<small>Sv${x.level}${team ? ' · ' + team : ''}${H && p !== 0 ? ' · <i class="tico"></i>' + H.counts[s] : ''}</small></div>${opened}${score}`;
   }
@@ -481,15 +491,22 @@
     $('#okCopy') && ($('#okCopy').onclick = () => Platform.copy(v.code)); $('#okWa') && ($('#okWa').onclick = () => Platform.share(inv()));
     $('#okInvite').onclick = inviteModal; $('#okStart') && ($('#okStart').onclick = () => guard($('#okStart'), async () => { await Api.post(`/api/okey/${O.id}/start`, {}); poll(true); }));
   }
+  /** 101 Plus tarzı: masaya girişte "-giriş", oyun sonunda "+kazanç" yüzen jeton yazısı */
+  function coinFloat(txt, win) {
+    const st = $('#okStage'); if (!st) return;
+    const f = document.createElement('div'); f.className = 'okfloat ' + (win ? 'win' : 'pay'); f.innerHTML = `<i class="coin"></i>${txt}`;
+    st.appendChild(f); setTimeout(() => f.remove(), 2600); if (win) Sound.play('win');
+  }
   function timers() {
     const v = O.v; if (!v || O.screen !== 'table') return;
     const t = Date.now() - (O.skew || 0), turnMs = (v.cfg && v.cfg.turnMs) || 30000;
     if (v.status === 'playing' && v.deadline) {
       const rem = Math.max(0, v.deadline - t), frac = rem / turnMs;
       $$('.okseat').forEach(el => { const c = el.querySelector('.okring circle'); if (!c) return; c.style.strokeDashoffset = el.classList.contains('turn') ? String(126 * (1 - frac)) : '126'; });
+      const tb = $('#okTurnBar'); if (tb) { tb.firstChild.style.transform = `scaleX(${frac})`; tb.classList.toggle('hurry', rem < 8000); tb.classList.toggle('mine', myTurn()); const msg = myTurn() ? (v.hand.phase === 'draw' ? 'Sıra sende — taş çek' : 'Sıra sende — taş at') : `${esc(v.seats[v.hand.turn] ? v.seats[v.hand.turn].name : '')} oynuyor`; if (tb.__m !== msg) { tb.__m = msg; tb.lastChild.textContent = msg; } }
       const ck = $('#okClock'); if (ck) { ck.textContent = Math.ceil(rem / 1000) + ' sn'; ck.parentElement.classList.toggle('hurry', myTurn() && rem < 8000); }
       if (myTurn() && rem < 8000 && rem > 0 && Math.floor(rem / 1000) !== O.lastTick) { O.lastTick = Math.floor(rem / 1000); Sound.play('tick'); }
-    } else { const ck = $('#okClock'); if (ck) ck.textContent = v.status === 'waiting' ? 'Bekleniyor' : '—'; }
+    } else { const tb = $('#okTurnBar'); tb && tb.firstChild && (tb.firstChild.style.transform = 'scaleX(0)', tb.lastChild.textContent = '', tb.__m = ''); const ck = $('#okClock'); if (ck) ck.textContent = v.status === 'waiting' ? 'Bekleniyor' : '—'; }
     if (v.status === 'waiting' && v.fillAt && !v.cfg.private) { const f = $('#okFill'); if (f) f.innerHTML = `<b>${Math.max(0, Math.ceil((v.fillAt - t) / 1000))}</b> saniye içinde oyun başlayacak…`; }
   }
 
@@ -730,7 +747,7 @@
   async function inviteModal() {
     let fr = []; try { fr = (await Api.get('/api/friends')).friends; } catch (e) { /* */ }
     modal(`<h3 class="gold">👥 Arkadaş Davet Et</h3>${O.v.code ? `<p class="center">Oda kodu: <b class="okcode">${O.v.code}</b></p>` : ''}
-      <div class="list">${fr.map(f => `<div class="li"><span class="avatar" style="width:34px;height:34px;font-size:18px">${AVATARS[f.avatar] || '🙂'}</span><div class="grow"><b>${esc(f.username)}</b><small>Sv${f.level}</small></div><button class="btn green sm" data-f="${f.id}">Davet</button></div>`).join('') || '<p class="center muted small">Henüz arkadaşın yok. Arkadaşlar sekmesinden kullanıcı adıyla ekleyebilirsin.</p>'}</div>`, {
+      <div class="list">${fr.map(f => `<div class="li"><span class="avatar" style="width:34px;height:34px;font-size:18px">${AVATARS[f.avatar] || UI.AVATARS[0]}</span><div class="grow"><b>${esc(f.username)}</b><small>Sv${f.level}</small></div><button class="btn green sm" data-f="${f.id}">Davet</button></div>`).join('') || '<p class="center muted small">Henüz arkadaşın yok. Arkadaşlar sekmesinden kullanıcı adıyla ekleyebilirsin.</p>'}</div>`, {
       onOpen(m) { $$('[data-f]', m).forEach(b => b.onclick = () => guard(b, async () => { await Api.post(`/api/okey/${O.id}/invite`, { friendId: +b.dataset.f }); b.textContent = 'Gönderildi ✓'; })); },
     });
   }
@@ -755,7 +772,7 @@
     const won = F.winners.includes(me) && F.winners.length < 4;
     if (won) { Sound.play('bigwin'); UI.confetti && UI.confetti(80); }
     modal(`<h3 class="gold">${won ? '🏆 KAZANDIN!' : 'Oyun bitti'}</h3>
-      <div class="list">${F.ranking.map((s, i) => `<div class="li ${s === me ? 'okme' : ''}"><b style="width:26px">${i + 1}.</b><span class="avatar" style="width:34px;height:34px;font-size:18px">${AVATARS[v.seats[s].avatar] || '🙂'}</span><div class="grow"><b>${esc(v.seats[s].name)}</b><small>${v.totals[s]} puan${v.xpGain && v.xpGain[s] ? ` · +${v.xpGain[s]} XP` : ''}</small></div>${v.payouts && v.payouts[s] ? `<b class="gold">+${fmt(v.payouts[s])} 🪙</b>` : ''}</div>`).join('')}</div>
+      <div class="list">${F.ranking.map((s, i) => `<div class="li ${s === me ? 'okme' : ''}"><b style="width:26px">${i + 1}.</b><span class="avatar" style="width:34px;height:34px;font-size:18px">${AVATARS[v.seats[s].avatar] || UI.AVATARS[0]}</span><div class="grow"><b>${esc(v.seats[s].name)}</b><small>${v.totals[s]} puan${v.xpGain && v.xpGain[s] ? ` · +${v.xpGain[s]} XP` : ''}</small></div>${v.payouts && v.payouts[s] ? `<b class="gold">+${fmt(v.payouts[s])} 🪙</b>` : ''}</div>`).join('')}</div>
       ${F.teams ? `<p class="center">Takım puanları: A ${F.teams[0]} · B ${F.teams[1]}</p>` : ''}
       <div class="row"><button class="btn ghost grow" data-close="lobby">Lobiye Dön</button>${v.cfg.private ? '' : '<button class="btn green grow" data-close="again">Tekrar Oyna</button>'}</div>`, { noClose: true }).then(async (x) => {
       Screens.refresh && Screens.refresh().catch(() => {});

@@ -149,7 +149,7 @@
   }
   function renderTop() {
     const u = S.me; if (!u) return;
-    $$('#tAv').forEach(e => e.textContent = UI.AVATARS[u.avatar] || '🧙‍♂️');
+    $$('#tAv').forEach(e => e.innerHTML = UI.AVATARS[u.avatar] || UI.AVATARS[0]);
     $$('#tLvl').forEach(e => e.textContent = 'Sv ' + u.level);
     $$('#tName').forEach(e => e.textContent = u.username);
     const pct = u.maxLevel ? 100 : Math.min(100, u.xpInto / u.xpNeed * 100);
@@ -316,7 +316,7 @@
     $('#frAdd').onclick = () => guard($('#frAdd'), async () => { const r = await Api.post('/api/friends/request', { username: $('#frName').value.trim() }); toast(r.status === 'accepted' ? 'Artık arkadaşsınız!' : r.status === 'exists' ? 'İstek zaten gönderildi.' : 'Arkadaşlık isteği gönderildi.'); friends(body); });
     try {
       const r = await Api.get('/api/friends');
-      const av = (u) => `<div class="avatar" style="width:38px;height:38px;font-size:20px">${UI.AVATARS[u.avatar] || '🙂'}</div>`;
+      const av = (u) => `<div class="avatar" style="width:38px;height:38px;font-size:20px">${UI.AVATARS[u.avatar] || UI.AVATARS[0]}</div>`;
       $('#frBody').innerHTML =
         (r.gifts.length ? `<div class="section-t">🎁 Gelen Hediyeler</div><div class="list">${r.gifts.map(g => `<div class="li"><div style="font-size:28px">🎁</div><div class="grow"><b>${esc(g.username)}</b><small>${fmt(g.amount)} jeton gönderdi</small></div><button class="btn green sm" data-gift="${g.id}">AL</button></div>`).join('')}</div>` : '') +
         (r.incoming.length ? `<div class="section-t">📨 İstekler</div><div class="list">${r.incoming.map(u => `<div class="li">${av(u)}<div class="grow"><b>${esc(u.username)}</b><small>Sv ${u.level}</small></div><button class="btn green sm" data-acc="${u.id}">Kabul</button><button class="btn ghost sm" data-rm="${u.id}">✕</button></div>`).join('')}</div>` : '') +

@@ -92,7 +92,7 @@
     const el = $('#hWinBody'); if (!el) return clearInterval(P.winTimer);
     if (!P.winners.length) { el.innerHTML = '<div class="hwav">🏆</div><b>İlk büyük kazanç senin olsun!</b><small>Bahsin 10 katı ve üstü kazançlar burada görünür</small>'; return; }
     const w = P.winners[P.winIdx++ % P.winners.length], g = (S().games || []).find(x => x.id === w.game);
-    el.innerHTML = `<div class="hwav">${AVATARS[w.avatar] || '🙂'}</div><b>${esc(w.username)}</b><div class="hwamt">${fmt(w.win)} <small>jeton</small></div><small>${esc(g ? g.name : w.game)} · ${Math.round(w.win / w.bet)}x</small><span class="hrib">Kazandı!</span>`;
+    el.innerHTML = `<div class="hwav">${AVATARS[w.avatar] || UI.AVATARS[0]}</div><b>${esc(w.username)}</b><div class="hwamt">${fmt(w.win)} <small>jeton</small></div><small>${esc(g ? g.name : w.game)} · ${Math.round(w.win / w.bet)}x</small><span class="hrib">Kazandı!</span>`;
   }
   function renderBadges() {
     const st = S(), n = st.badges || {}; const d = (id, v) => { const e = $('#' + id); if (e) e.innerHTML = v ? `<span class="dot">${v}</span>` : ''; };
@@ -172,7 +172,7 @@
     tabs([['level', 'Seviye'], ['okey', 'Okey'], ['tavla', 'Tavla'], ['aviator', 'Avivasor'], ['slots', 'Slot']], by, (t) => leaders(body, t));
     const r = await Api.get('/api/leaderboard?by=' + by);
     const val = (x) => by === 'level' ? `Sv${x.level} · ${fmt(x.value)} XP` : by === 'aviator' ? `${x.value.toFixed(2)}x en iyi tahsil` : by === 'slots' ? `${fmt(x.value)} en büyük kazanç` : `${x.value} galibiyet · ${x.played} oyun`;
-    body.innerHTML = `<div class="ldr">${r.top.map((x, i) => `<div class="ldrow ${x.me ? 'me' : ''} ${i < 3 ? 'top' + (i + 1) : ''}"><b class="ldn">${i < 3 ? ['🥇', '🥈', '🥉'][i] : i + 1}</b><span class="avatar sm">${AVATARS[x.avatar] || '🙂'}</span><b class="grow">${esc(x.username)}</b><span class="ldv">${val(x)}</span></div>`).join('') || '<p class="center muted">Henüz kayıt yok — ilk sen ol!</p>'}</div>
+    body.innerHTML = `<div class="ldr">${r.top.map((x, i) => `<div class="ldrow ${x.me ? 'me' : ''} ${i < 3 ? 'top' + (i + 1) : ''}"><b class="ldn">${i < 3 ? ['🥇', '🥈', '🥉'][i] : i + 1}</b><span class="avatar sm">${AVATARS[x.avatar] || UI.AVATARS[0]}</span><b class="grow">${esc(x.username)}</b><span class="ldv">${val(x)}</span></div>`).join('') || '<p class="center muted">Henüz kayıt yok — ilk sen ol!</p>'}</div>
       <p class="small muted center">${by === 'aviator' || by === 'slots' ? 'Son 7 gün · ' : ''}Gerçek oyun kayıtlarından · yöneticiler listelenmez</p>`;
   }
   async function tournaments(body) {
@@ -191,7 +191,7 @@
   async function board(id) {
     const r = await Api.get('/api/tournaments/' + id);
     modal(`<h3 class="gold">${esc(r.tournament.title)}</h3>${r.me ? `<p class="center">Senin sıran: <b>${r.me.pos}.</b> · ${fmt(r.me.score)} puan</p>` : ''}
-      <div class="list">${r.top.map((x, i) => `<div class="li"><b style="width:28px">${i + 1}.</b><span class="avatar" style="width:30px;height:30px;font-size:16px">${AVATARS[x.avatar] || '🙂'}</span><div class="grow"><b>${esc(x.username)}</b></div><span>${fmt(x.score)}</span>${r.tournament.prizes[i] ? `<small class="gold" style="margin-left:6px">${fmt(x.prize || r.tournament.prizes[i])}</small>` : ''}</div>`).join('') || '<p class="center muted">Henüz katılan yok.</p>'}</div>`);
+      <div class="list">${r.top.map((x, i) => `<div class="li"><b style="width:28px">${i + 1}.</b><span class="avatar" style="width:30px;height:30px;font-size:16px">${AVATARS[x.avatar] || UI.AVATARS[0]}</span><div class="grow"><b>${esc(x.username)}</b></div><span>${fmt(x.score)}</span>${r.tournament.prizes[i] ? `<small class="gold" style="margin-left:6px">${fmt(x.prize || r.tournament.prizes[i])}</small>` : ''}</div>`).join('') || '<p class="center muted">Henüz katılan yok.</p>'}</div>`);
   }
 
   async function messages(body, tab) {
@@ -199,8 +199,8 @@
     tabs([['conv', 'Sohbetler'], ['friends', 'Arkadaşlar']], tab, (t) => messages(body, t));
     if (tab === 'friends') return friendsTab(body);
     const [c, f] = await Promise.all([Api.get('/api/messages'), Api.get('/api/friends')]);
-    body.innerHTML = `<div class="msgw"><div class="msgl"><div class="section-t">💬 Sohbetler</div><div class="list" id="cvList">${c.conversations.map(x => `<div class="li cv" data-u="${x.id}"><span class="avatar sm">${AVATARS[x.avatar] || '🙂'}${x.online ? '<i class="on"></i>' : ''}</span><div class="grow"><b>${esc(x.username)}</b><small>${x.mine ? 'Sen: ' : ''}${esc(x.last)}</small></div>${x.unread ? `<span class="dot">${x.unread}</span>` : ''}</div>`).join('') || '<p class="small muted">Henüz mesaj yok.</p>'}</div>
-      <div class="section-t">🟢 Arkadaşlar</div><div class="list">${f.friends.map(x => `<div class="li cv" data-u="${x.id}"><span class="avatar sm">${AVATARS[x.avatar] || '🙂'}${x.online ? '<i class="on"></i>' : ''}</span><div class="grow"><b>${esc(x.username)}</b><small>${x.online ? 'Çevrim içi' : 'Çevrim dışı'}</small></div></div>`).join('') || '<p class="small muted">Arkadaş eklemek için “Arkadaşlar” sekmesine geç.</p>'}</div></div>
+    body.innerHTML = `<div class="msgw"><div class="msgl"><div class="section-t">💬 Sohbetler</div><div class="list" id="cvList">${c.conversations.map(x => `<div class="li cv" data-u="${x.id}"><span class="avatar sm">${AVATARS[x.avatar] || UI.AVATARS[0]}${x.online ? '<i class="on"></i>' : ''}</span><div class="grow"><b>${esc(x.username)}</b><small>${x.mine ? 'Sen: ' : ''}${esc(x.last)}</small></div>${x.unread ? `<span class="dot">${x.unread}</span>` : ''}</div>`).join('') || '<p class="small muted">Henüz mesaj yok.</p>'}</div>
+      <div class="section-t">🟢 Arkadaşlar</div><div class="list">${f.friends.map(x => `<div class="li cv" data-u="${x.id}"><span class="avatar sm">${AVATARS[x.avatar] || UI.AVATARS[0]}${x.online ? '<i class="on"></i>' : ''}</span><div class="grow"><b>${esc(x.username)}</b><small>${x.online ? 'Çevrim içi' : 'Çevrim dışı'}</small></div></div>`).join('') || '<p class="small muted">Arkadaş eklemek için “Arkadaşlar” sekmesine geç.</p>'}</div></div>
       <div class="msgr" id="thread"><p class="center muted" style="margin-top:120px">Bir sohbet seç</p></div></div>`;
     $$('.cv', body).forEach(x => x.onclick = (e) => { e.stopPropagation(); openThread(+x.dataset.u); });
     if (P.thread) openThread(P.thread);
@@ -212,7 +212,7 @@
       const r = await Api.get('/api/messages/' + uid).catch(() => null); if (!r || !$('#thread')) return;
       const box = $('#thBox'); const stick = !box || box.scrollTop + box.clientHeight >= box.scrollHeight - 30;
       if (!box) {
-        el.innerHTML = `<div class="thh"><span class="avatar sm">${AVATARS[r.user.avatar] || '🙂'}${r.user.online ? '<i class="on"></i>' : ''}</span><b>${esc(r.user.username)}</b><small>${r.user.online ? 'çevrim içi' : ''}</small></div><div class="thbox" id="thBox"></div>
+        el.innerHTML = `<div class="thh"><span class="avatar sm">${AVATARS[r.user.avatar] || UI.AVATARS[0]}${r.user.online ? '<i class="on"></i>' : ''}</span><b>${esc(r.user.username)}</b><small>${r.user.online ? 'çevrim içi' : ''}</small></div><div class="thbox" id="thBox"></div>
           ${r.friends ? '<div class="thin"><input id="thI" maxlength="300" placeholder="Mesaj yaz…"><button class="btn green sm" id="thS">Gönder</button></div>' : '<p class="small muted center">Sadece arkadaşlarına mesaj gönderebilirsin.</p>'}`;
         const send = () => { const v = $('#thI').value.trim(); if (!v) return; $('#thI').value = ''; Api.post('/api/messages/' + uid, { body: v }).then(load).catch(e => toast(e.message, true)); };
         $('#thS') && ($('#thS').onclick = send); $('#thI') && ($('#thI').onkeydown = (e) => { if (e.key === 'Enter') send(); });
@@ -241,7 +241,7 @@
     const load = async () => {
       const r = await Api.get('/api/chat?after=' + P.chatLast).catch(() => null); if (!r || !$('#chBox')) return;
       const box = $('#chBox'); const stick = box.scrollTop + box.clientHeight >= box.scrollHeight - 30;
-      box.insertAdjacentHTML('beforeend', r.messages.map(m => `<div class="cm ${m.uid === me ? 'me' : ''}"><span class="avatar sm">${AVATARS[m.avatar] || '🙂'}</span><div><b>${esc(m.username)}${m.role === 'admin' ? ' <span class="pill">YÖNETİCİ</span>' : ''}</b><span>${esc(m.body)}</span></div><small>${new Date(Number(m.created_at)).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}</small></div>`).join(''));
+      box.insertAdjacentHTML('beforeend', r.messages.map(m => `<div class="cm ${m.uid === me ? 'me' : ''}"><span class="avatar sm">${AVATARS[m.avatar] || UI.AVATARS[0]}</span><div><b>${esc(m.username)}${m.role === 'admin' ? ' <span class="pill">YÖNETİCİ</span>' : ''}</b><span>${esc(m.body)}</span></div><small>${new Date(Number(m.created_at)).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}</small></div>`).join(''));
       if (r.messages.length) P.chatLast = r.messages[r.messages.length - 1].id;
       while (box.children.length > 120) box.firstChild.remove();
       if (stick || r.messages.length && r.messages[r.messages.length - 1].uid === me) box.scrollTop = 1e9;
