@@ -17,6 +17,8 @@
   function setOrient(m) { try { window.AndroidApp && AndroidApp.setOrientation(m); } catch (e) { /* */ } }
 
   /* ===================== TAŞ GÖRÜNÜMÜ ===================== */
+  // Performans: aynı HTML'i yeniden yazma (her yoklamada tüm masayı baştan çizmek düşük donanımda donma yapıyordu)
+  function setHtml(el, html) { if (!el) return false; if (el.__h === html) return false; el.innerHTML = html; el.__h = html; return true; }
   function tileHtml(id, cls = '', attrs = '') {
     if (id == null) return '';
     const v = O.v && O.v.hand, joker = v && OR.kit(v.okey).isJoker(id);
@@ -317,16 +319,28 @@
     const K = OR.kit(O.v.hand.okey), b = OR.bestMelds(rack, K);
     return { groups: b.melds.map(m => { const a = OR.analyze(m, K); return a ? a.tiles.map(t => t.id) : m; }), used: b.used, value: b.value };
   }
+  function flipRack(fn, btn) {
+    const el = $('#okRack'); const before = new Map();
+    if (el) el.querySelectorAll('.otile[data-tile]').forEach(t => before.set(t.dataset.tile, t.getBoundingClientRect()));
+    fn();
+    if (btn) btn.animate([{ transform: 'scale(1)' }, { transform: 'scale(.9) translateY(3px)', filter: 'brightness(1.3)' }, { transform: 'scale(1)' }], { duration: 260 });
+    if (!el || !before.size) return;
+    let i = 0;
+    el.querySelectorAll('.otile[data-tile]').forEach(t => { const a = before.get(t.dataset.tile); if (!a) return; const b = t.getBoundingClientRect(); const dx = (a.left - b.left) / (O.u || 1), dy = (a.top - b.top) / (O.u || 1); if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+      t.animate([{ transform: `translate(${dx}px,${dy}px)` }, { transform: `translate(${dx / 2}px,${dy / 2 - 16}px) scale(1.06)`, offset: .5 }, { transform: 'none' }], { duration: 420, delay: (i++ % 15) * 14, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'backwards' }); });
+  }
   function arrangeRuns(user) {
+    if (user) return flipRack(() => arrangeRuns(false), $('#okRuns'));
     const rack = O.v.hand.rack.slice(), b = bestRunGroups(rack);
     placeGroups(b.groups, rack.filter(id => !b.used.has(id)).sort((a, c) => sortKey(a) - sortKey(c)));
-    O.arr = 'runs'; if (user) Sound.play('click'); render();
+    O.arr = 'runs'; Sound.play('click'); render();
   }
   function arrangePairs(user) {
+    if (user) return flipRack(() => arrangePairs(false), $('#okPairs'));
     const H = O.v.hand, K = OR.kit(H.okey), rack = H.rack.slice();
     const b = OR.bestPairs(rack, K);
     placeGroups(b.pairs, rack.filter(id => !b.used.has(id)).sort((a, c) => sortKey(a) - sortKey(c)));
-    O.arr = 'pairs'; if (user) Sound.play('click'); render();
+    O.arr = 'pairs'; Sound.play('click'); render();
   }
   function rackGroups() {
     const out = [];
@@ -394,7 +408,7 @@
   function render() {
     const v = O.v; if (!v || O.screen !== 'table') return;
     $('#okBal').textContent = App.me.unlimited ? '∞' : fmt(App.me.balance);
-    $('#okInfo').innerHTML = `<b>${isDuzV() ? 'Düz Okey' : '101 Okey'}</b> · <b>${v.cfg.mode === 'esli' ? 'Eşli' : 'Tekli'}</b>${isDuzV() ? '' : ` · ${v.cfg.katlamali ? 'Katlamalı' : 'Katlamasız'}`} · ${helped() ? 'Yardımlı' : 'Yardımsız'}${v.cfg.players === 2 ? ' · 2 Kişilik' : ''}${v.cfg.risk ? ' · <b style="color:#ff7a7a">RİZİKOLU</b>' : ''} · El ${Math.max(1, v.round)}/${v.cfg.rounds} · ${v.cfg.stake ? '🪙 ' + fmt(v.cfg.stake) : 'Ücretsiz'}${v.code ? ` · Kod <b class="gold">${v.code}</b>` : ''}`;
+    setHtml($('#okInfo'), `<b>${isDuzV() ? 'Düz Okey' : '101 Okey'}</b> · <b>${v.cfg.mode === 'esli' ? 'Eşli' : 'Tekli'}</b>${isDuzV() ? '' : ` · ${v.cfg.katlamali ? 'Katlamalı' : 'Katlamasız'}`} · ${helped() ? 'Yardımlı' : 'Yardımsız'}${v.cfg.players === 2 ? ' · 2 Kişilik' : ''}${v.cfg.risk ? ' · <b style="color:#ff7a7a">RİZİKOLU</b>' : ''} · El ${Math.max(1, v.round)}/${v.cfg.rounds} · ${v.cfg.stake ? '🪙 ' + fmt(v.cfg.stake) : 'Ücretsiz'}${v.code ? ` · Kod <b class="gold">${v.code}</b>` : ''}`);
     const c = v.cfg, chips = [c.players === 2 ? '2 Kişi' : (c.mode === 'esli' ? 'Eşli' : 'Tek'), helped() ? 'Yardımlı' : 'Yardımsız', isDuzV() ? 'Düz' : (c.katlamali ? 'Katlamalı' : 'Katlamasız'), c.risk ? 'Rizikolu' : null, `${Math.max(1, v.round)}/${c.rounds} El`].filter(Boolean);
     const ch = $('#okChips'); if (ch) { const html = chips.map(x => `<b class="${x === 'Rizikolu' ? 'rz' : ''}">${x}</b>`).join(''); if (ch.innerHTML !== html) ch.innerHTML = html; }
     const st = $('#okStage'); st && st.classList.toggle('myturn', !!(v.hand && v.status === 'playing' && myTurn()));
@@ -413,8 +427,8 @@
     const opened = op ? `<span class="okop">${op.route === 'pairs' ? op.value + ' ÇİFT' : op.value}</span>` : '';
     el.className = `${base} ${turn ? 'turn' : ''} ${x.left ? 'left' : ''}`;
     const av = `<div class="okav" style="--sc:${SEATCOL[s]}"><span>${AVATARS[x.avatar] || UI.AVATARS[0]}</span><svg class="okring" viewBox="0 0 44 44"><circle cx="22" cy="22" r="20"/></svg></div>`;
-    if (p === 1 || p === 3) el.innerHTML = `${av}<div class="okvname">${esc(x.name)}</div>${tag}<div class="okside-b">${opened}${score}${H ? `<span class="okcnt2"><i class="tico"></i>${H.counts[s]}</span>` : ''}</div>${team ? `<small class="okteam">${team}</small>` : ''}`;
-    else el.innerHTML = `${av}<div class="oknm"><b>${esc(x.name)}</b>${tag}<small>Sv${x.level}${team ? ' · ' + team : ''}${H && p !== 0 ? ' · <i class="tico"></i>' + H.counts[s] : ''}</small></div>${opened}${score}`;
+    if (p === 1 || p === 3) setHtml(el, `${av}<div class="okvname">${esc(x.name)}</div>${tag}<div class="okside-b">${opened}${score}${H ? `<span class="okcnt2"><i class="tico"></i>${H.counts[s]}</span>` : ''}</div>${team ? `<small class="okteam">${team}</small>` : ''}`);
+    else setHtml(el, `${av}<div class="oknm"><b>${esc(x.name)}</b>${tag}<small>Sv${x.level}${team ? ' · ' + team : ''}${H && p !== 0 ? ' · <i class="tico"></i>' + H.counts[s] : ''}</small></div>${opened}${score}`);
   }
   function renderDiscards() {
     const v = O.v, H = v.hand;
@@ -424,8 +438,8 @@
       const canTake = p === takePos() && myTurn() && H.phase === 'draw' && top != null && !H.okeyBlocked;
       el.dataset.zone = p === takePos() ? 'take' : p === 0 ? 'discard' : '';
       el.classList.toggle('can', canTake); el.classList.toggle('drop', p === 0 && playPhase());
-      el.innerHTML = (d.length > 1 ? `<div class="okunder">${tileHtml(d[d.length - 2], 'dim')}</div>` : '') + (top != null ? tileHtml(top, p === takePos() ? 'takeable' : '') : `<div class="okslot0">${p === 0 ? 'AT' : ''}</div>`) + (d.length ? `<em>${d.length}</em>` : '')
-        + (p === takePos() && H && H.took && !H.laidThisTurn && myTurn() ? '<button class="okret" id="okReturn">GERİ<br>BIRAK</button>' : '');
+      setHtml(el, (d.length > 1 ? `<div class="okunder">${tileHtml(d[d.length - 2], 'dim')}</div>` : '') + (top != null ? tileHtml(top, p === takePos() ? 'takeable' : '') : `<div class="okslot0">${p === 0 ? 'AT' : ''}</div>`) + (d.length ? `<em>${d.length}</em>` : '')
+        + (p === takePos() && H && H.took && !H.laidThisTurn && myTurn() ? '<button class="okret" id="okReturn">GERİ<br>BIRAK</button>' : ''));
     }
     const rb = $('#okReturn'); rb && (rb.onclick = (e) => { e.stopPropagation(); act({ type: 'return' }); });
   }
@@ -434,13 +448,21 @@
     if (!H) { el.innerHTML = ''; return; }
     const can = myTurn() && H.phase === 'draw';
     el.classList.toggle('can', can);
-    el.innerHTML = `<div class="okstack" data-zone="pile">${H.pile ? backTile() + backTile('o2') : '<div class="okslot0">BİTTİ</div>'}<em>${H.pile}</em>${can ? '<i class="okhint">ÇEK</i>' : ''}</div>
-      <div class="okind" ${isDuzV() ? 'data-zone="finish"' : ''}><small>${isDuzV() && playPhase() ? 'BİTİR ⇩' : 'GÖSTERGE'}</small>${tileHtml(H.indicator, 'ind')}</div>`;
+    setHtml(el, `<div class="okstack" data-zone="pile">${H.pile ? backTile() + backTile('o2') : '<div class="okslot0">BİTTİ</div>'}<em>${H.pile}</em>${can ? '<i class="okhint">ÇEK</i>' : ''}</div>
+      <div class="okind" ${isDuzV() ? 'data-zone="finish"' : ''}><small>${isDuzV() && playPhase() ? 'BİTİR ⇩' : 'GÖSTERGE'}</small>${tileHtml(H.indicator, 'ind')}</div>`);
   }
+  // Masadaki perler: seriler/aynı sayılar SOLDA, çiftler SAĞDA yukarıdan aşağı; her grubun başında kim, neyle ve kaç ile açtı
   function renderMelds() {
-    const v = O.v, H = v.hand, el = $('#okMelds'); if (!H) { el.innerHTML = ''; return; }
-    if (!H.melds.length) { el.innerHTML = ''; return; }
-    el.innerHTML = H.melds.map(m => `<div class="omeld ${m.kind}" data-meld="${m.id}" style="--sc:${SEATCOL[m.owner]}">${m.tiles.map((t, i) => tileHtml(t.id, 'sm', `data-mi="${i}"`)).join('')}</div>`).join('');
+    const v = O.v, H = v.hand, el = $('#okMelds'); if (!H || !H.melds.length) { setHtml(el, ''); return; }
+    const owners = []; H.melds.forEach(m => { if (!owners.includes(m.owner)) owners.push(m.owner); });
+    const name = (s) => (v.seats[s] ? v.seats[s].name : '') + (s === v.me ? ' (sen)' : '');
+    const head = (s, kind) => { const op = H.opened[s]; const val = op ? (op.route === 'pairs' ? `${op.value} çift` : String(op.value)) : '';
+      return `<div class="omh" style="--sc:${SEATCOL[s]}"><b>${esc(name(s))}</b>${val ? `<span class="${op.route === 'pairs' ? 'pr' : ''}">${val}</span>` : ''}</div>`; };
+    const meld = (m) => `<div class="omeld ${m.kind}" data-meld="${m.id}" style="--sc:${SEATCOL[m.owner]}">${m.tiles.map((t, i) => tileHtml(t.id, 'sm', `data-mi="${i}"`)).join('')}</div>`;
+    const runs = owners.map(s => { const ms = H.melds.filter(m => m.owner === s && m.kind !== 'pair'); return ms.length ? `<div class="omgrp" style="--sc:${SEATCOL[s]}">${head(s)}<div class="omrow">${ms.map(meld).join('')}</div></div>` : ''; }).join('');
+    const pairs = owners.map(s => { const ms = H.melds.filter(m => m.owner === s && m.kind === 'pair'); return ms.length ? `<div class="omgrp pg" style="--sc:${SEATCOL[s]}">${head(s)}<div class="omcol">${ms.map(meld).join('')}</div></div>` : ''; }).join('');
+    setHtml(el, `<div class="omruns">${runs}</div>${pairs ? `<div class="ompairs">${pairs}</div>` : ''}`);
+    el.classList.toggle('haspairs', !!pairs);
   }
   function renderCol() {
     const a = abilities(), v = O.v, op = v.hand && v.me != null && v.hand.opened[v.me];
@@ -471,9 +493,9 @@
   function renderRack() {
     const el = $('#okRack'); const H = O.v.hand;
     const marks = '<div class="okrackmark">SPINOVA</div><div class="okracksig">By-Hkn</div>';
-    if (!H) { el.innerHTML = marks; return; }
+    if (!H) { setHtml(el, marks); return; }
     let html = marks; for (let i = 0; i < SLOTS; i++) { const id = O.slots[i]; html += `<div class="okslot" data-slot="${i}">${id != null ? tileHtml(id, `${O.sel === id ? 'sel' : ''} ${O.fresh === id ? 'fresh' : ''} ${H.took && H.took.id === id ? 'took' : ''}`, `data-rack="${i}"`) : ''}</div>`; }
-    el.innerHTML = html; O.fresh = null;
+    setHtml(el, html); O.fresh = null;
   }
   function renderWait() {
     const v = O.v, el = $('#okWait');

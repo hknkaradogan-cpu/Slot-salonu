@@ -1659,28 +1659,28 @@ body.lowfx .cfart .arays,body.lowfx .cfart .zcloud,body.lowfx .cfart .msweep,bod
 .okarea .oklogo{opacity:.08!important;filter:grayscale(1) brightness(2)}
 /* Taş: fildişi, üstte parlama, kalınlık, kabartma rakam */
 .otile:not(.back){background:linear-gradient(180deg,rgba(255,255,255,.95) 0%,rgba(255,255,255,0) 38%),radial-gradient(130% 80% at 30% 15%,#fffef8 0%,#f7f0dc 55%,#e8dcbc 100%)!important}
-.otile span{--g1:#f0283b;--g2:#c3081c;--g3:#8e0414;background:linear-gradient(180deg,var(--g1) 0%,var(--g2) 60%,var(--g3) 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
-  text-shadow:none!important;filter:drop-shadow(0 1.2px 0 #fff) drop-shadow(0 -1px 0 rgba(0,0,0,.28))}
-.otile.c1 span{--g1:#ffae12;--g2:#e88a00;--g3:#b45f00}.otile.c2 span{--g1:#2a6fff;--g2:#0d45c9;--g3:#082f8f}.otile.c3 span{--g1:#3a3a3a;--g2:#111;--g3:#000}
-.otile.fake span{--g1:#1fb35a;--g2:#0e8a40;--g3:#06602a}
-.otile.xs span,.otile.sm span{filter:none}
-.otile.jok{animation:jglow 1.6s ease-in-out infinite}
-@keyframes jglow{50%{filter:drop-shadow(0 0 6px rgba(255,214,90,.95))}}
+/* Rakam: düz renk + kabartma (filtre yok; 60 taşta bile akıcı) */
+.otile span{-webkit-text-fill-color:currentColor;background:none;filter:none!important;text-shadow:0 1.2px 0 #fff,0 -1px 0 rgba(0,0,0,.28)!important}
+.otile.c0{color:#d0101f}.otile.c1{color:#e88a00}.otile.c2{color:#0d48cc}.otile.c3{color:#111}.otile.fake{color:#0e8a40}
+.otile.xs span,.otile.sm span{text-shadow:0 1px 0 #fff!important}
+/* Okey parıltısı: yalnızca opaklık canlandırılır (ekran kartında, yeniden boyama yok) */
+.otile.jok{animation:none}
+.otile.jok::after{content:"";position:absolute;inset:-3px;border-radius:9px;pointer-events:none;box-shadow:0 0 0 2px #ffd560,0 0 12px 3px rgba(255,214,90,.9);opacity:.35;animation:jglow2 1.6s ease-in-out infinite;will-change:opacity}
+.otile.sm.jok::after,.otile.xs.jok::after{inset:-2px;box-shadow:0 0 0 1.5px #ffd560,0 0 6px 1px rgba(255,214,90,.9)}
+@keyframes jglow2{50%{opacity:1}}
 /* Taş sırtı: mor-altın SPINOVA amblemi */
 .otile.back{background:linear-gradient(180deg,rgba(255,255,255,.35),rgba(255,255,255,0) 40%),radial-gradient(90% 70% at 50% 40%,#5b2a9a,#2c1052)!important;border:0!important;
   box-shadow:inset 0 0 0 2px #e9c46a,inset 0 0 0 4px #2c1052,inset 0 0 0 5px rgba(233,196,106,.6),0 1px 0 #1b0836,0 2px 0 #160630,0 3px 0 #12052a,0 6px 8px rgba(0,0,0,.4)!important}
 .otile.back span{width:auto;height:auto;margin:0;border:0;border-radius:0;font-size:22px;-webkit-text-fill-color:#f3d27a;background:none;filter:none;text-shadow:0 1px 0 #6b4a1c,0 0 8px rgba(246,200,76,.6)!important}
 .otile.back span::before{content:"S"}
-/* Istaka: damarlı ahşap + vernik parlaması */
+/* Istaka: damarlı ahşap + vernik parlaması (doku önceden çizilmiş resim; canlı SVG filtresi yok → hızlı) */
 .okrack{background:
    linear-gradient(180deg,rgba(255,255,255,.22),rgba(255,255,255,0) 7%,rgba(0,0,0,0) 46%,rgba(0,0,0,.35) 49%,rgba(255,255,255,.18) 51.5%,rgba(0,0,0,0) 56%,rgba(0,0,0,0) 93%,rgba(0,0,0,.4)),
-   url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='900' height='160'><filter id='w' x='0' y='0'><feTurbulence type='fractalNoise' baseFrequency='.004 .09' numOctaves='4' seed='7'/><feColorMatrix values='0 0 0 0 .42  0 0 0 0 .22  0 0 0 0 .08  0 0 0 -1.3 1.05'/></filter><rect width='900' height='160' filter='url(%23w)'/></svg>") 0 0/100% 100%,
-   linear-gradient(180deg,#b8773a,#9a5a26 50%,#7d4519)!important;
+   url(../assets/wood_spinova.webp) 0 0/100% 100%!important;
   box-shadow:inset 0 2px 0 rgba(255,220,170,.55),inset 0 -3px 0 rgba(60,25,5,.8),0 0 0 2px #4a250c,0 10px 24px rgba(0,0,0,.7)!important;border-radius:14px 14px 18px 18px!important}
 .okstage.duz .okrack{background:
    linear-gradient(180deg,rgba(255,255,255,.22),rgba(255,255,255,0) 7%,rgba(0,0,0,0) 46%,rgba(0,0,0,.35) 49%,rgba(255,255,255,.18) 51.5%,rgba(0,0,0,0) 56%,rgba(0,0,0,0) 93%,rgba(0,0,0,.4)),
-   url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='900' height='160'><filter id='w' x='0' y='0'><feTurbulence type='fractalNoise' baseFrequency='.004 .09' numOctaves='4' seed='3'/><feColorMatrix values='0 0 0 0 .30  0 0 0 0 .14  0 0 0 0 .05  0 0 0 -1.3 1.05'/></filter><rect width='900' height='160' filter='url(%23w)'/></svg>") 0 0/100% 100%,
-   linear-gradient(180deg,#8a4f24,#6e3a16 50%,#52280c)!important}
+   url(../assets/wood_spinova_dark.webp) 0 0/100% 100%!important}
 .okrack::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:linear-gradient(100deg,rgba(255,255,255,0) 20%,rgba(255,240,210,.16) 32%,rgba(255,255,255,0) 44%)}
 /* Seri Diz / Çift Diz: ıstakanın iki yanında büyük mavi düğmeler */
 #okRuns,#okPairs{top:318px!important;width:58px!important;height:116px!important;border-radius:16px!important;border:0!important;
@@ -1774,3 +1774,19 @@ html.rtl-text .otile span{font-family:"SpCond",Arial,sans-serif}
 .upd-later{background:none;border:0;color:#c9b3ff;font:700 14px "SpCond",Arial,sans-serif;padding:2px 14px;text-decoration:underline}
 .hicon.upd-hicon{background:linear-gradient(180deg,#4ff07c,#16a040)!important;border-color:#fff!important;animation:updpulse 1.4s ease-in-out infinite}
 .hicon.upd-hicon .t{color:#fff!important}
+
+/* ==================== 5.0.26 · MASADAKİ PERLER: solda seriler, sağda çiftler (yukarıdan aşağı), kim ne açtı ==================== */
+.okmelds{display:flex!important;flex-wrap:nowrap!important;gap:8px!important;align-items:flex-start;overflow:hidden!important}
+.okmelds .omruns{flex:1 1 auto;min-width:0;height:100%;overflow-y:auto;display:flex;flex-direction:column;gap:5px;padding-right:2px}
+.okmelds .ompairs{flex:0 0 auto;max-width:44%;height:100%;overflow-y:auto;display:flex;flex-direction:column;gap:5px;padding-left:8px;border-left:1px dashed rgba(255,255,255,.25)}
+.omgrp{border-radius:8px;background:rgba(0,0,0,.18);box-shadow:inset 3px 0 0 var(--sc);padding:2px 4px 4px 7px}
+.omh{display:flex;align-items:center;gap:6px;font:700 12px "SpCond",Arial,sans-serif;color:#fff;line-height:1.2;margin-bottom:2px;white-space:nowrap}
+.omh b{color:var(--sc);text-shadow:0 1px 0 rgba(0,0,0,.6)}
+.omh span{padding:0 6px;border-radius:6px;background:#c1121f;border:1px solid #ffd560;font-size:11px}
+.omh span.pr{background:#1d5fd0;border-color:#9fc0ff}
+.omrow{display:flex;flex-wrap:wrap;gap:4px 6px}
+.omcol{display:grid;grid-template-rows:repeat(3,auto);grid-auto-flow:column;grid-auto-columns:max-content;gap:3px 6px;justify-content:start}
+.ompairs .omgrp{padding-bottom:3px}.ompairs .omeld{padding:2px!important}
+.omeld{background:rgba(255,255,255,.07)!important}
+.omgrp .omeld{border-bottom-width:2px!important}
+#olOnline b{font-size:inherit!important;color:#ffe28a}
