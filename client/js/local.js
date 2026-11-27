@@ -10,12 +10,12 @@
     peri: ['Çarpan topları · zincirleme patlamalar', 'POPÜLER'], ejderha: ['243 yol · ateş wild çarpanları', ''], korsan: ['Sandık altını · tut ve döndür', ''], altin: ['Altın makine · jackpot çarkı', 'VIP'],
   };
   const PACKS = [['coins_starter', 'Başlangıç Paketi', 500000, '₺49,99', 'Tek seferlik', 1], ['coins_small', 'Küçük Paket', 1000000, '₺79,99', null, 0], ['coins_medium', 'Orta Paket', 2000000, '₺149,99', null, 0], ['coins_large', 'Büyük Paket', 5000000, '₺299,99', '+%25 değer', 0], ['coins_mega', 'Mega Paket', 10000000, '₺499,99', '+%50 değer', 0], ['coins_vip', 'VIP Paket', 20000000, '₺799,99', 'En iyi değer', 0]];
-  const ANCH = [[1, 500], [10, 1000], [20, 2000], [30, 3000], [40, 4000], [50, 5000], [60, 6000], [70, 7000], [80, 8000], [90, 9000], [100, 10000]];
+  const ANCH = [[1, 5000], [10, 7500], [20, 10000], [30, 15000], [40, 20000], [50, 25000], [60, 30000], [70, 40000], [80, 50000], [90, 60000], [100, 75000]];
   const QUESTS = [{ id: 1, title: '50 spin yap', type: 'spins', target: 50, reward: 2500 }, { id: 2, title: '500.000 jeton bahis yap', type: 'wager', target: 500000, reward: 5000 }, { id: 3, title: 'Bahsinin 20 katı kazan', type: 'bigwin', target: 1, reward: 4000 }, { id: 4, title: '3 farklı oyun oyna', type: 'games', target: 3, reward: 3000 }];
   const DAY = 864e5, MAXL = 100;
   const cumXp = (L) => 500 * (L - 1) + 50 * (L - 1) * (L - 2); const XPMAX = cumXp(MAXL);
   const lvl = (xp) => { let L = 1; while (L < MAXL && cumXp(L + 1) <= xp) L++; return L; };
-  const daily = (L) => { if (L <= 1) return 500; for (let i = 1; i < ANCH.length; i++) if (L <= ANCH[i][0]) { const [a, b] = ANCH[i - 1], [c, d] = ANCH[i]; return Math.round((b + (d - b) * (L - a) / (c - a)) / 10) * 10; } return 10000; };
+  const daily = (L) => { if (L <= 1) return 5000; for (let i = 1; i < ANCH.length; i++) if (L <= ANCH[i][0]) { const [a, b] = ANCH[i - 1], [c, d] = ANCH[i]; return Math.round((b + (d - b) * (L - a) / (c - a)) / 10) * 10; } return 75000; };
   const dayKey = () => new Date(Date.now() + 3 * 36e5).toISOString().slice(0, 10);
   let games = null; const G = () => (games = games || window.SlotEngine.buildGames());
   class Rng { constructor() { const b = new Uint32Array(4); crypto.getRandomValues(b); [this.a, this.b, this.c, this.d] = b; if (!(this.a | this.b | this.c | this.d)) this.a = 1; }
@@ -30,7 +30,7 @@
   const tokenOf = () => { try { return localStorage.getItem('slot_token'); } catch (e) { return null; } };
   function me() { const u = db.users[db.sessions[tokenOf()]]; if (!u) err(401, 'unauthorized', 'Lütfen giriş yapın.'); return u; }
   function pub(u) { const L = lvl(u.xp), mx = L >= MAXL; return { id: u.id, username: u.username, email: u.email, emailVerified: true, role: 'player', unlimited: false, balance: u.balance, level: L, xp: u.xp, xpInto: mx ? 0 : u.xp - cumXp(L), xpNeed: mx ? 0 : cumXp(L + 1) - cumXp(L), maxLevel: mx, avatar: u.avatar || 0, spins: u.spins, totalWagered: u.wagered, totalWon: u.won, biggestWin: u.big, createdAt: u.created, billingAccountId: 'local-' + u.id }; }
-  const dailyState = (u) => { const next = u.lastDaily ? u.lastDaily + DAY : 0; return { amount: daily(lvl(u.xp)), available: Date.now() >= next, nextAt: next, serverTime: Date.now() }; };
+  const dailyState = (u) => { const next = u.lastDaily ? u.lastDaily + 6 * 3600e3 : 0; return { amount: daily(lvl(u.xp)), available: Date.now() >= next, nextAt: next, serverTime: Date.now(), intervalHours: 6 }; };
   const lr = (u) => { const L = lvl(u.xp), up = u.lrUpto || 0, top = Math.floor(L / 10) * 10; let coins = 0, count = 0; for (let k = up + 10; k <= top; k += 10) { coins += k * 1000; count++; }
     const next = []; for (let k = Math.max(top, up) + 10; next.length < 5 && k <= MAXL; k += 10) next.push({ level: k, coins: k * 1000 });
     return { every: 10, perLevel: 1000, claimedUpto: up, pending: { coins, count, upto: top }, next, level: L, maxLevel: MAXL }; };
@@ -68,7 +68,7 @@
       const u = me(), g = G()[b.game]; if (!g) err(404, 'unknown_game'); const bet = +b.bet; if (!BETS.includes(bet)) err(400, 'bad_bet', 'Geçersiz bahis.');
       const bk = b.buy || null; if (bk && !g.buyCost[bk]) err(400, 'no_buy', 'Bu oyunda bu bonus satın alınamaz.');
       const cost = bk ? Math.round(bet * g.buyCost[bk]) : bet;
-      if (u.balance < cost) err(402, 'insufficient_funds', 'Yetersiz jeton. Mağazadan jeton alabilir veya günlük ödülünü toplayabilirsin.');
+      if (u.balance < cost) err(402, 'insufficient_funds', 'Yetersiz jeton. Mağazadan jeton alabilir veya 6 saatlik bonusunu toplayabilirsin.');
       const result = bk ? g.buy(new Rng(), true, bk) : g.play(new Rng(), true), win = Math.round(result.win * bet), old = lvl(u.xp);
       u.balance += win - cost; const acc = u.rem + cost; u.xp = Math.min(XPMAX, u.xp + Math.floor(acc / 100)); u.rem = acc % 100; u.spins++; u.wagered += cost; u.won += win; u.big = Math.max(u.big, win);
       const q = qp(u); q.p[1] = (q.p[1] || 0) + 1; q.p[2] = (q.p[2] || 0) + cost; if (!bk && win >= bet * 20) q.p[3] = (q.p[3] || 0) + 1; if (!q.g.includes(b.game)) q.g.push(b.game); q.p[4] = q.g.length;
@@ -78,7 +78,7 @@
     'GET /api/spins': () => ({ spins: db.spins }),
     'GET /api/fair': () => ({ serverSeedHash: 'Yerel modda denetlenebilir RNG sunucuda çalışır', clientSeed: '-', nonce: me().spins, revealed: [] }),
     'POST /api/fair/rotate': () => err(400, 'local', 'Denetlenebilir RNG sunucu bağlantılı sürümde kullanılır.'),
-    'POST /api/daily/claim': () => { const u = me(), st = dailyState(u); if (!st.available) err(409, 'not_yet', 'Günlük ödül henüz hazır değil.'); u.lastDaily = Date.now(); u.balance += st.amount; save(); return { amount: st.amount, balance: u.balance, daily: dailyState(u) }; },
+    'POST /api/daily/claim': () => { const u = me(), st = dailyState(u); if (!st.available) err(409, 'not_yet', 'Bonus henüz hazır değil.'); u.lastDaily = Date.now(); u.balance += st.amount; save(); return { amount: st.amount, balance: u.balance, daily: dailyState(u) }; },
     'GET /api/quests': () => { const u = me(), q = qp(u); return { day: q.day, quests: QUESTS.map(x => ({ ...x, progress: Math.min(x.target, q.p[x.id] || 0), claimed: q.c[x.id] ? 1 : 0 })) }; },
     'GET /api/events': () => ({ events: [] }),
     'GET /api/shop': () => { const u = me(); return { packages: PACKS.map(p => ({ productId: p[0], name: p[1], coins: p[2], priceLabel: p[3], bonusLabel: p[4], oneTime: !!p[5], available: !(p[5] && u.starter) })), billingAccountId: 'local-' + u.id, emailVerified: true, testMode: false, notice: 'Ödemeler Google Play üzerinden yapılır. Jetonlar yalnızca oyun içinde kullanılır; nakde çevrilemez, para veya ödül olarak çekilemez.' }; },

@@ -2,7 +2,20 @@
 // sanal jeton giriş havuzu veya ücretsiz (XP) masalar. Durum veritabanında; her istek "tembel" ilerletme yapar.
 import * as TB from './table.js';
 
-export const STAKES = [0, 1000, 10000, 100000, 1000000];
+// Odalar (bahis kademeleri). 0 = yalnızca arkadaşlarla özel (jetonsuz) masa.
+export const STAKES = [0, 1000, 5000, 10000, 100000, 1000000, 5000000];
+export const PUBLIC_STAKES = STAKES.filter(x => x > 0);
+// Odaya oturmak için gereken en az jeton (oynamak en az 3.500 jetonla başlar)
+export const MIN_PLAY = 3500;
+export const ROOM_MIN = { 0: MIN_PLAY, 1000: 3500, 5000: 15000, 10000: 30000, 100000: 300000, 1000000: 3000000, 5000000: 15000000 };
+export const minFor = (stake) => Math.max(MIN_PLAY, ROOM_MIN[stake] ?? stake * 3);
+// Hemen Oyna: jetonuna göre girebileceği en yüksek oda (sınırsız hesap için Salon)
+export function autoStake(balance, unlimited, allowed) {
+  const list = PUBLIC_STAKES.filter(x => allowed.includes(x));
+  if (unlimited) return list.includes(100000) ? 100000 : list[list.length - 1];
+  let pick = null; for (const x of list) if (balance >= minFor(x)) pick = x;
+  return pick;
+}
 const LEFT_GRACE_MS = 15 * 60e3;
 export const ROUNDS = [1, 2, 3, 4];
 const PAYOUT_TEKLI = [0.6, 0.3, 0.1, 0];
@@ -10,14 +23,16 @@ const XP_TEKLI = [300, 150, 75, 30], XP_ESLI_WIN = 250, XP_ESLI_LOSE = 60;
 export const CHAT = ['Merhaba! 👋', 'Kolay gelsin', 'Hadi bakalım!', 'Güzel hamle 👏', 'Şanslısın 🍀', 'Tebrikler 🎉', 'Biraz hızlı 🙏', 'Teşekkürler 😊', 'Görüşürüz 👋'];
 const ALLOWED = new Set(['draw', 'take', 'return', 'open', 'lay', 'add', 'retrieve', 'discard', 'undo', 'finish']);
 
-export const OKEY_DEFAULTS = { enabled: true, stakes: [0, 1000, 10000, 100000, 1000000], modes: ['tekli', 'esli'], rounds: [1, 2, 3, 4], katlamali: [true, false], turnSeconds: 30, botFillSeconds: 20, botsAllowed: true };
+export const OKEY_DEFAULTS = { enabled: true, stakes: [0, 1000, 5000, 10000, 100000, 1000000, 5000000], modes: ['tekli', 'esli'], rounds: [1, 2, 3, 4], katlamali: [true, false], turnSeconds: 30, botFillSeconds: 20, botsAllowed: true };
 export function registerOkey(A) {
   const { r, auth, db, Q, one, applyCoins, err, int, str, now, limit, C } = A; const authLite = A.authLite || auth;
 
   let ocfg = null, ocfgAt = 0;
   async function okeyConfig(force) {
     if (!force && ocfg && now() - ocfgAt < 15000) return ocfg;
-    const v = A.setting ? await A.setting('okey_config') : null; ocfg = { ...OKEY_DEFAULTS, ...(v || {}) }; ocfgAt = now(); return ocfg;
+    const v = A.setting ? await A.setting('okey_config') : null; ocfg = { ...OKEY_DEFAULTS, ...(v || {}) };
+    ocfg.stakes = (ocfg.stakes || []).map(Number).filter(x => STAKES.includes(x)); if (!ocfg.stakes.some(x => x > 0)) ocfg.stakes = OKEY_DEFAULTS.stakes.slice();
+    ocfgAt = now(); return ocfg;
   }
   const codeGen = () => { const a = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; let s = ''; for (let i = 0; i < 6; i++) s += a[Math.floor(Math.random() * a.length)]; return s; };
   const seatOf = (T, uid) => T.seats.findIndex(x => x && x.uid === uid);
@@ -32,6 +47,10 @@ export function registerOkey(A) {
     if (variant === 'duz' && c.duzEnabled === false) throw err(503, 'duz_disabled', 'Düz Okey şu anda bakımda.');
     const players = b.players === 2 || b.players === '2' ? 2 : 4, helper = b.helper !== false, risk = !!b.risk;
     return { variant, players, helper, risk, mode: players === 2 ? 'tekli' : mode, stake, rounds, katlamali, turnMs: c.turnSeconds * 1000, fillMs: c.botFillSeconds * 1000, bots: c.botsAllowed };
+  }
+  function needChips(u, stake) {
+    if (u.unlimited) return; const m = minFor(stake);
+    if (u.balance < m) throw err(402, 'insufficient_funds', stake ? `Bu oda için en az ${m.toLocaleString('tr-TR')} jeton gerekir.` : `Oynamak için en az ${MIN_PLAY.toLocaleString('tr-TR')} jeton gerekir.`);
   }
   async function activeTable(q, uid) {
     return one(q, "SELECT t.id, t.status FROM slot.okey_players p JOIN slot.okey_tables t ON t.id=p.table_id WHERE p.user_id=$1 AND p.active AND t.status IN ('waiting','playing','round_end') ORDER BY t.id DESC LIMIT 1", [uid]);
@@ -110,7 +129,11 @@ export function registerOkey(A) {
     const waiting = await Q("SELECT variant, mode, stake, rounds, COUNT(*)::int n FROM slot.okey_tables WHERE status='waiting' AND NOT private AND updated_at>$1 GROUP BY 1,2,3,4", [now() - 60e3]);
     const stats = await one(Q, 'SELECT played, won, coins_won, best_score FROM slot.okey_stats WHERE user_id=$1', [ctx.user.id]);
     const left = act ? null : await one(Q, "SELECT t.id, t.status FROM slot.okey_players p JOIN slot.okey_tables t ON t.id=p.table_id WHERE p.user_id=$1 AND NOT p.active AND p.payout IS NULL AND t.status IN ('playing','round_end') AND t.updated_at>$2 ORDER BY t.id DESC LIMIT 1", [ctx.user.id, now() - LEFT_GRACE_MS]);
-    return { stakes: STAKES, rounds: ROUNDS, chat: CHAT, active: act || null, rejoin: left || null, invites, online, waiting, stats: stats || { played: 0, won: 0, coins_won: 0 }, config: await okeyConfig() };
+    const per = await Q("SELECT t.stake, COUNT(DISTINCT p.user_id)::int players, COUNT(DISTINCT t.id)::int tables FROM slot.okey_players p JOIN slot.okey_tables t ON t.id=p.table_id WHERE p.active AND t.status IN ('waiting','playing','round_end') AND t.updated_at>$1 GROUP BY 1", [now() - 5 * 60e3]);
+    const cfgNow = await okeyConfig();
+    const rooms = PUBLIC_STAKES.filter(x => cfgNow.stakes.includes(x)).map(x => { const p = per.find(r => Number(r.stake) === x) || { players: 0, tables: 0 }; return { stake: x, min: minFor(x), players: p.players, tables: p.tables }; });
+    const meU = await one(Q, 'SELECT balance, unlimited FROM slot.users WHERE id=$1', [ctx.user.id]);
+    return { rooms, minPlay: MIN_PLAY, autoStake: autoStake(Number(meU.balance), !!meU.unlimited, cfgNow.stakes), stakes: STAKES, rounds: ROUNDS, chat: CHAT, active: act || null, rejoin: left || null, invites, online, waiting, stats: stats || { played: 0, won: 0, coins_won: 0 }, config: await okeyConfig() };
   });
 
   r('GET', '/api/admin/okey', A.admin, async () => ({ config: await okeyConfig(true), defaults: OKEY_DEFAULTS, stakesAll: STAKES, roundsAll: ROUNDS,
@@ -132,17 +155,25 @@ export function registerOkey(A) {
   });
   r('GET', '/api/okey/tables', auth, async (ctx) => {
     const vr = ctx.query.get('variant') === 'duz' ? 'duz' : '101';
-    const rows = await Q("SELECT id, code, mode, stake, rounds, katlamali, private, state, updated_at FROM slot.okey_tables WHERE status='waiting' AND variant=$2 AND updated_at>$1 ORDER BY id DESC LIMIT 30", [now() - 10 * 60e3, vr]);
+    const sf = ctx.query.get('stake'); const stakeF = sf != null && sf !== '' ? Number(sf) : null;
+    const rows = (await Q("SELECT id, code, mode, stake, rounds, katlamali, private, state, updated_at FROM slot.okey_tables WHERE status='waiting' AND variant=$2 AND updated_at>$1 ORDER BY id DESC LIMIT 60", [now() - 10 * 60e3, vr])).filter(t => stakeF == null || Number(t.stake) === stakeF).slice(0, 30);
     return { tables: rows.filter(t => !t.private || !!JSON.parse(t.state).passHash).map(t => { const T = JSON.parse(t.state); return { id: t.id, code: t.private ? null : null, mode: t.mode, stake: Number(t.stake), rounds: t.rounds, katlamali: t.katlamali, private: t.private, locked: !!T.passHash,
-      seats: T.seats.map(x => (x ? { name: x.name, bot: x.bot } : null)), filled: T.seats.filter(Boolean).length, players: T.cfg.players || 4, helper: T.cfg.helper !== false, risk: !!T.cfg.risk }; }) };
+      min: minFor(Number(t.stake)), seats: T.seats.map(x => (x ? { name: x.name, bot: x.bot, avatar: x.avatar ?? null } : null)), filled: T.seats.filter(Boolean).length, players: T.cfg.players || 4, helper: T.cfg.helper !== false, risk: !!T.cfg.risk }; }) };
   });
   r('GET', '/api/okey/leaderboard', auth, async () => ({ top: await Q('SELECT u.username, u.avatar, s.played, s.won, s.coins_won FROM slot.okey_stats s JOIN slot.users u ON u.id=s.user_id ORDER BY s.won DESC, s.coins_won DESC LIMIT 20') }));
 
-  r('POST', '/api/okey/quick', auth, async (ctx) => { const o = await parseOpts(ctx.body); return db.tx(async (q) => {
+  r('POST', '/api/okey/quick', auth, async (ctx) => {
+    if (ctx.body.stake === 'auto' || ctx.body.stake == null) { // Hemen Oyna: odayı jetona göre sunucu seçer
+      const u0 = await one(Q, 'SELECT balance, unlimited FROM slot.users WHERE id=$1', [ctx.user.id]); const c = await okeyConfig(); const st = autoStake(Number(u0.balance), !!u0.unlimited, c.stakes);
+      if (st == null) throw err(402, 'insufficient_funds', `Oynamak için en az ${MIN_PLAY.toLocaleString('tr-TR')} jeton gerekir.`);
+      ctx.body.stake = st;
+    }
+    const o = await parseOpts(ctx.body); return db.tx(async (q) => {
     limit(ctx, 'okq:' + ctx.user.id, 6, 10e3);
     const ex = await activeTable(q, ctx.user.id); if (ex) return { tableId: ex.id, existing: true };
+    if (!o.stake) throw err(400, 'bad_stake', 'Jetonsuz masa yalnızca arkadaşlarla özel masa olarak açılabilir.');
     const u = await userLite(q, ctx.user.id);
-    if (o.stake && !u.unlimited && u.balance < o.stake) throw err(402, 'insufficient_funds', 'Bu masa için yeterli jetonun yok.');
+    needChips(u, o.stake);
     // aynı ayarlı, boş koltuklu, bekleyen genel masa
     const cand = await q("SELECT id FROM slot.okey_tables WHERE status='waiting' AND NOT private AND variant=$6 AND mode=$1 AND stake=$2 AND rounds=$3 AND katlamali=$4 AND updated_at>$5 ORDER BY id LIMIT 5 FOR UPDATE SKIP LOCKED", [o.mode, o.stake, o.rounds, o.katlamali, now() - 60e3, o.variant]);
     for (const c of cand) {
@@ -156,16 +187,18 @@ export function registerOkey(A) {
     const T = TB.newTable(o, now());
     const row = await one(q, 'INSERT INTO slot.okey_tables(code,status,mode,stake,rounds,katlamali,private,owner_id,state,created_at,updated_at,variant) VALUES(NULL,$1,$2,$3,$4,$5,FALSE,$6,$7,$8,$8,$9) RETURNING id', ['waiting', o.mode, o.stake, o.rounds, o.katlamali, u.id, JSON.stringify(T), now(), o.variant]);
     await seatUser(q, row.id, T, u); await save(q, row.id, T);
-    return { tableId: row.id };
-  }); });;
+    return { tableId: row.id, stake: o.stake };
+  }); });
 
   r('POST', '/api/okey/private', auth, async (ctx) => { const o = await parseOpts(ctx.body); return db.tx(async (q) => {
     limit(ctx, 'okp:' + ctx.user.id, 5, 30e3);
     const ex = await activeTable(q, ctx.user.id); if (ex) throw err(409, 'already_at_table', 'Zaten bir masadasın. Önce o masadan ayrıl.');
     const u = await userLite(q, ctx.user.id);
-    if (o.stake && !u.unlimited && u.balance < o.stake) throw err(402, 'insufficient_funds', 'Bu masa için yeterli jetonun yok.');
-    const T = TB.newTable({ ...o, private: true }, now());
-    let row; for (let i = 0; i < 5 && !row; i++) { const code = codeGen(); if (!(await one(q, 'SELECT 1 x FROM slot.okey_tables WHERE code=$1', [code]))) row = await one(q, 'INSERT INTO slot.okey_tables(code,status,mode,stake,rounds,katlamali,private,owner_id,state,created_at,updated_at,variant) VALUES($1,$2,$3,$4,$5,$6,TRUE,$7,$8,$9,$9,$10) RETURNING id, code', [code, 'waiting', o.mode, o.stake, o.rounds, o.katlamali, u.id, JSON.stringify(T), now(), o.variant]); }
+    needChips(u, o.stake);
+    // "Masa Aç" (public): odanın masa listesinde görünür, herkes boş koltuğa oturabilir. Aksi halde kodlu/davetli özel masa.
+    const pub = !!ctx.body.public; if (pub && !o.stake) throw err(400, 'bad_stake', 'Odada açılan masanın bahsi olmalı.');
+    const T = TB.newTable({ ...o, private: !pub }, now());
+    let row; for (let i = 0; i < 5 && !row; i++) { const code = codeGen(); if (!(await one(q, 'SELECT 1 x FROM slot.okey_tables WHERE code=$1', [code]))) row = await one(q, 'INSERT INTO slot.okey_tables(code,status,mode,stake,rounds,katlamali,private,owner_id,state,created_at,updated_at,variant) VALUES($1,$2,$3,$4,$5,$6,$11,$7,$8,$9,$9,$10) RETURNING id, code', [code, 'waiting', o.mode, o.stake, o.rounds, o.katlamali, u.id, JSON.stringify(T), now(), o.variant, !pub]); }
     T.code = row.code; T.owner = u.id;
     if (ctx.body.password) { const pw = String(ctx.body.password).slice(0, 20); if (pw.length < 3) throw err(400, 'short_password', 'Masa şifresi en az 3 karakter olmalı.'); T.passHash = C.sha256('okey:' + row.code + ':' + pw); }
     await seatUser(q, row.id, T, u, 0); await save(q, row.id, T);
@@ -196,7 +229,7 @@ export function registerOkey(A) {
     if (T.cfg.private && !T.passHash && !ctx.body.code && !invited) throw err(403, 'private_table', 'Bu özel masaya yalnızca davet ya da masa koduyla girilebilir.');
     if (T.passHash && !invited && C.sha256('okey:' + T.code + ':' + String(ctx.body.password || '')) !== T.passHash) throw err(403, 'bad_password', ctx.body.password ? 'Masa şifresi yanlış.' : 'Bu masa şifreli. Şifreyi gir.');
     const u = await userLite(q, ctx.user.id);
-    if (T.cfg.stake && !u.unlimited && u.balance < T.cfg.stake) throw err(402, 'insufficient_funds', 'Bu masa için yeterli jetonun yok.');
+    needChips(u, T.cfg.stake);
     try { await seatUser(q, row.id, T, u, ctx.body.seat != null ? int(ctx.body.seat, 'seat', 0, 3) : null); } catch (e) { wrapErr(e); }
     if (TB.isFull(T)) TB.startRound(T, now());
     await save(q, row.id, T); await q('DELETE FROM slot.okey_invites WHERE table_id=$1 AND to_id=$2', [row.id, u.id]);

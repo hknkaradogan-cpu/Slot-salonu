@@ -224,10 +224,10 @@
   /* ===================== GÜNLÜK / SEVİYE / ETKİNLİK ===================== */
   function dailyModal() {
     const d = S.daily;
-    modal(`<div class="promo"><div class="prays"></div><h2 class="ptitle2">GÜNLÜK ÖDÜL</h2>
+    modal(`<div class="promo"><div class="prays"></div><h2 class="ptitle2">BONUS</h2>
       <div class="pbox"><img class="pchest" src="assets/ic_chest.webp" alt=""><div><small>Seviye ${S.me.level} ödülün</small><b class="pamt">${fmt(d.amount)}</b><small>jeton + 1 bilet</small></div><img class="pcoins" src="assets/fx_coins.webp" alt=""></div></div>
-      <p class="center small muted">Ödül seviyene göre artar: Sv1 500 · Sv10 1.000 · Sv50 5.000 · Sv100 10.000 jeton. 24 saatte bir alınır (sunucu saati).</p>
-      <button class="pgo" id="dClaim" ${d.available ? '' : 'disabled'}>${d.available ? 'HEMEN TOPLA' : 'Sonraki ödül: <span id="dLeft"></span>'}</button>`, { cls: 'promom',
+      <p class="center small muted">Bonus seviyene göre artar: Sv1 5.000 · Sv10 7.500 · Sv20 10.000 · Sv50 25.000 · Sv100 75.000 jeton. ${d.intervalHours || 6} saatte bir alınır (sunucu saati).</p>
+      <button class="pgo" id="dClaim" ${d.available ? '' : 'disabled'}>${d.available ? 'HEMEN TOPLA' : 'Sonraki bonus: <span id="dLeft"></span>'}</button>`, { cls: 'promom',
       onOpen() {
         if (!d.available) { const t = setInterval(() => { const e = $('#dLeft'); if (!e) return clearInterval(t); e.textContent = hms(d.nextAt - Date.now() - (S.clockSkew || 0)); }, 1000); }
         $('#dClaim').onclick = () => guard($('#dClaim'), async () => {
@@ -380,7 +380,7 @@
   }
   async function help() {
     const t = await Api.get('/api/support').catch(() => ({ tickets: [] }));
-    const faq = [['Jetonları nakde çevirebilir miyim?', 'Hayır. Jetonlar yalnızca uygulama içinde eğlence amaçlıdır; nakde, paraya veya ödüle çevrilemez.'], ['Satın aldığım jetonlar gelmedi', 'Ödeme Google Play tarafından onay bekliyor olabilir (bekleyen ödeme). Onaylandığında jetonlar otomatik yüklenir. Sorun sürerse aşağıdan destek talebi aç.'], ['Günlük ödül ne zaman yenilenir?', 'Son aldığın andan 24 saat sonra (sunucu saatine göre).'], ['Seviye nasıl atlanır?', 'Her 100 jetonluk bahis 1 XP kazandırır. 2. seviye için 500 XP gerekir; sonraki her seviyede gereksinim 100 XP artar. 100. seviye son seviyedir.'], ['Oyunlar adil mi?', 'Her oyunun teorik RTP\'si %95\'tir ve sonuçlar denetlenebilir RNG ile belirlenir. Profil > Adil Oyun bölümünden doğrulayabilirsin.']];
+    const faq = [['Jetonları nakde çevirebilir miyim?', 'Hayır. Jetonlar yalnızca uygulama içinde eğlence amaçlıdır; nakde, paraya veya ödüle çevrilemez.'], ['Satın aldığım jetonlar gelmedi', 'Ödeme Google Play tarafından onay bekliyor olabilir (bekleyen ödeme). Onaylandığında jetonlar otomatik yüklenir. Sorun sürerse aşağıdan destek talebi aç.'], ['Bonus ne zaman yenilenir?', 'Son aldığın andan 6 saat sonra (sunucu saatine göre). Miktar seviyene göre 5.000 jetondan başlayıp artar.'], ['Seviye nasıl atlanır?', 'Her 100 jetonluk bahis 1 XP kazandırır. 2. seviye için 500 XP gerekir; sonraki her seviyede gereksinim 100 XP artar. 100. seviye son seviyedir.'], ['Oyunlar adil mi?', 'Her oyunun teorik RTP\'si %95\'tir ve sonuçlar denetlenebilir RNG ile belirlenir. Profil > Adil Oyun bölümünden doğrulayabilirsin.']];
     modal(`<h3 class="gold">💬 Yardım ve Destek</h3><div class="list">${faq.map(([q, a]) => `<details class="li" style="display:block"><summary><b style="display:inline">${q}</b></summary><p class="small">${a}</p></details>`).join('')}</div>
       <div class="section-t" style="margin-top:12px">Destek talebi oluştur</div><label class="field"><span>Konu</span><input id="tkS" maxlength="120"></label><label class="field"><span>Mesaj</span><textarea id="tkM" rows="4" maxlength="2000"></textarea></label><button class="btn green block" id="tkGo">Gönder</button>
       ${t.tickets.length ? `<div class="section-t" style="margin-top:12px">Taleplerim</div><div class="list">${t.tickets.map(x => `<div class="li" style="display:block"><b>${esc(x.subject)}</b> <span class="pill ${x.status === 'yanitlandi' ? 'ok' : 'warn'}">${x.status === 'yanitlandi' ? 'Yanıtlandı' : 'Açık'}</span><small style="display:block">${esc(x.message)}</small>${x.reply ? `<p class="small" style="color:var(--g2)">Destek: ${esc(x.reply)}</p>` : ''}</div>`).join('')}</div>` : ''}`, {

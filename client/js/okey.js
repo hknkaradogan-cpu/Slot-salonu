@@ -5,7 +5,7 @@
   const { $, $$, esc, fmt, toast, modal, closeModal, guard, AVATARS } = UI;
   const OR = window.OkeyRules;
   const SLOTS = 30, ROWN = 15, W0 = 960, H0 = 440;
-  const STAKE_NAMES = { 0: ['Ücretsiz Masa', '🎈'], 1000: ['Bronz Masa', '🥉'], 10000: ['Gümüş Masa', '🥈'], 100000: ['Altın Masa', '🥇'], 1000000: ['Elmas Masa', '💎'] };
+  const STAKE_NAMES = { 0: ['Arkadaş Masası (jetonsuz)', '🎈'], 1000: ['Klasik', '🎲'], 5000: ['Çaylak', '🥉'], 10000: ['Usta', '🥈'], 100000: ['Salon', '🥇'], 1000000: ['Kral', '💎'], 5000000: ['VIP Kulüp', '👑'] };
   const CHAT = ['Merhaba! 👋', 'Kolay gelsin', 'Hadi bakalım!', 'Güzel hamle 👏', 'Şanslısın 🍀', 'Tebrikler 🎉', 'Biraz hızlı 🙏', 'Teşekkürler 😊', 'Görüşürüz 👋'];
   const SEATCOL = ['#ffd34d', '#7fd8ff', '#ff9ae8', '#7dff6b'];
   const ld = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch (e) { return d; } };

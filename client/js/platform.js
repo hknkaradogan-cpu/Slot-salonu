@@ -71,7 +71,7 @@
       <div class="sprail l">${rail('tournaments', '🏆', 'Turnuvalar')}${rail('wheel', '🎡', 'Şans Çarkı', 'bWheel')}${rail('puzzle', '🧩', 'Bulmaca')}${rail('shop', '💎', 'Mağaza')}</div>
       <div class="sprail r">${rail('messages', '✉️', 'Mesajlar', 'bMsg2')}${rail('stats', '📈', 'İstatistik')}${rail('support', '🎧', 'Destek')}<div class="spcode"><input id="hCode" maxlength="6" placeholder="KOD" autocomplete="off"><button id="hJoin" title="Kodla masaya katıl">➜</button></div></div>
       <div class="spcards g12">${GAMES.map(([id, t]) => `<button class="spcard gc ${id}" data-p="${id}" data-card="${id}" aria-label="${t}"><span class="gcart"></span><span class="spplay">OYNA</span></button>`).join('')}</div>
-      <button class="spchest" data-p="daily"><img src="assets/ic_chest.webp" alt=""><span>Günlük<br>Ödül</span><span id="bDaily2" class="hb"></span></button>
+      <button class="spchest" data-p="daily"><img src="assets/ic_chest.webp" alt=""><span id="bDailyT">Bonus</span><span id="bDaily2" class="hb"></span></button>
       <div class="spsig" aria-label="By-Hkn imzası"><i>👑</i>By-Hkn</div>
       ${bottomHtml('home')}`);
     UI.show('main'); bind($('#main')); Screens.renderTop(); renderBadges();
@@ -110,7 +110,7 @@
   function renderBadges() {
     const st = S(), n = st.badges || {}; const d = (id, v) => { const e = $('#' + id); if (e) e.innerHTML = v ? `<span class="dot">${v}</span>` : ''; };
     d('bGift', (n.gifts || 0) + (n.notifications || 0) + (st.levelRewards && st.levelRewards.pending ? st.levelRewards.pending.count : 0) || '');
-    d('bMsg', (n.friendRequests || 0) || ''); d('bMsg2', (n.messages || 0) || ''); d('bDaily2', st.daily && st.daily.available ? '!' : '');
+    d('bMsg', (n.friendRequests || 0) || ''); d('bMsg2', (n.messages || 0) || ''); d('bDaily2', st.daily && st.daily.available ? '!' : ''); { const bt = document.getElementById('bDailyT'); if (bt && st.daily) { clearInterval(window.__bonusT); const f = () => { const left = st.daily.nextAt - Date.now(); if (st.daily.available || left <= 0) { bt.innerHTML = `Bonus<br>${fmt(st.daily.amount)}`; } else { const s2 = Math.ceil(left / 1000); bt.textContent = [s2 / 3600 | 0, (s2 % 3600) / 60 | 0, s2 % 60].map(v => String(v).padStart(2, '0')).join(':'); } }; f(); window.__bonusT = setInterval(() => { if (!document.body.contains(bt)) return clearInterval(window.__bonusT); f(); }, 1000); } }
     $$('#tTk').forEach(e => { e.textContent = st.me ? (st.me.unlimited ? '∞' : fmt(st.me.tickets || 0)) : ''; });
     $$('#tWel').forEach(e => { e.textContent = st.me ? st.me.username : ''; });
   }
@@ -296,7 +296,7 @@
     const st = S(); const [f, n] = await Promise.all([Api.get('/api/friends'), Api.get('/api/notifications')]);
     const lr = st.levelRewards;
     body.innerHTML = `<div class="pgrid">
-      <div class="card"><div class="section-t">🎁 Günlük giriş ödülü</div><p class="small">${st.daily.available ? `Hazır: <b>${fmt(st.daily.amount)}</b> jeton + 1 🎟️` : 'Yarın tekrar gel!'}</p><button class="btn ${st.daily.available ? 'green' : 'ghost'} block" id="gD">${st.daily.available ? 'TOPLA' : 'Ayrıntılar'}</button></div>
+      <div class="card"><div class="section-t">🎁 ${st.daily.intervalHours || 6} saatlik bonus</div><p class="small">${st.daily.available ? `Hazır: <b>${fmt(st.daily.amount)}</b> jeton + 1 🎟️` : `Sonraki bonus: <b>${new Date(st.daily.nextAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}</b>`}</p><button class="btn ${st.daily.available ? 'green' : 'ghost'} block" id="gD">${st.daily.available ? 'TOPLA' : 'Ayrıntılar'}</button></div>
       <div class="card"><div class="section-t">🏆 Seviye ödülleri</div><p class="small">${lr && lr.pending.count ? `${lr.pending.count} ödül hazır: <b>+${fmt(lr.pending.coins)}</b>` : 'Sıradaki ödül için seviye atla.'}</p><button class="btn ${lr && lr.pending.count ? 'green' : 'ghost'} block" id="gL">Seviye Ödülleri</button></div>
       <div class="card"><div class="section-t">👥 Arkadaşlarından hediyeler</div>${f.gifts.length ? `<div class="list">${f.gifts.map(g => `<div class="li"><span>🎁</span><div class="grow"><b>${esc(g.username)}</b><small>${fmt(g.amount)} jeton</small></div><button class="btn green sm" data-g="${g.id}">AL</button></div>`).join('')}</div>` : '<p class="small muted">Bekleyen hediye yok.</p>'}</div>
       <div class="card" style="grid-column:1/-1"><div class="section-t">🔔 Bildirimler</div><div class="list">${n.notifications.map(x => `<div class="li ${x.read_at ? '' : 'unread'}"><div class="grow"><b>${esc(x.title)}</b><small>${esc(x.body || '')}</small></div><small class="muted">${new Date(Number(x.created_at)).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</small></div>`).join('') || '<p class="small muted">Bildirim yok.</p>'}</div></div></div>`;

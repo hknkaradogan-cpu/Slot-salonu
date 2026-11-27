@@ -21,8 +21,10 @@ const THEME = {
 };
 const DEFAULT_SETTINGS = {
   starting_coins: 50000,
-  daily_anchors: [[1, 500], [10, 1000], [20, 2000], [30, 3000], [40, 4000], [50, 5000], [60, 6000], [70, 7000], [80, 8000], [90, 9000], [100, 10000]],
-  daily_after: { perLevel: 10, max: 1000000 },
+  // Bonus: 6 saatte bir, seviyeye göre 5.000 jetondan başlar
+  daily_anchors: [[1, 5000], [10, 7500], [20, 10000], [30, 15000], [40, 20000], [50, 25000], [60, 30000], [70, 40000], [80, 50000], [90, 60000], [100, 75000]],
+  daily_after: { perLevel: 250, max: 250000 },
+  daily_interval_hours: 6,
   level_rewards: { every: 10, perLevel: 1000, special: {} },
   gift_amounts: [1000, 5000, 10000], gift_daily_limit: 5,
 };
@@ -46,6 +48,11 @@ export async function createApi(cfg) {
   /* ---------- şema ve varsayılan veriler ---------- */
   async function migrate() {
     if (!cfg.skipSchema) await db.exec(SCHEMA_SQL);
+    // 5.0.26: günlük ödül → 6 saatlik bonus (mevcut kurulumlarda bir kez uygulanır; sonrasında yönetici panelinden değiştirilebilir)
+    if (!(await one(Q, "SELECT 1 x FROM slot.settings WHERE key='bonus6h_v1'"))) {
+      for (const k of ['daily_anchors', 'daily_after', 'daily_interval_hours']) await Q('INSERT INTO slot.settings(key,value) VALUES($1,$2) ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value', [k, JSON.stringify(DEFAULT_SETTINGS[k])]);
+      await Q("INSERT INTO slot.settings(key,value) VALUES('bonus6h_v1','true') ON CONFLICT (key) DO NOTHING");
+    }
     if (cfg.skipSchema && await one(Q, "SELECT 1 x FROM slot.settings WHERE key='seeded_v1'")) return; // Edge: soğuk başlangıcı hızlandır
     for (const [k, v] of Object.entries(DEFAULT_SETTINGS)) await Q('INSERT INTO slot.settings(key,value) VALUES($1,$2) ON CONFLICT (key) DO NOTHING', [k, JSON.stringify(v)]);
     if (!(await one(Q, 'SELECT 1 x FROM slot.packages LIMIT 1'))) for (const p of PACKAGES) await Q('INSERT INTO slot.packages(product_id,name,coins,price_label,bonus_label,one_time,sort) VALUES($1,$2,$3,$4,$5,$6,$7)', p);
@@ -262,8 +269,9 @@ export async function createApi(cfg) {
   async function dailyState(u, q = Q) {
     const after = await setting('daily_after', q);
     const amount = C.dailyAmount(C.levelFromXp(u.xp), await setting('daily_anchors', q), after.perLevel, after.max);
-    const next = u.last_daily_at ? u.last_daily_at + C.DAY_MS : 0;
-    return { amount, available: now() >= next, nextAt: next, serverTime: now() };
+    const hours = Math.max(1, Number(await setting('daily_interval_hours', q)) || 24);
+    const next = u.last_daily_at ? u.last_daily_at + hours * 3600e3 : 0;
+    return { amount, available: now() >= next, nextAt: next, serverTime: now(), intervalHours: hours };
   }
   async function rewardsState(u) {
     const cfgR = await setting('level_rewards'); const lvl = C.levelFromXp(u.xp);
@@ -286,7 +294,7 @@ export async function createApi(cfg) {
   });
   r('POST', '/api/daily/claim', auth, (ctx) => db.tx(async (q) => {
     const u = await one(q, 'SELECT * FROM slot.users WHERE id=$1 FOR UPDATE', [ctx.user.id]); const st = await dailyState(u, q);
-    if (!st.available) throw err(409, 'not_yet', 'Günlük ödül henüz hazır değil.');
+    if (!st.available) throw err(409, 'not_yet', 'Bonus henüz hazır değil.');
     await q('UPDATE slot.users SET last_daily_at=$1 WHERE id=$2', [now(), u.id]);
     const w = await applyCoins(q, u.id, st.amount, 'daily'); const tickets = await addTickets(q, u.id, 1, 'daily');
     return { amount: st.amount, tickets: 1, ticketBalance: tickets, balance: w.balance, daily: await dailyState({ ...u, last_daily_at: now() }, q) };
@@ -636,10 +644,11 @@ export async function createApi(cfg) {
     devices: await Q('SELECT device, ROUND(AVG(fps),1) avg_fps, COUNT(*)::int n FROM slot.client_perf WHERE created_at > $1 GROUP BY device ORDER BY n DESC LIMIT 20', [now() - 7 * C.DAY_MS]),
     errors: await Q('SELECT e.message, e.screen, e.app_version, e.device, COUNT(*)::int n, MAX(e.created_at) last_at, MIN(e.stack) stack FROM slot.client_errors e WHERE e.created_at > $1 GROUP BY 1,2,3,4 ORDER BY last_at DESC LIMIT 50', [now() - 7 * C.DAY_MS]),
   }));
-  r('GET', '/api/admin/config', admin, async () => ({ daily: await setting('daily_anchors'), dailyAfter: await setting('daily_after'), levelRewards: await setting('level_rewards'), startingCoins: await setting('starting_coins'), giftAmounts: await setting('gift_amounts'), giftDailyLimit: await setting('gift_daily_limit'), mailConfigured: mailer.configured }));
+  r('GET', '/api/admin/config', admin, async () => ({ daily: await setting('daily_anchors'), dailyAfter: await setting('daily_after'), dailyIntervalHours: await setting('daily_interval_hours'), levelRewards: await setting('level_rewards'), startingCoins: await setting('starting_coins'), giftAmounts: await setting('gift_amounts'), giftDailyLimit: await setting('gift_daily_limit'), mailConfigured: mailer.configured }));
   r('PUT', '/api/admin/config/daily', admin, async (ctx) => {
     const a = ctx.body.anchors; if (!Array.isArray(a) || !a.length || !a.every(x => Array.isArray(x) && Number.isInteger(x[0]) && x[0] >= 1 && x[0] <= C.MAX_LEVEL && Number.isInteger(x[1]) && x[1] >= 0)) throw err(400, 'bad_anchors', 'Geçersiz tablo.');
     await setSetting('daily_anchors', a);
+    if (ctx.body.intervalHours != null) await setSetting('daily_interval_hours', int(ctx.body.intervalHours, 'intervalHours', 1, 168));
     if (ctx.body.after) await setSetting('daily_after', { perLevel: int(ctx.body.after.perLevel, 'perLevel', 0, 1e6), max: int(ctx.body.after.max, 'max', 0, 1e12) });
     await audit(Q, ctx, 'config_daily', null, ctx.body); return { ok: true };
   });

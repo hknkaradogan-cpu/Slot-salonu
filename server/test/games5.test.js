@@ -120,7 +120,7 @@ test('Tavla API: şifreli özel masa, liste, kodla katılım, 2 gerçek oyuncu',
 
 test('Düz Okey API: varyant masası, yanlış bitiş reddi, ayrı liste', async () => {
   const a = await reg('dz_a');
-  const q = await api('POST', '/api/okey/quick', { variant: 'duz', mode: 'tekli', rounds: 1, stake: 0 }, a.token); assert.equal(q.status, 200, JSON.stringify(q.body));
+  const q = await api('POST', '/api/okey/quick', { variant: 'duz', mode: 'tekli', rounds: 1, stake: 1000 }, a.token); assert.equal(q.status, 200, JSON.stringify(q.body));
   await api('POST', `/api/okey/${q.body.tableId}/start`, {}, a.token);
   let v = (await api('GET', `/api/okey/${q.body.tableId}`, null, a.token)).body; assert.equal(v.cfg.variant, 'duz');
   assert.ok([14, 15].includes(v.hand.rack.length));

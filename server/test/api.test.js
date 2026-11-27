@@ -153,15 +153,17 @@ test('seviye ödülleri toplu alınır, bir kez; yüksek seviyelerde taşma yok'
   const s = await api('POST', '/api/spin', { game: 'altin', bet: 1000 }, token); assert.equal(s.body.xp.level, 1000000);
 });
 
-test('günlük ödül 24 saatte bir; 100. seviye üstünde de ölçeklenir', async () => {
+test('bonus 6 saatte bir, 5.000 jetondan başlar; seviyeyle artar (100 üstünde de)', async () => {
   const { token, user } = await register('gunluk');
-  assert.equal((await api('POST', '/api/daily/claim', {}, token)).body.amount, 500);
+  assert.equal((await api('POST', '/api/daily/claim', {}, token)).body.amount, 5000);
   assert.equal((await api('POST', '/api/daily/claim', {}, token)).body.error, 'not_yet');
-  clock += 23 * 3600e3; assert.equal((await api('POST', '/api/daily/claim', {}, token)).body.error, 'not_yet');
-  clock += 3600e3; assert.equal((await api('POST', '/api/daily/claim', {}, token)).status, 200);
+  clock += 5 * 3600e3 + 59 * 60e3; assert.equal((await api('POST', '/api/daily/claim', {}, token)).body.error, 'not_yet');
+  clock += 60e3; const c2 = await api('POST', '/api/daily/claim', {}, token); assert.equal(c2.status, 200); assert.equal(c2.body.daily.intervalHours, 6);
   await freshAdmin();
+  await api('POST', `/api/admin/users/${user.id}/progress`, { level: 20 }, adminTok);
+  assert.equal((await api('GET', '/api/me', null, token)).body.daily.amount, 10000);
   await api('POST', `/api/admin/users/${user.id}/progress`, { level: 600 }, adminTok);
-  assert.equal((await api('GET', '/api/me', null, token)).body.daily.amount, 10000 + 500 * 10);
+  assert.equal((await api('GET', '/api/me', null, token)).body.daily.amount, 75000 + 500 * 250);
 });
 
 test('ödeme: satın alındı, tekrar, bekleyen, iptal, başka hesap, iade (e-posta doğrulaması gerekmez)', async () => {

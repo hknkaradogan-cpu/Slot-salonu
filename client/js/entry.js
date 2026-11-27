@@ -26,7 +26,6 @@
   const seatHtml = (pos, x) => `<div class="enseat ${pos} ${x ? '' : 'empty'}" ${x ? '' : 'data-sit="1"'}><span class="enav">${x ? AVATARS[x.avatar] || UI.AVATARS[0] : '+'}</span><b>${x ? esc(x.name) : 'Boş koltuk'}</b><small>${x ? 'Sv' + (x.level || 1) : 'Dokun, otur'}</small></div>`;
 
   /* ===================== 101 OKEY / DÜZ OKEY — oda lobisi (referans: 101 Plus) ===================== */
-  const ROOMS = [[0, 'KLASİK', 'ODALAR', 'Ücretsiz · XP kazan', 'cl'], [1000, 'ÇAYLAK', 'MASALARI', 'Giriş 1.000', 'cy'], [10000, 'USTA', 'MASALARI', 'Giriş 10.000', 'us'], [100000, 'SALON', 'MASALARI', 'Giriş 100.000', 'sa'], [1000000, 'KRAL', 'MASALARI', 'Giriş 1.000.000', 'kr']];
   async function okey(variant) {
     const duz = variant === 'duz'; Okey.setVariant(duz ? 'duz' : '101');
     const id = duz ? 'duz' : 'okey101', V = duz ? 'duz' : '101';
@@ -42,12 +41,10 @@
         <button class="olbn b1" data-ev="tournaments"><b>OKEY<br>ŞAMPİYONASI</b><small>Sıralamaya gir!</small></button>
         <button class="olbn b2" data-ev="wheel"><b>ŞANS<br>ÇARKI</b><small>Günlük ücretsiz</small></button>
         <button class="olbn b3" data-ev="puzzle"><b>BULMACA</b><small>Çöz, jeton kazan</small></button></div>
-      <div class="olrooms">${ROOMS.map(([st, t1, t2, sub, k]) => { const can = !st || me().unlimited || me().balance >= st;
-        return `<div class="orc ${k} ${can ? '' : 'dis'}"><div class="rch"><b>${t1}</b><small>${t2}</small></div><div class="rca">${art[k]}</div><div class="rcn" id="orn${st}">${sub}</div>
-          <div class="rcb"><button class="orbtn" data-st="${st}" ${can ? '' : 'disabled'}>${st ? 'KATIL' : 'OYNA'}</button></div></div>`; }).join('')}
-        <div class="orc rz2"><span class="rzhot">RİZİKOLU</span><div class="rch"><b>2 KİŞİLİK</b><small>KAZANAN HEPSİNİ ALIR</small></div><div class="rca"><span class="rkvs">VS</span>${tiles([[0, 13], [2, 13]])}</div><div class="rcn">Giriş 10.000 · kazanan 20.000</div>
+      <div class="olrooms" id="olRooms">${OkeyRooms.cardsHtml(V)}
+        <div class="orc rz2"><span class="rzhot">RİZİKOLU</span><div class="rch"><b>2 KİŞİLİK</b><small>KAZANAN HEPSİNİ ALIR</small></div><div class="rca"><span class="rkvs">VS</span>${tiles([[0, 13], [2, 13]])}</div><div class="rcn">Giriş 10.000 · en az 30.000</div>
           <div class="rcb"><button class="orbtn rzb" data-rz="2">KATIL</button></div></div>
-        <div class="orc rz4"><span class="rzhot">RİZİKOLU</span><div class="rch"><b>4 KİŞİLİK</b><small>KAZANAN HEPSİNİ ALIR</small></div><div class="rca"><span class="rkfire">🔥</span>${tiles([[0, 1], [1, 1], [2, 1], [3, 1]])}</div><div class="rcn">Giriş 10.000 · kazanan 40.000</div>
+        <div class="orc rz4"><span class="rzhot">RİZİKOLU</span><div class="rch"><b>4 KİŞİLİK</b><small>KAZANAN HEPSİNİ ALIR</small></div><div class="rca"><span class="rkfire">🔥</span>${tiles([[0, 1], [1, 1], [2, 1], [3, 1]])}</div><div class="rcn">Giriş 10.000 · en az 30.000</div>
           <div class="rcb"><button class="orbtn rzb" data-rz="4">KATIL</button></div></div>
         <div class="orc vip"><div class="rch"><b>ÖZEL</b><small>ARKADAŞ ODALARI</small></div><div class="rca"><span class="rkstar">★</span></div><div class="rcn">Kodlu · şifreli</div>
           <div class="rcb two"><button class="orbtn s" id="olCode">KODLA</button><button class="orbtn s" id="olPriv">MASA AÇ</button></div></div></div>
@@ -55,12 +52,11 @@
         <button class="olplay" id="enQuick"><b>HEMEN OYNA</b><small id="olOnline">çevrim içi oyuncular yükleniyor…</small></button>
         <button class="olic" id="olOpen"><span>🟢</span>Açık Masa</button><button class="olic" data-y="rules"><span>📖</span>Kurallar</button><button class="olic" data-x="shop"><span>🎁</span>Mağaza</button></div>
       <div id="enAct" class="olact"></div>`, duz ? 'en-ol duz' : 'en-ol');
-    $('#enQuick').onclick = () => guard($('#enQuick'), async () => {
-      let o = { mode: 'tekli', rounds: 1, katlamali: true }; try { o = Object.assign(o, JSON.parse(localStorage.getItem('okey_opts')) || {}); } catch (e) { /* */ }
-      const r = await Api.post('/api/okey/quick', { ...o, variant: V, stake: 0 }); if (r.existing) toast('Zaten bir masadasın — oraya dönüyorsun.'); Okey.openTable(r.tableId);
-    });
-    $$('[data-st]', root).forEach(b => b.onclick = (e) => { e.stopPropagation(); Okey.quickOpts(V, +b.dataset.st); });
-    $$('[data-rz]', root).forEach(b => b.onclick = (e) => { e.stopPropagation(); if (!me().unlimited && me().balance < 10000) return toast('Rizikolu masa için en az 10.000 jeton gerekli.', true); Okey.quickOpts(V, 10000, { players: +b.dataset.rz, risk: true }); });
+    // HEMEN OYNA: sunucu, jetonuna göre girebileceğin en yüksek odadaki masaya oturtur
+    $('#enQuick').onclick = () => guard($('#enQuick'), () => OkeyRooms.quickAuto(V));
+    const bindRooms = () => $$('#olRooms [data-room]').forEach(b => b.onclick = (e) => { e.stopPropagation(); Sound.play('click'); const room = OkeyRooms.roomByStake(b.dataset.room); if (room) OkeyRooms.roomDialog(V, room); });
+    bindRooms();
+    $$('[data-rz]', root).forEach(b => b.onclick = (e) => { e.stopPropagation(); const rmin = (OkeyRooms.roomByStake(10000) || { min: 30000 }).min; if (!me().unlimited && me().balance < rmin) return OkeyRooms.lockedDialog({ name: 'RİZİKOLU', sub: 'MASA', min: rmin }); Okey.quickOpts(V, 10000, { players: +b.dataset.rz, risk: true }); });
     $('#olPriv').onclick = (e) => { e.stopPropagation(); Okey.createPrivate(V); };
     $('#olCode').onclick = (e) => { e.stopPropagation(); Okey.codeModal(); };
     $('#olOpen').onclick = (e) => { e.stopPropagation(); UI.modal(`<h3 class="gold">🟢 Açık Masalar</h3><div class="list" id="olOpenL"><p class="small muted center">Yükleniyor…</p></div>`); Okey.openTables($('#olOpenL'), V); };
@@ -71,8 +67,8 @@
       const act = $('#enAct');
       if (d.active) { act.innerHTML = `<div class="enresume"><b>Devam eden masan var</b><button class="enbtn green" id="enRes">MASAYA DÖN ▸</button></div>`; $('#enRes').onclick = () => Okey.openTable(d.active.id); }
       else if (d.rejoin) { act.innerHTML = `<div class="enresume warn"><b>Ayrıldığın masa sürüyor</b><button class="enbtn gold" id="enRej">GERİ DÖN ▸</button></div>`; $('#enRej').onclick = () => guard($('#enRej'), async () => { const r = await Api.post('/api/okey/join', { tableId: d.rejoin.id }); Okey.openTable(r.tableId); }); }
-      for (const [st] of ROOMS) { const n = d.waiting.filter(w => (w.variant || '101') === V && Number(w.stake) === st).reduce((a, w) => a + w.n, 0); const e = $('#orn' + st); if (e && n) e.innerHTML = `⏳ ${n} masada oyuncu bekliyor`; }
-      $('#olOnline').textContent = `${d.online.players} oyuncu masada · ${d.stats.played || 0} oyun oynadın`;
+      OkeyRooms.mergeServer(d); const rr = $('#olRooms'); if (rr) { const keep = [...rr.querySelectorAll('.orc:not([data-room])')]; rr.innerHTML = OkeyRooms.cardsHtml(V); keep.forEach(k => rr.appendChild(k)); bindRooms(); }
+      $('#olOnline').textContent = d.autoStake ? `Jetonuna uygun oda: ${(OkeyRooms.roomByStake(d.autoStake) || {}).name || ''} · ${d.online.players} oyuncu masada` : `Oynamak için en az ${fmt(d.minPlay || 3500)} jeton gerekir`;
     } catch (e) { /* */ }
   }
 

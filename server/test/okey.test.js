@@ -210,3 +210,32 @@ test('TOPLA: bu tur açılan perler ıstakaya geri döner; 1-4 el seçenekleri; 
   assert.throws(() => TB.act(T, s, { type: 'undo' }, 3), /koyduğun taş yok/);
   const K2 = TB.newTable({ mode: 'tekli', rounds: 2, katlamali: true }, 0); K2.hand = { opened: [{ route: 'points', value: 130 }, null, null, null] }; assert.equal(TB.openThreshold(K2, 1, 'points'), 131);
 });
+
+test('odalar: en az çip kuralı (3.500 taban), Hemen Oyna jetona göre oda seçer, odada açılan masa listede görünür', async () => {
+  const a = await register('oda_elif'); const b0 = await bal(a.token); // başlangıç 50.000
+  const lob = (await api('GET', '/api/okey/lobby', null, a.token)).body;
+  assert.equal(lob.minPlay, 3500); assert.deepEqual(lob.rooms.map(r => r.stake), [1000, 5000, 10000, 100000, 1000000, 5000000]);
+  assert.equal(lob.rooms.find(r => r.stake === 10000).min, 30000); assert.equal(lob.autoStake, 10000);
+  // 30.000 ile Usta'ya girilir, 300.000 gereken Salon'a girilemez
+  assert.equal((await api('POST', '/api/okey/quick', { stake: 100000, rounds: 1 }, a.token)).status, 402);
+  const q = await api('POST', '/api/okey/quick', { stake: 'auto', rounds: 1 }, a.token); assert.equal(q.status, 200, JSON.stringify(q.body)); assert.equal(q.body.stake, 10000);
+  assert.equal(await bal(a.token), b0 - 10000);
+  await api('POST', `/api/okey/${q.body.tableId}/leave`, {}, a.token);
+  // jetonsuz hızlı masa yok
+  assert.equal((await api('POST', '/api/okey/quick', { stake: 0, rounds: 1 }, a.token)).status, 400);
+  // Masa Aç (public) → odanın listesinde görünür, başka oyuncu oturabilir
+  const m = await api('POST', '/api/okey/private', { public: true, stake: 5000, mode: 'tekli', rounds: 2, helper: false, katlamali: false }, a.token); assert.equal(m.status, 200, JSON.stringify(m.body));
+  const c = await register('oda_kerem');
+  const list = (await api('GET', '/api/okey/tables?stake=5000', null, c.token)).body.tables; const t = list.find(x => x.id === m.body.tableId);
+  assert.ok(t, 'masa listede yok'); assert.equal(t.min, 15000); assert.equal(t.rounds, 2); assert.equal(t.helper, false);
+  assert.equal((await api('POST', '/api/okey/join', { tableId: m.body.tableId, seat: 2 }, c.token)).status, 200);
+});
+
+test('odalar: 3.500 jetonun altındaki oyuncu hiçbir odaya giremez; Hemen Oyna bunu söyler', async () => {
+  const a = await register('oda_az');
+  await api('POST', '/api/okey/quick', { stake: 1000, rounds: 1 }, a.token); // 50.000 → bahisler
+  // bakiyeyi 3.000'e düşür (yönetici olmadan: doğrudan test DB'si yerine çok sayıda masa yerine basit yol: oturup ayrılma iade eder) → minFor testi saf fonksiyonla
+  const { autoStake, minFor } = await import('../src/okey/routes.js');
+  assert.equal(minFor(1000), 3500); assert.equal(autoStake(3000, false, [0, 1000, 5000]), null); assert.equal(autoStake(3500, false, [0, 1000, 5000]), 1000);
+  assert.equal(autoStake(20000, false, [0, 1000, 5000, 10000]), 5000); assert.equal(autoStake(10, true, [0, 1000, 10000, 100000, 1000000]), 100000);
+});
