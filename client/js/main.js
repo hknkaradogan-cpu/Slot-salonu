@@ -107,21 +107,45 @@
     let v; try { v = await Api.get('/api/app/version'); } catch (e) { manual && toast(e.message, true); return; }
     const cur = +U.versionCode();
     if (!v || !v.latest || v.latest.version_code <= cur) { manual && toast('Uygulama güncel (' + U.versionName() + ').'); return; }
-    const L = v.latest, forced = !!L.mandatory;
-    UI.modal(`<h3 class="gold">⬇️ Yeni sürüm: ${UI.esc(L.version_name)}</h3>
-      <p class="small">Yüklü sürüm: ${UI.esc(U.versionName())}. Güncelleme mevcut uygulamanın üzerine kurulur; hesabın, jetonların ve seviyen korunur.</p>
-      ${L.notes ? `<div class="card small" style="white-space:pre-wrap">${UI.esc(L.notes)}</div>` : ''}
-      <div class="xpbar hidden" id="upBar" style="height:14px;margin:8px 0"><i style="width:0%"></i><em>0%</em></div>
-      <div class="small muted" id="upMsg"></div>
-      <button class="btn green block" id="upGo">ŞİMDİ GÜNCELLE</button>
-      ${forced ? '<p class="small err center">Bu sürüm artık desteklenmiyor; devam etmek için güncelleme gerekli.</p>' : '<button class="btn ghost block" id="upLater">Daha sonra</button>'}`, {
-      noClose: !!forced,
+    showUpdate(v.latest, U);
+  }
+  // Sürüm notu (commit başlığı) → madde listesi
+  function noteItems(n) {
+    if (!n) return [];
+    let t = String(n).replace(/^\s*\d+(\.\d+)*\s*(aşama\s*\d+)?\s*:?\s*/i, '');
+    return t.split(/\s*[;,]\s*|\s+-\s+/).map(x => x.trim()).filter(x => x.length > 2).slice(0, 6);
+  }
+  function showUpdate(L, U) {
+    const forced = !!L.mandatory; App.pendingUpdate = L; App.updLater = false; updBtn();
+    const items = noteItems(L.notes);
+    UI.modal(`<div class="upd">
+        <div class="upd-l"><div class="upd-rays"></div><img class="upd-king" src="assets/king_wave.webp" alt="">
+          <div class="upd-ver"><span>${UI.esc(U.versionName())}</span><b>➜</b><span class="new">${UI.esc(L.version_name)}</span></div></div>
+        <div class="upd-r">
+          <div class="upd-rib">YENİ GÜNCELLEME</div>
+          <div class="upd-t">Yeni bir güncellemen var!</div>
+          ${items.length ? `<ul class="upd-list">${items.map(x => `<li>${UI.esc(x)}</li>`).join('')}</ul>` : '<p class="upd-p">Yeni özellikler ve düzeltmeler seni bekliyor.</p>'}
+          <div class="upd-bar hidden" id="upBar"><i style="width:0%"></i><em>0%</em></div>
+          <div class="upd-msg" id="upMsg">Hesabın, jetonların ve seviyen korunur.</div>
+          <button class="upd-go" id="upGo">⬇️ ŞİMDİ GÜNCELLE</button>
+          ${forced ? '<p class="upd-p small err">Bu sürüm artık desteklenmiyor; devam etmek için güncelleme gerekli.</p>' : '<button class="upd-later" id="upLater">Daha sonra</button>'}
+        </div></div>`, {
+      noClose: !!forced, cls: 'updm',
       onOpen() {
-        $('#upLater') && ($('#upLater').onclick = () => UI.closeModal());
+        Sound.play && Sound.play('bonus');
+        $('#upLater') && ($('#upLater').onclick = () => { UI.closeModal(); App.updLater = true; updBtn(); });
         $('#upGo').onclick = () => { $('#upGo').disabled = true; $('#upBar').classList.remove('hidden'); $('#upMsg').textContent = 'İndiriliyor…'; U.download(L.apk_url); };
       },
     });
   }
+  // "Daha sonra" denince salonun üst menüsüne yanıp sönen GÜNCELLE düğmesi eklenir (salon yeniden çizilse de geri gelir)
+  function updBtn() {
+    const icons = document.querySelector('#main .hicons'); let b = document.getElementById('updBtn');
+    if (!App.pendingUpdate || !App.updLater) { if (b) b.remove(); return; }
+    if (icons && !b) { b = document.createElement('button'); b.id = 'updBtn'; b.className = 'hicon upd-hicon'; b.innerHTML = '<span class="i">⬇️</span><span class="t">Güncelle</span>';
+      b.addEventListener('click', (e) => { e.stopPropagation(); const U = window.AndroidUpdate; if (U) showUpdate(App.pendingUpdate, U); }, true); icons.insertBefore(b, icons.firstChild); }
+  }
+  setInterval(updBtn, 1500);
   window.__update = function (type, msg) {
     const bar = $('#upBar'), m = $('#upMsg'), go = $('#upGo');
     if (type === 'progress' && bar) { const p = Math.max(0, Math.min(100, +msg)); bar.querySelector('i').style.width = p + '%'; bar.querySelector('em').textContent = p + '%'; }
@@ -158,7 +182,9 @@
   function autoUpdate(force) {
     if (!App.me || upBusy || (!force && Date.now() - upLast < 30 * 60e3)) return;
     upBusy = true; upLast = Date.now();
-    const t = () => { if (!App.me) { upBusy = false; return; } if (busyNow()) return setTimeout(t, 5000); upBusy = false; checkUpdate(false); };
+    // Açılışta güncelleme önceliklidir: oyun/masa açık değilse, açık duran tanıtım/bonus penceresinin yerine gösterilir.
+    const inGame = () => Games.isOpen() || (window.Okey && Okey.isOpen()) || (window.Tavla && Tavla.isOpen()) || (window.Aviator && Aviator.isOpen());
+    const t = () => { if (!App.me) { upBusy = false; return; } if (inGame() || (!force && busyNow())) return setTimeout(t, 5000); upBusy = false; checkUpdate(false); };
     setTimeout(t, 2500);
   }
   App.afterEnter = () => autoUpdate(true);

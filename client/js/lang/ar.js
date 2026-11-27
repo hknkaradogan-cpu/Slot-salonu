@@ -1,4 +1,4 @@
-/* SPINOVA dil dosyası: ar (265 metin) — otomatik üretildi */
+/* SPINOVA dil dosyası: ar (276 metin) — otomatik üretildi */
 I18N.add("ar", {
 "HEMEN OYNA": "العب الآن",
 "▶ HEMEN OYNA": "▶ العب الآن",
@@ -264,5 +264,16 @@ I18N.add("ar", {
 "eşli": "زوجي",
 "tekli": "فردي",
 "Jetonuna uygun oda": "الغرفة المناسبة لعملاتك",
-"Oynamak için en az {n} jeton gerekir": "تحتاج {n} عملة على الأقل للعب"
+"Oynamak için en az {n} jeton gerekir": "تحتاج {n} عملة على الأقل للعب",
+"YENİ GÜNCELLEME": "تحديث جديد",
+"Yeni bir güncellemen var!": "لديك تحديث جديد!",
+"Yeni özellikler ve düzeltmeler seni bekliyor.": "ميزات وإصلاحات جديدة بانتظارك.",
+"Hesabın, jetonların ve seviyen korunur.": "يُحفظ حسابك وعملاتك ومستواك.",
+"⬇️ ŞİMDİ GÜNCELLE": "⬇️ حدّث الآن",
+"Daha sonra": "لاحقًا",
+"GÜNCELLE": "تحديث",
+"İndiriliyor…": "جارٍ التنزيل…",
+"İndirildi. Açılan ekranda \"Güncelle\"ye dokun.": "تم التنزيل. اضغط «تحديث» في الشاشة التي تظهر.",
+"Bu sürüm artık desteklenmiyor; devam etmek için güncelleme gerekli.": "لم يعد هذا الإصدار مدعومًا؛ يلزم التحديث.",
+"Güncelle": "تحديث"
 });

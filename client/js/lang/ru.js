@@ -1,4 +1,4 @@
-/* SPINOVA dil dosyası: ru (265 metin) — otomatik üretildi */
+/* SPINOVA dil dosyası: ru (276 metin) — otomatik üretildi */
 I18N.add("ru", {
 "HEMEN OYNA": "ИГРАТЬ",
 "▶ HEMEN OYNA": "▶ ИГРАТЬ",
@@ -264,5 +264,16 @@ I18N.add("ru", {
 "eşli": "парами",
 "tekli": "одиночная",
 "Jetonuna uygun oda": "Комната по твоим монетам",
-"Oynamak için en az {n} jeton gerekir": "Для игры минимум {n} монет"
+"Oynamak için en az {n} jeton gerekir": "Для игры минимум {n} монет",
+"YENİ GÜNCELLEME": "НОВОЕ ОБНОВЛЕНИЕ",
+"Yeni bir güncellemen var!": "Доступно новое обновление!",
+"Yeni özellikler ve düzeltmeler seni bekliyor.": "Тебя ждут новые функции и исправления.",
+"Hesabın, jetonların ve seviyen korunur.": "Аккаунт, монеты и уровень сохранятся.",
+"⬇️ ŞİMDİ GÜNCELLE": "⬇️ ОБНОВИТЬ СЕЙЧАС",
+"Daha sonra": "Позже",
+"GÜNCELLE": "ОБНОВИТЬ",
+"İndiriliyor…": "Загрузка…",
+"İndirildi. Açılan ekranda \"Güncelle\"ye dokun.": "Загружено. Нажми «Обновить» в открывшемся окне.",
+"Bu sürüm artık desteklenmiyor; devam etmek için güncelleme gerekli.": "Эта версия больше не поддерживается; нужно обновление.",
+"Güncelle": "Обновить"
 });

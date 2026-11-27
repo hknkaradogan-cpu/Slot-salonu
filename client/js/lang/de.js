@@ -1,4 +1,4 @@
-/* SPINOVA dil dosyası: de (265 metin) — otomatik üretildi */
+/* SPINOVA dil dosyası: de (276 metin) — otomatik üretildi */
 I18N.add("de", {
 "HEMEN OYNA": "JETZT SPIELEN",
 "▶ HEMEN OYNA": "▶ JETZT SPIELEN",
@@ -264,5 +264,16 @@ I18N.add("de", {
 "eşli": "paare",
 "tekli": "einzel",
 "Jetonuna uygun oda": "Raum für deine Münzen",
-"Oynamak için en az {n} jeton gerekir": "Zum Spielen mindestens {n} Münzen"
+"Oynamak için en az {n} jeton gerekir": "Zum Spielen mindestens {n} Münzen",
+"YENİ GÜNCELLEME": "NEUES UPDATE",
+"Yeni bir güncellemen var!": "Ein neues Update ist da!",
+"Yeni özellikler ve düzeltmeler seni bekliyor.": "Neue Funktionen und Fehlerbehebungen warten auf dich.",
+"Hesabın, jetonların ve seviyen korunur.": "Dein Konto, deine Münzen und deine Stufe bleiben erhalten.",
+"⬇️ ŞİMDİ GÜNCELLE": "⬇️ JETZT AKTUALISIEREN",
+"Daha sonra": "Später",
+"GÜNCELLE": "AKTUALISIEREN",
+"İndiriliyor…": "Wird heruntergeladen…",
+"İndirildi. Açılan ekranda \"Güncelle\"ye dokun.": "Heruntergeladen. Tippe im neuen Fenster auf „Aktualisieren“.",
+"Bu sürüm artık desteklenmiyor; devam etmek için güncelleme gerekli.": "Diese Version wird nicht mehr unterstützt; bitte aktualisieren.",
+"Güncelle": "Aktualisieren"
 });

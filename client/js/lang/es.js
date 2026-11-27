@@ -1,4 +1,4 @@
-/* SPINOVA dil dosyası: es (265 metin) — otomatik üretildi */
+/* SPINOVA dil dosyası: es (276 metin) — otomatik üretildi */
 I18N.add("es", {
 "HEMEN OYNA": "JUGAR YA",
 "▶ HEMEN OYNA": "▶ JUGAR YA",
@@ -264,5 +264,16 @@ I18N.add("es", {
 "eşli": "parejas",
 "tekli": "solo",
 "Jetonuna uygun oda": "Sala para tus monedas",
-"Oynamak için en az {n} jeton gerekir": "Al menos {n} monedas para jugar"
+"Oynamak için en az {n} jeton gerekir": "Al menos {n} monedas para jugar",
+"YENİ GÜNCELLEME": "NUEVA ACTUALIZACIÓN",
+"Yeni bir güncellemen var!": "¡Tienes una nueva actualización!",
+"Yeni özellikler ve düzeltmeler seni bekliyor.": "Te esperan nuevas funciones y correcciones.",
+"Hesabın, jetonların ve seviyen korunur.": "Tu cuenta, monedas y nivel se conservan.",
+"⬇️ ŞİMDİ GÜNCELLE": "⬇️ ACTUALIZAR AHORA",
+"Daha sonra": "Más tarde",
+"GÜNCELLE": "ACTUALIZAR",
+"İndiriliyor…": "Descargando…",
+"İndirildi. Açılan ekranda \"Güncelle\"ye dokun.": "Descargado. Toca «Actualizar» en la pantalla que se abre.",
+"Bu sürüm artık desteklenmiyor; devam etmek için güncelleme gerekli.": "Esta versión ya no es compatible; actualiza para continuar.",
+"Güncelle": "Actualizar"
 });

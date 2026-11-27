@@ -1,4 +1,4 @@
-/* SPINOVA dil dosyası: fa (265 metin) — otomatik üretildi */
+/* SPINOVA dil dosyası: fa (276 metin) — otomatik üretildi */
 I18N.add("fa", {
 "HEMEN OYNA": "همین حالا بازی کن",
 "▶ HEMEN OYNA": "▶ همین حالا بازی کن",
@@ -264,5 +264,16 @@ I18N.add("fa", {
 "eşli": "دونفره",
 "tekli": "تکی",
 "Jetonuna uygun oda": "اتاق مناسب سکه‌های شما",
-"Oynamak için en az {n} jeton gerekir": "حداقل {n} سکه برای بازی"
+"Oynamak için en az {n} jeton gerekir": "حداقل {n} سکه برای بازی",
+"YENİ GÜNCELLEME": "به‌روزرسانی جدید",
+"Yeni bir güncellemen var!": "به‌روزرسانی جدید دارید!",
+"Yeni özellikler ve düzeltmeler seni bekliyor.": "ویژگی‌ها و اصلاحات جدید منتظر شماست.",
+"Hesabın, jetonların ve seviyen korunur.": "حساب، سکه‌ها و سطح شما حفظ می‌شود.",
+"⬇️ ŞİMDİ GÜNCELLE": "⬇️ همین حالا به‌روزرسانی کن",
+"Daha sonra": "بعداً",
+"GÜNCELLE": "به‌روزرسانی",
+"İndiriliyor…": "در حال دانلود…",
+"İndirildi. Açılan ekranda \"Güncelle\"ye dokun.": "دانلود شد. در صفحه بازشده «به‌روزرسانی» را بزنید.",
+"Bu sürüm artık desteklenmiyor; devam etmek için güncelleme gerekli.": "این نسخه دیگر پشتیبانی نمی‌شود؛ به‌روزرسانی لازم است.",
+"Güncelle": "به‌روزرسانی"
 });

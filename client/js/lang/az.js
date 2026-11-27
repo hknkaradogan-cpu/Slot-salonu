@@ -1,4 +1,4 @@
-/* SPINOVA dil dosyası: az (265 metin) — otomatik üretildi */
+/* SPINOVA dil dosyası: az (276 metin) — otomatik üretildi */
 I18N.add("az", {
 "HEMEN OYNA": "İNDİ OYNA",
 "▶ HEMEN OYNA": "▶ İNDİ OYNA",
@@ -264,5 +264,16 @@ I18N.add("az", {
 "eşli": "cütlü",
 "tekli": "tək",
 "Jetonuna uygun oda": "Jetonuna uyğun otaq",
-"Oynamak için en az {n} jeton gerekir": "Oynamaq üçün ən az {n} jeton"
+"Oynamak için en az {n} jeton gerekir": "Oynamaq üçün ən az {n} jeton",
+"YENİ GÜNCELLEME": "YENİ YENİLƏMƏ",
+"Yeni bir güncellemen var!": "Yeni yeniləmən var!",
+"Yeni özellikler ve düzeltmeler seni bekliyor.": "Yeni funksiyalar və düzəlişlər səni gözləyir.",
+"Hesabın, jetonların ve seviyen korunur.": "Hesabın, jetonların və səviyyən qorunur.",
+"⬇️ ŞİMDİ GÜNCELLE": "⬇️ İNDİ YENİLƏ",
+"Daha sonra": "Sonra",
+"GÜNCELLE": "YENİLƏ",
+"İndiriliyor…": "Yüklənir…",
+"İndirildi. Açılan ekranda \"Güncelle\"ye dokun.": "Yükləndi. Açılan ekranda \"Yenilə\"yə toxun.",
+"Bu sürüm artık desteklenmiyor; devam etmek için güncelleme gerekli.": "Bu versiya artıq dəstəklənmir; yeniləmə lazımdır.",
+"Güncelle": "Yenilə"
 });

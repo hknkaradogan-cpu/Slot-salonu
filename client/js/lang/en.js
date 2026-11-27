@@ -1,4 +1,4 @@
-/* SPINOVA dil dosyası: en (1093 metin) — otomatik üretildi */
+/* SPINOVA dil dosyası: en (1101 metin) — otomatik üretildi */
 I18N.add("en", {
 "$ Jeton Satın Al": "$ Buy Coins",
 "$ SATIN AL": "$ BUY",
@@ -1092,5 +1092,13 @@ I18N.add("en", {
 "SALON MASALARI": "SALON TABLES",
 "KRAL MASALARI": "KING TABLES",
 "{n} Okey · Tek / Eşli": "{n} Okey · Solo / Pairs",
-"Oynamak için en az {n} jeton gerekir": "You need at least {n} coins to play"
+"Oynamak için en az {n} jeton gerekir": "You need at least {n} coins to play",
+"YENİ GÜNCELLEME": "NEW UPDATE",
+"Yeni bir güncellemen var!": "A new update is available!",
+"Yeni özellikler ve düzeltmeler seni bekliyor.": "New features and fixes are waiting for you.",
+"Hesabın, jetonların ve seviyen korunur.": "Your account, coins and level are kept.",
+"⬇️ ŞİMDİ GÜNCELLE": "⬇️ UPDATE NOW",
+"Daha sonra": "Later",
+"GÜNCELLE": "UPDATE",
+"Bu sürüm artık desteklenmiyor; devam etmek için güncelleme gerekli.": "This version is no longer supported; please update to continue."
 });

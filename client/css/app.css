@@ -1742,3 +1742,35 @@ body.lowfx .cfart .arays,body.lowfx .cfart .zcloud,body.lowfx .cfart .msweep,bod
 html.rtl-text body{font-family:"SpCond","SpAr",Arial,sans-serif}
 html.rtl-text .otile span{font-family:"SpCond",Arial,sans-serif}
 .orbtn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.olbn b{overflow-wrap:normal;word-break:keep-all}
+
+/* ==================== 5.0.26 · YENİ GÜNCELLEME PENCERESİ (yatay ekrana uygun, iki sütun) ==================== */
+.modal.updm{max-width:640px!important;width:auto!important;max-height:98vh!important;padding:0!important;background:transparent!important;border:0!important;box-shadow:none!important;overflow:visible!important}
+.modal.updm>.x{top:6px;right:8px;z-index:3}
+.upd{position:relative;display:flex;gap:16px;align-items:stretch;width:600px;max-width:94vw;margin:4px auto 0;padding:14px 18px;border-radius:20px;font-family:"SpCond",Arial,sans-serif;color:#fff;
+  background:radial-gradient(120% 90% at 20% 0%,#5b2a9a,#2a0f52 55%,#160830);border:2px solid #e9c46a;box-shadow:0 0 0 4px rgba(0,0,0,.35),0 0 40px rgba(233,196,106,.45),0 20px 40px rgba(0,0,0,.7)}
+.upd-l{position:relative;flex:0 0 170px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px}
+.upd-rays{position:absolute;left:50%;top:50%;width:300px;height:300px;margin:-170px 0 0 -150px;border-radius:50%;pointer-events:none;opacity:.4;
+  background:repeating-conic-gradient(rgba(255,214,90,.35) 0 6deg,transparent 6deg 18deg);-webkit-mask:radial-gradient(circle,#000 0,transparent 60%);mask:radial-gradient(circle,#000 0,transparent 60%);animation:updspin 18s linear infinite}
+@keyframes updspin{to{transform:rotate(360deg)}}
+.upd-king{position:relative;width:132px;height:132px;border-radius:50%;object-fit:cover;border:3px solid #e9c46a;box-shadow:0 0 0 4px #2a0f52,0 0 24px rgba(255,214,90,.8);animation:updbob 2.4s ease-in-out infinite}
+@keyframes updbob{50%{transform:translateY(-6px)}}
+.upd-ver{position:relative;display:flex;align-items:center;gap:6px;font-size:16px}
+.upd-ver span{padding:2px 9px;border-radius:10px;background:rgba(0,0,0,.45);border:1px solid #7a54b8}.upd-ver .new{background:linear-gradient(180deg,#1e9a4a,#0d6a2e);border-color:#7dff9b;box-shadow:0 0 12px rgba(80,255,120,.5)}
+.upd-ver b{color:#ffe28a}
+.upd-r{flex:1;min-width:0;display:flex;flex-direction:column;text-align:center}
+.upd-rib{align-self:center;padding:3px 22px;font-size:18px;letter-spacing:2px;color:#3a1d00;background:linear-gradient(180deg,#fff3cf,#e9c46a);border-radius:10px;box-shadow:0 3px 0 #8a6421}
+.upd-t{font-size:22px;color:#ffe28a;text-shadow:0 2px 0 #5a2d00,0 0 14px rgba(255,200,80,.5);margin:6px 0 4px}
+.upd-list{text-align:left;list-style:none;margin:0 0 4px;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.35);border:1px solid rgba(233,196,106,.35);font-size:14px;line-height:1.3;max-height:96px;overflow:auto}
+.upd-list li{padding-left:18px;position:relative;margin:2px 0}.upd-list li::before{content:"★";position:absolute;left:1px;color:#ffd560}
+.upd-p{color:#d9c9ff;font-size:14px;margin:4px 0}.upd-p.err{color:#ff8a9a}
+.upd-bar{position:relative;height:14px;margin:4px 2px;border-radius:8px;background:rgba(0,0,0,.5);border:1px solid #e9c46a;overflow:hidden}
+.upd-bar i{display:block;height:100%;background:linear-gradient(90deg,#b8860b,#ffe28a,#e9b23a);box-shadow:0 0 10px #ffd560;transition:width .2s}
+.upd-bar em{position:absolute;inset:0;font-style:normal;font-size:11px;line-height:14px;color:#2a1400}
+.upd-msg{font-size:13px;color:#c9b3ff;min-height:16px;margin:2px 0}
+.upd-go{display:block;width:100%;margin:6px 0 2px;padding:10px 0;border:0;border-radius:14px;font:700 22px "SpCond",Arial,sans-serif;color:#fff;letter-spacing:1px;
+  background:linear-gradient(180deg,#4ff07c,#16a040 60%,#0f7a2f);box-shadow:inset 0 2px 0 rgba(255,255,255,.55),0 5px 0 #075a1f,0 0 20px rgba(80,255,120,.5);animation:updpulse 1.4s ease-in-out infinite}
+.upd-go:disabled{animation:none;filter:grayscale(.4);opacity:.85}
+@keyframes updpulse{50%{transform:scale(1.03);box-shadow:inset 0 2px 0 rgba(255,255,255,.55),0 5px 0 #075a1f,0 0 30px rgba(80,255,120,.85)}}
+.upd-later{background:none;border:0;color:#c9b3ff;font:700 14px "SpCond",Arial,sans-serif;padding:2px 14px;text-decoration:underline}
+.hicon.upd-hicon{background:linear-gradient(180deg,#4ff07c,#16a040)!important;border-color:#fff!important;animation:updpulse 1.4s ease-in-out infinite}
+.hicon.upd-hicon .t{color:#fff!important}
