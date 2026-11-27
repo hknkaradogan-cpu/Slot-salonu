@@ -222,30 +222,18 @@
     c.setTransform(A.cvS, 0, 0, A.cvS, 0, 0);
     const fly = A.game && phaseOf(A.game) === 'flying', t = fly ? now() - A.game.startAt : -1, m = fly && t > 0 ? multAt(t) : 1;
     const speed = fly && t > 0 ? Math.min(3, 0.4 + Math.log(m) * 0.6) : 0.15;
-    // gökyüzü
-    const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#05061a'); g.addColorStop(0.55, '#141a4a'); g.addColorStop(1, '#3a1a52'); c.fillStyle = g; c.fillRect(0, 0, W, H);
-    for (const s of A.stars) { c.globalAlpha = 0.4 + 0.6 * Math.abs(Math.sin(ts / 900 + s.t)); c.fillStyle = '#fff'; c.beginPath(); c.arc(s.x * W, s.y * H, s.r, 0, 7); c.fill(); }
+    // gökyüzü: SPINOVA moru + yavaş dönen ışık huzmeleri (huzmeler bir kez ayrı tuvale çizilir, her karede tek resim döndürülür)
+    const g = c.createRadialGradient(140, H - 40, 40, 140, H - 40, W * 1.1); g.addColorStop(0, '#3a1660'); g.addColorStop(0.45, '#1c0b3a'); g.addColorStop(1, '#0b0620'); c.fillStyle = g; c.fillRect(0, 0, W, H);
+    if (!A.rayCv) { A.rayCv = document.createElement('canvas'); A.rayCv.width = A.rayCv.height = 1800; const rc = A.rayCv.getContext('2d'); rc.translate(900, 900);
+      for (let i = 0; i < 18; i++) { rc.rotate(Math.PI * 2 / 18); const rg = rc.createLinearGradient(0, 0, 900, 0); rg.addColorStop(0, 'rgba(160,110,255,.16)'); rg.addColorStop(1, 'rgba(160,110,255,0)'); rc.fillStyle = rg; rc.beginPath(); rc.moveTo(0, 0); rc.lineTo(900, -95); rc.lineTo(900, 95); rc.closePath(); rc.fill(); } }
+    c.save(); c.translate(140, H - 40); c.rotate((ts / 1000) * (0.04 + speed * 0.05)); c.drawImage(A.rayCv, -900, -900); c.restore();
+    for (const s of A.stars) { c.globalAlpha = 0.25 + 0.5 * Math.abs(Math.sin(ts / 900 + s.t)); c.fillStyle = '#fff'; c.fillRect(s.x * W, s.y * H, s.r * 1.4, s.r * 1.4); }
     c.globalAlpha = 1;
-    // ay
-    c.fillStyle = 'rgba(255,240,200,.9)'; c.beginPath(); c.arc(W * 0.86, H * 0.16, 34, 0, 7); c.fill(); c.fillStyle = '#0c1033'; c.beginPath(); c.arc(W * 0.86 + 12, H * 0.16 - 6, 30, 0, 7); c.fill();
-    // bulutlar (paralaks)
-    for (const k of A.clouds) { k.x -= k.v * speed * 0.016; if (k.x < -0.3) { k.x = 1.2; k.y = 0.12 + Math.random() * 0.5; }
-      const x = k.x * W, y = k.y * H, s = k.s * 60; c.fillStyle = `rgba(180,190,255,${0.08 + k.s * 0.06})`; c.beginPath(); c.ellipse(x, y, s * 1.6, s * 0.5, 0, 0, 7); c.ellipse(x + s * 0.8, y - s * 0.3, s, s * 0.45, 0, 0, 7); c.ellipse(x - s * 0.7, y - s * 0.15, s * 0.9, s * 0.4, 0, 0, 7); c.fill(); }
-    // projektör ışıkları
-    for (const [x0, sp] of [[W * 0.25, 1], [W * 0.7, -1.3]]) { const ang = Math.sin(ts / 2600 * sp) * 0.5; c.save(); c.translate(x0, H - 70); c.rotate(ang); const lg = c.createLinearGradient(0, 0, 0, -H); lg.addColorStop(0, 'rgba(170,200,255,.30)'); lg.addColorStop(1, 'rgba(170,200,255,0)'); c.fillStyle = lg; c.beginPath(); c.moveTo(-8, 0); c.lineTo(8, 0); c.lineTo(70, -H); c.lineTo(-70, -H); c.closePath(); c.fill(); c.restore(); }
-    // şehir
-    const gyc = H - 70; c.fillStyle = '#120a2c';
-    // performans: şehir silueti bir kez ayrı tuvale çizilir, her karede tek resim olarak basılır (yüzlerce pencere yerine 1 çizim)
-    if (!A.cityCv) {
-      A.cityCv = document.createElement('canvas'); A.cityCv.width = W; A.cityCv.height = H; const cc = A.cityCv.getContext('2d');
-      for (const b of A.city || []) { cc.fillStyle = '#120a2c'; cc.fillRect(b.x, gyc - b.h, b.w, b.h); for (const w of b.win) { if (!w[2]) continue; cc.fillStyle = Math.random() < 0.8 ? 'rgba(255,210,110,.85)' : 'rgba(255,210,110,.3)'; cc.fillRect(b.x + w[0], gyc - b.h + w[1], 5, 6); } }
-    }
-    c.drawImage(A.cityCv, 0, 0);
-    // pist
-    const gy = H - 70; c.fillStyle = '#0c0a1e'; c.fillRect(0, gy, W, 70); c.fillStyle = '#1f1a3a'; c.fillRect(0, gy + 18, W, 34);
-    const off = (ts / 8 * speed) % 80; c.fillStyle = '#f2c14e'; for (let x = -off; x < W; x += 80) c.fillRect(x, gy + 33, 40, 4);
-    for (let x = (-off * 0.5) % 120; x < W; x += 120) { c.fillStyle = (Math.floor(ts / 400) % 2) ? '#ff4d6d' : '#7fd8ff'; c.beginPath(); c.arc(x, gy + 12, 3, 0, 7); c.fill(); }
-    c.fillStyle = 'rgba(255,255,255,.08)'; c.font = 'bold 54px sans-serif'; c.fillText('SPINOVA', 40, gy + 60);
+    // eksenler: zemin ve sol kenar çizgisi, kayan noktalar (hız hissi)
+    const gy = H - 40; c.fillStyle = 'rgba(255,255,255,.12)'; c.fillRect(140, gy, W - 140, 2); c.fillRect(138, 40, 2, gy - 40);
+    const off = (ts / 6 * speed) % 120; c.fillStyle = 'rgba(255,255,255,.35)'; for (let x = 140 + 120 - off; x < W; x += 120) c.fillRect(x, gy + 10, 4, 4);
+    const offy = (ts / 10 * speed) % 90; for (let y = gy - 90 + offy; y > 50; y -= 90) c.fillRect(124, y, 4, 4);
+    c.fillStyle = 'rgba(255,255,255,.06)'; c.font = 'bold 54px sans-serif'; c.fillText('SPINOVA', W - 330, gy - 20);
     // uçuş eğrisi + uçak (tur sunucuda sürer: senin tahsilin uçağı durdurmaz)
     const G = A.game, ph = phaseOf(G), tt = G ? now() - G.startAt : -1;
     const crashM = G && G.crash != null ? G.crash : null;
@@ -255,8 +243,11 @@
     if (ph === 'flying' || (ph === 'crashed' && crashM)) {
       const [x1, y1, p] = pathAt(mNow); px = x1; py = y1; ang = -0.35 * Math.min(1, p * 3) + Math.sin(ts / 300) * 0.03;
       const grad = c.createLinearGradient(140, gy, px, py); grad.addColorStop(0, 'rgba(212,32,44,0)'); grad.addColorStop(1, 'rgba(255,80,90,.85)');
-      c.strokeStyle = grad; c.lineWidth = 6; c.beginPath(); c.moveTo(140, gy - 6); for (let i = 1; i <= 30; i++) { const q = p * i / 30; c.lineTo(140 + q * (W - 420), gy - 6 - Math.pow(q, 0.8) * (H * 0.62)); } c.stroke();
-      c.fillStyle = 'rgba(212,32,44,.12)'; c.lineTo(px, gy); c.lineTo(140, gy); c.fill();
+      c.beginPath(); c.moveTo(140, gy - 6); for (let i = 1; i <= 30; i++) { const q = p * i / 30; c.lineTo(140 + q * (W - 420), gy - 6 - Math.pow(q, 0.8) * (H * 0.62)); }
+      const fg = c.createLinearGradient(0, py, 0, gy); fg.addColorStop(0, 'rgba(230,30,70,.55)'); fg.addColorStop(1, 'rgba(230,30,70,.05)');
+      c.save(); c.lineTo(px, gy); c.lineTo(140, gy); c.closePath(); c.fillStyle = fg; c.fill(); c.restore();
+      c.beginPath(); c.moveTo(140, gy - 6); for (let i = 1; i <= 30; i++) { const q = p * i / 30; c.lineTo(140 + q * (W - 420), gy - 6 - Math.pow(q, 0.8) * (H * 0.62)); }
+      c.strokeStyle = 'rgba(255,60,100,.35)'; c.lineWidth = 16; c.stroke(); c.strokeStyle = '#ff2f5e'; c.lineWidth = 6; c.stroke();
       // motor dumanı
       if (ph === 'flying') { (A.trail = A.trail || []).push({ x: px - 70, y: py + 4, a: 0.5, r: 4 }); if (A.trail.length > 40) A.trail.shift(); }
       // tahsil ettiğin nokta eğri üzerinde işaretlenir; uçak uçmaya devam eder
@@ -275,6 +266,10 @@
       }
       const fx = px + Math.pow(e, 2) * 2400, fy = py - Math.pow(e, 2) * 900; if (fx < W + 200) plane(c, fx, fy, -0.45, 1.15);
     } else plane(c, px, py, ang, 1.15);
+    if (A.cashFx) { const e = (performance.now() - A.cashFx.at) / 1000; if (e > 2.2) A.cashFx = null; else {
+      const al = Math.min(1, e * 4, (2.2 - e) * 2), y = H * 0.62 - e * 30; c.globalAlpha = al; c.fillStyle = 'rgba(20,70,30,.85)'; c.strokeStyle = '#7dff6b'; c.lineWidth = 3;
+      const bw = 580, bx = W / 2 - bw / 2 - 100; c.beginPath(); c.roundRect ? c.roundRect(bx, y - 44, bw, 70, 18) : c.rect(bx, y - 44, bw, 70); c.fill(); c.stroke();
+      c.fillStyle = '#d8ffd0'; c.font = 'bold 30px sans-serif'; c.textAlign = 'center'; c.fillText(`TAHSİL EDİLDİ · ${A.cashFx.m.toFixed(2)}x · +${fmt(A.cashFx.win)}`, bx + bw / 2, y + 2); c.textAlign = 'left'; c.globalAlpha = 1; } }
     // çarpan yazısı
     const mm = $('#avMult');
     const set = (cls, html) => { if (A.mc !== cls) { mm.className = cls; A.mc = cls; } if (A.mh !== html) { mm.innerHTML = html; A.mh = html; } }; // yalnızca değişince DOM'a yaz
