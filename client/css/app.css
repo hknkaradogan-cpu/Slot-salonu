@@ -1862,3 +1862,32 @@ html.rtl-text .otile span{font-family:"SpCond",Arial,sans-serif}
 .okopb.pr{color:#fff;background:linear-gradient(180deg,#4aa3ff,#1f6fd1);border-color:#cfe6ff;box-shadow:0 2px 0 #0c3f86,0 3px 6px rgba(0,0,0,.4)}
 .okseat.me .okopb,.okseat.top .okopb{top:-12px;font-size:9.5px;padding:2px 5px}
 @keyframes opbPop{0%{transform:translateX(-50%) scale(.3);opacity:0}100%{transform:translateX(-50%) scale(1);opacity:1}}
+
+/* ==================== 5.0.29 · TAVLA: SPINOVA ahşap tahta, yeşil keçe, 3B pul ve zar (onaylanan önizleme) ==================== */
+.tvscreen{background:radial-gradient(120% 90% at 50% 0%,#3a1a66 0%,#1d0b38 45%,#0e0620 100%)!important}
+.tvmain .tvboard{background:url(../assets/wood_spinova_dark.webp) center/cover!important;border-radius:16px;
+  box-shadow:0 0 0 2px #8a6421,0 0 0 4px #e9c46a,0 0 0 5px #6b4a1c,0 10px 22px rgba(0,0,0,.55),inset 0 2px 0 rgba(255,230,170,.35),inset 0 -3px 6px rgba(0,0,0,.5)!important}
+.tvhalf{background:radial-gradient(90% 100% at 50% 50%,#1a6447 0%,#145239 65%,#0f432e 100%)!important;box-shadow:inset 0 0 14px rgba(0,0,0,.45)!important}
+.tvpt.a .tri{background:linear-gradient(180deg,#c8172f,#8c0c1e)!important}.tvpt.bot.a .tri{background:linear-gradient(0deg,#c8172f,#8c0c1e)!important}
+.tvpt.b .tri{background:linear-gradient(180deg,#fbf3df,#e2d3ad)!important}.tvpt.bot.b .tri{background:linear-gradient(0deg,#fbf3df,#e2d3ad)!important}
+.tvpt em{color:rgba(255,255,255,.35)!important}
+.tvbar{background:url(../assets/wood_spinova.webp) center/cover!important;box-shadow:inset 0 0 0 1px rgba(255,220,150,.25),inset 0 0 8px rgba(0,0,0,.5)!important}
+.tvtray{background:rgba(0,0,0,.28)!important}
+/* Pullar: kalın kenar, iç halka, gölge */
+.ck{width:30px;height:30px;position:relative}
+.ck.w{background:radial-gradient(circle at 50% 50%,#fffdf5 0 38%,#efe5cc 40% 52%,#fffaf0 54% 62%,#d9c99f 64%,#b9a273 100%)!important;
+  box-shadow:0 2px 0 #9c8656,0 4px 4px rgba(0,0,0,.45)!important;color:#5a3a10}
+.ck.k{background:radial-gradient(circle at 50% 50%,#3a3a3a 0 38%,#181818 40% 52%,#3c3c3c 54% 62%,#141414 64%,#000 100%)!important;
+  box-shadow:0 2px 0 #000,0 4px 4px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.18)!important;color:#f2c14e}
+.tvpt.can .stack .ck:last-child,.tvpt.bot.can .stack .ck:last-child{box-shadow:0 0 0 2.5px #7dff6b,0 0 10px #7dff6b,0 3px 4px rgba(0,0,0,.5)!important}
+.tvpt.bot.can .stack .ck:first-child{box-shadow:0 2px 0 #9c8656,0 4px 4px rgba(0,0,0,.45)!important}
+.tvpt.bot.can .stack .ck.k:first-child{box-shadow:0 2px 0 #000,0 4px 4px rgba(0,0,0,.55)!important}
+/* Zarlar tahtanın üstünde, sağ yarının ortasında */
+.tvdice.big{position:absolute!important;left:576px;top:211px;flex-direction:row!important;gap:12px!important;min-height:0!important;z-index:7;pointer-events:none}
+.tvdice.big .die{width:46px!important;height:46px!important;border-radius:10px;background:linear-gradient(145deg,#ffffff,#ece6d8)!important;
+  box-shadow:inset -3px -4px 0 rgba(0,0,0,.12),inset 2px 2px 3px #fff,0 6px 10px rgba(0,0,0,.55)!important}
+.tvdice.big .die:nth-child(2){transform:rotate(8deg)}.tvdice.big .die:nth-child(1){transform:rotate(-6deg)}
+.tvdice.big .dbl{position:absolute;top:52px;left:0;right:0;white-space:nowrap;text-shadow:0 1px 2px #000}
+.rolling .die{animation:dieroll2 .5s cubic-bezier(.3,.7,.4,1)!important}
+@keyframes dieroll2{0%{transform:translate(-90px,-40px) rotate(-260deg) scale(.7);opacity:.3}60%{transform:translate(6px,4px) rotate(20deg)}100%{transform:none}}
+.tvdice.big .die.used{opacity:.4;filter:grayscale(1)}

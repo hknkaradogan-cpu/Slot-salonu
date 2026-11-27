@@ -49,7 +49,7 @@
     return Trans.run('wood', () => openTableRaw(id));
   }
   async function openTableRaw(id) {
-    closeModal(); stop(); Object.assign(T, { open: true, id, v: null, seq: -1, part: [], pboard: null, sel: null, fail: 0, shownGame: 0, shownFinal: false, lastSeenMove: null });
+    closeModal(); stop(); Object.assign(T, { open: true, id, v: null, seq: -1, part: [], pboard: null, sel: null, fail: 0, shownGame: 0, shownFinal: false, lastSeenMove: null, lastB: null });
     Platform.setCurrent('tavla'); Sound.theme('tavla'); Sound.startMusic();
     UI.screen('tavla', `<div class="tvg">
       <div class="tvhead"><button class="okexit" id="tvLeave">⟵ ÇIK</button><div class="tvsc" id="tvScore"></div><div class="grow"></div><div class="okpill"><i>⏱</i><b id="tvClock">—</b></div><div class="okpill"><i class="okcoin"></i><b id="tvBal"></b></div><button class="okic" id="tvMenu">▾</button></div>
@@ -61,6 +61,7 @@
     UI.show('tavla');
     $('#tvLeave').onclick = leave; $('#tvMenu').onclick = menu;
     $('#tvRoll').onclick = roll; $('#tvOk').onclick = submit; $('#tvUndo').onclick = () => { T.part = []; T.pboard = null; T.sel = null; render(); };
+    $('.tvg').appendChild($('#tvDice')); // zarlar tahtanın üstünde
     bindBoard();
     await poll(true); loop(); T.tim = setInterval(clock, 250);
   }
@@ -113,7 +114,9 @@
     const last = new Set(); if (v.lastMove && v.lastMove.s !== me) v.lastMove.moves.forEach(m => { last.add(m[1]); });
     // rakibin son hamlesi rakibin göreli hanelerinde; bizim görünümüze çevir
     const lastV = new Set([...last].filter(r => r > 0 && r < 25).map(r => 25 - r));
+    const before = snapRects(me);
     $('#tvBoard').innerHTML = boardHtml(b, { me, hl, sel: T.sel, last: lastV });
+    slideCheckers(T.lastB, b, me, before); T.lastB = JSON.parse(JSON.stringify(b));
     $$('#tvBoard .tvpt, #tvBoard .tvbar.bot').forEach(el => { const r = +el.dataset.r; if (froms.has(r)) el.classList.add('can'); });
     const pl = (s, el) => { const x = v.seats[s]; if (!el) return; if (!x) { el.innerHTML = '<span class="enav">?</span><b>Bekleniyor</b>'; return; } const turn = v.status === 'playing' && v.turn === s;
       el.className = `tvpl ${s === me ? 'me' : 'opp'} ${turn ? 'turn' : ''}`; el.innerHTML = `<div class="okav"><span>${AVATARS[x.avatar] || UI.AVATARS[0]}</span><svg class="okring" viewBox="0 0 44 44"><circle cx="22" cy="22" r="20"/></svg></div><div><b>${esc(x.name)}</b>${x.bot ? '<i class="okbot">BOT</i>' : x.left ? '<i class="okbot">AYRILDI</i>' : x.away ? '<i class="okbot">OTO</i>' : ''}<small>${s === 0 ? 'Beyaz' : 'Siyah'} · ${TR.pips(board(), s)} pip · ${board().off[s]}/15</small></div>`; };
@@ -128,6 +131,53 @@
       !mine() ? `Sıra: <b>${esc(v.seats[v.turn].name)}</b>` : v.phase === 'roll' ? '<b class="gold">Sıra sende:</b> zarı at' : v.noMove ? 'Oynanacak hamle yok — sıra geçiyor' : done ? '<b class="gold">Hamlen hazır</b> — ONAYLA' : b.bar[me] ? '<b class="gold">Kırık pulun var:</b> önce içeri sok' : '<b class="gold">Pula dokun</b>, parlayan haneye taşı';
     if (v.opening && v.game && T.shownOpen !== v.game && v.status === 'playing') { T.shownOpen = v.game; toast(`Açılış zarları ${v.opening[0]}–${v.opening[1]}: ${esc(v.seats[v.turn].name)} başlıyor`); }
     renderWait();
+  }
+  /* ---------- pul kayma animasyonu: eski konumdan yeni konuma (yalnızca transform) ---------- */
+  function keyEl(k) {
+    const bd = $('#tvBoard'); if (!bd) return null;
+    if (k[0] === 'p') return bd.querySelector(`.tvpt[data-r="${k.slice(1)}"]`);
+    if (k === 'bm') return bd.querySelector('.tvbar.bot'); if (k === 'bo') return bd.querySelector('.tvbar.top');
+    if (k === 'om') return bd.querySelector('.tvtray.bot'); if (k === 'oo') return bd.querySelector('.tvtray.top');
+    return null;
+  }
+  function topRect(k) {
+    const el = keyEl(k); if (!el) return null;
+    const cks = el.querySelectorAll('.ck,.ckoff'); const t = cks.length ? cks[cks.length - 1] : null;
+    if (t) return t.getBoundingClientRect();
+    const r = el.getBoundingClientRect(), top = el.classList.contains('top');
+    return { left: r.left + r.width / 2 - 14, top: top ? r.top + 2 : r.bottom - 30, width: 28, height: 28 };
+  }
+  function counts(b, me) {
+    const m = {}, o = {};
+    for (let r = 1; r <= 24; r++) { const c = TR.own(b, me, r); if (c > 0) m['p' + r] = c; else if (c < 0) o['p' + r] = -c; }
+    m.bm = b.bar[me]; o.bo = b.bar[1 - me]; m.om = b.off[me]; o.oo = b.off[1 - me];
+    return { m, o };
+  }
+  function snapRects(me) {
+    if (!T.lastB || document.hidden) return null; const out = {};
+    const keys = ['bm', 'bo', 'om', 'oo']; for (let r = 1; r <= 24; r++) keys.push('p' + r);
+    for (const k of keys) { const r = topRect(k); if (r) out[k] = { x: r.left, y: r.top }; }
+    return out;
+  }
+  function slideCheckers(pb, b, me, before) {
+    if (!pb || !before) return;
+    const A = counts(pb, me), B = counts(b, me); const moves = [];
+    for (const side of ['m', 'o']) {
+      const src = [], dst = []; const ks = new Set([...Object.keys(A[side]), ...Object.keys(B[side])]);
+      for (const k of ks) { const d = (B[side][k] || 0) - (A[side][k] || 0); for (let i = 0; i < Math.abs(d); i++) (d > 0 ? dst : src).push(k); }
+      for (let i = 0; i < Math.min(src.length, dst.length); i++) moves.push([src[i], dst[i]]);
+    }
+    if (!moves.length || moves.length > 6) return;
+    const seen = {};
+    moves.forEach(([f, t], i) => {
+      const el = keyEl(t); if (!el || !before[f]) return;
+      const cks = el.querySelectorAll('.ck,.ckoff'); const n = seen[t] = (seen[t] || 0) + 1; const ck = cks[cks.length - n]; if (!ck) return;
+      const r = ck.getBoundingClientRect(), sc = ck.offsetWidth ? r.width / ck.offsetWidth : 1;
+      const dx = (before[f].x - r.left) / sc, dy = (before[f].y - r.top) / sc; if (Math.abs(dx) + Math.abs(dy) < 2) return;
+      ck.style.zIndex = 9; ck.style.position = 'relative';
+      ck.animate([{ transform: `translate(${dx}px,${dy}px)` }, { transform: `translate(${dx / 2}px,${dy / 2 - 22}px) scale(1.12)`, offset: .5 }, { transform: 'none' }],
+        { duration: 340, delay: i * 90, easing: 'cubic-bezier(.35,.1,.25,1)', fill: 'backwards' }).onfinish = () => { ck.style.zIndex = ''; };
+    });
   }
   function usedDice() {
     const v = T.v; if (!v.dice) return [false, false]; if (v.dice[0] === v.dice[1]) return [T.part.length >= 4, T.part.length >= 2];
