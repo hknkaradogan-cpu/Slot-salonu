@@ -1,4 +1,4 @@
-/* SPINOVA dil dosyası: en (1101 metin) — otomatik üretildi */
+/* SPINOVA dil dosyası: en (1103 metin) — otomatik üretildi */
 I18N.add("en", {
 "$ Jeton Satın Al": "$ Buy Coins",
 "$ SATIN AL": "$ BUY",
@@ -1100,5 +1100,7 @@ I18N.add("en", {
 "⬇️ ŞİMDİ GÜNCELLE": "⬇️ UPDATE NOW",
 "Daha sonra": "Later",
 "GÜNCELLE": "UPDATE",
-"Bu sürüm artık desteklenmiyor; devam etmek için güncelleme gerekli.": "This version is no longer supported; please update to continue."
+"Bu sürüm artık desteklenmiyor; devam etmek için güncelleme gerekli.": "This version is no longer supported; please update to continue.",
+"AÇTI {n}": "OPENED {n}",
+"{n} ÇİFT": "{n} PAIRS"
 });

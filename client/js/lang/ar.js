@@ -1,4 +1,4 @@
-/* SPINOVA dil dosyası: ar (276 metin) — otomatik üretildi */
+/* SPINOVA dil dosyası: ar (278 metin) — otomatik üretildi */
 I18N.add("ar", {
 "HEMEN OYNA": "العب الآن",
 "▶ HEMEN OYNA": "▶ العب الآن",
@@ -275,5 +275,7 @@ I18N.add("ar", {
 "İndiriliyor…": "جارٍ التنزيل…",
 "İndirildi. Açılan ekranda \"Güncelle\"ye dokun.": "تم التنزيل. اضغط «تحديث» في الشاشة التي تظهر.",
 "Bu sürüm artık desteklenmiyor; devam etmek için güncelleme gerekli.": "لم يعد هذا الإصدار مدعومًا؛ يلزم التحديث.",
-"Güncelle": "تحديث"
+"Güncelle": "تحديث",
+"AÇTI {n}": "فتح {n}",
+"{n} ÇİFT": "{n} أزواج"
 });

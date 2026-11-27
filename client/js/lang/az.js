@@ -1,4 +1,4 @@
-/* SPINOVA dil dosyası: az (276 metin) — otomatik üretildi */
+/* SPINOVA dil dosyası: az (278 metin) — otomatik üretildi */
 I18N.add("az", {
 "HEMEN OYNA": "İNDİ OYNA",
 "▶ HEMEN OYNA": "▶ İNDİ OYNA",
@@ -275,5 +275,7 @@ I18N.add("az", {
 "İndiriliyor…": "Yüklənir…",
 "İndirildi. Açılan ekranda \"Güncelle\"ye dokun.": "Yükləndi. Açılan ekranda \"Yenilə\"yə toxun.",
 "Bu sürüm artık desteklenmiyor; devam etmek için güncelleme gerekli.": "Bu versiya artıq dəstəklənmir; yeniləmə lazımdır.",
-"Güncelle": "Yenilə"
+"Güncelle": "Yenilə",
+"AÇTI {n}": "AÇDI {n}",
+"{n} ÇİFT": "{n} CÜT"
 });

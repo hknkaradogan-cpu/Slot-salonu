@@ -424,9 +424,10 @@
     const team = v.cfg.mode === 'esli' && v.me != null ? (s % 2 === v.me % 2 ? 'Takım' : 'Rakip') : '';
     const tag = x.bot ? '<i class="okbot">BOT</i>' : x.left ? '<i class="okbot">AYRILDI</i>' : x.away ? '<i class="okbot">OTO</i>' : '';
     const score = `<span class="okscore ${v.totals[s] < 0 ? 'neg' : ''}">${v.totals[s] > 0 ? '+' : ''}${v.totals[s]}</span>`;
-    const opened = op ? `<span class="okop">${op.route === 'pairs' ? op.value + ' ÇİFT' : op.value}</span>` : '';
+    const opened = '';
+    const opb = op ? `<i class="okopb ${op.route === 'pairs' ? 'pr' : ''}" data-k="${s}-${op.route}-${op.value}">${op.route === 'pairs' ? op.value + ' ÇİFT' : 'AÇTI ' + op.value}</i>` : '';
     el.className = `${base} ${turn ? 'turn' : ''} ${x.left ? 'left' : ''}`;
-    const av = `<div class="okav" style="--sc:${SEATCOL[s]}"><span>${AVATARS[x.avatar] || UI.AVATARS[0]}</span><svg class="okring" viewBox="0 0 44 44"><circle cx="22" cy="22" r="20"/></svg></div>`;
+    const av = `<div class="okav" style="--sc:${SEATCOL[s]}"><span>${AVATARS[x.avatar] || UI.AVATARS[0]}</span><svg class="okring" viewBox="0 0 44 44"><circle cx="22" cy="22" r="20"/></svg>${opb}</div>`;
     if (p === 1 || p === 3) setHtml(el, `${av}<div class="okvname">${esc(x.name)}</div>${tag}<div class="okside-b">${opened}${score}${H ? `<span class="okcnt2"><i class="tico"></i>${H.counts[s]}</span>` : ''}</div>${team ? `<small class="okteam">${team}</small>` : ''}`);
     else setHtml(el, `${av}<div class="oknm"><b>${esc(x.name)}</b>${tag}<small>Sv${x.level}${team ? ' · ' + team : ''}${H && p !== 0 ? ' · <i class="tico"></i>' + H.counts[s] : ''}</small></div>${opened}${score}`);
   }
@@ -697,10 +698,12 @@
         D.moved = true; const g = document.createElement('div'); g.className = 'okghost'; g.innerHTML = D.kind === 'pile' ? backTile() : tileHtml(D.id); st.appendChild(g); D.ghost = g;
         if (D.src) D.src.classList.add('lift');
       }
-      if (D.moved) { D.ghost.style.transform = `translate(${p.x - 23}px,${p.y - 40}px) scale(1.08)`; hilite(e.clientX, e.clientY); }
+      if (D.moved) { D.px = p.x; D.py = p.y; D.cx = e.clientX; D.cy = e.clientY;
+        if (!D.raf) D.raf = requestAnimationFrame(() => { D.raf = 0; if (O.drag !== D) return; D.ghost.style.transform = `translate3d(${D.px - 23}px,${D.py - 40}px,0)`;
+          const now = performance.now(); if (!D.ht || now - D.ht > 90) { D.ht = now; hilite(D.cx, D.cy); } }); }
     });
     const end = (e) => {
-      const D = O.drag; if (!D) return; O.drag = null;
+      const D = O.drag; if (!D) return; O.drag = null; if (D.raf) cancelAnimationFrame(D.raf);
       if (D.ghost) D.ghost.remove(); if (D.src) D.src.classList.remove('lift'); hilite(null);
       const tgt = hitTest(e.clientX, e.clientY);
       if (!D.moved) { tap(D); return; }
@@ -736,9 +739,9 @@
     return out;
   }
   function hilite(cx, cy) {
-    $$('.okhl').forEach(x => x.classList.remove('okhl')); if (cx == null) return;
-    const el = document.elementFromPoint(cx, cy); if (!el) return;
-    const t = el.closest('.okslot,[data-zone="discard"],[data-zone="finish"],[data-meld]'); if (t) t.classList.add('okhl');
+    let t = null;
+    if (cx != null) { const el = document.elementFromPoint(cx, cy); t = el && el.closest('.okslot,[data-zone="discard"],[data-zone="finish"],[data-meld]'); }
+    if (t === O.hl) return; if (O.hl) O.hl.classList.remove('okhl'); O.hl = t; if (t) t.classList.add('okhl');
   }
 
   /* ---------- modallar ---------- */

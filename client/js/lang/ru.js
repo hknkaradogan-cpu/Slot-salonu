@@ -1,4 +1,4 @@
-/* SPINOVA dil dosyası: ru (276 metin) — otomatik üretildi */
+/* SPINOVA dil dosyası: ru (278 metin) — otomatik üretildi */
 I18N.add("ru", {
 "HEMEN OYNA": "ИГРАТЬ",
 "▶ HEMEN OYNA": "▶ ИГРАТЬ",
@@ -275,5 +275,7 @@ I18N.add("ru", {
 "İndiriliyor…": "Загрузка…",
 "İndirildi. Açılan ekranda \"Güncelle\"ye dokun.": "Загружено. Нажми «Обновить» в открывшемся окне.",
 "Bu sürüm artık desteklenmiyor; devam etmek için güncelleme gerekli.": "Эта версия больше не поддерживается; нужно обновление.",
-"Güncelle": "Обновить"
+"Güncelle": "Обновить",
+"AÇTI {n}": "ОТКРЫЛ {n}",
+"{n} ÇİFT": "{n} ПАР"
 });

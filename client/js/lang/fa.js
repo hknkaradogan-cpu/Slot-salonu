@@ -1,4 +1,4 @@
-/* SPINOVA dil dosyası: fa (276 metin) — otomatik üretildi */
+/* SPINOVA dil dosyası: fa (278 metin) — otomatik üretildi */
 I18N.add("fa", {
 "HEMEN OYNA": "همین حالا بازی کن",
 "▶ HEMEN OYNA": "▶ همین حالا بازی کن",
@@ -275,5 +275,7 @@ I18N.add("fa", {
 "İndiriliyor…": "در حال دانلود…",
 "İndirildi. Açılan ekranda \"Güncelle\"ye dokun.": "دانلود شد. در صفحه بازشده «به‌روزرسانی» را بزنید.",
 "Bu sürüm artık desteklenmiyor; devam etmek için güncelleme gerekli.": "این نسخه دیگر پشتیبانی نمی‌شود؛ به‌روزرسانی لازم است.",
-"Güncelle": "به‌روزرسانی"
+"Güncelle": "به‌روزرسانی",
+"AÇTI {n}": "باز کرد {n}",
+"{n} ÇİFT": "{n} جفت"
 });

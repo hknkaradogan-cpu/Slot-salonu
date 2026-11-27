@@ -1,4 +1,4 @@
-/* SPINOVA dil dosyası: es (276 metin) — otomatik üretildi */
+/* SPINOVA dil dosyası: es (278 metin) — otomatik üretildi */
 I18N.add("es", {
 "HEMEN OYNA": "JUGAR YA",
 "▶ HEMEN OYNA": "▶ JUGAR YA",
@@ -275,5 +275,7 @@ I18N.add("es", {
 "İndiriliyor…": "Descargando…",
 "İndirildi. Açılan ekranda \"Güncelle\"ye dokun.": "Descargado. Toca «Actualizar» en la pantalla que se abre.",
 "Bu sürüm artık desteklenmiyor; devam etmek için güncelleme gerekli.": "Esta versión ya no es compatible; actualiza para continuar.",
-"Güncelle": "Actualizar"
+"Güncelle": "Actualizar",
+"AÇTI {n}": "ABRIÓ {n}",
+"{n} ÇİFT": "{n} PARES"
 });
