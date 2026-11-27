@@ -197,9 +197,10 @@
     }
     const myGen = G.gen;
     try { await ANIM[G.meta.family](r, vis, bet); } catch (e) { if (e !== ABORT) console.error(e); }
-    if (vis && vis.iv) clearInterval(vis.iv);
+    if (vis && vis.cleanup) vis.cleanup(); else if (vis && vis.iv) clearInterval(vis.iv);
     if (myGen !== G.gen || !G.open) { finishQuiet(r); return; }
     setWin(r.win, r.win >= bet * 10 ? 'TOPLAM KAZANÇ' : 'KAZANÇ');
+    if (r.win > 0) heroReact(r.win >= bet * 10 ? 'big' : 'win');
     if (r.win >= (r.cost || bet) * 10 || (r.buy && r.win >= bet * 20)) { G.amb && G.amb.event('big'); await bigWin(r.win, r.win / bet); }
     else if (r.win > 0) { G.amb && G.amb.event('win'); Sound.play('win'); const c = $('#reels').getBoundingClientRect(); UI.coinBurst(c.left + c.width / 2, c.top + c.height / 2, Math.min(18, 4 + r.win / bet * 2)); }
     finish(r);
@@ -231,21 +232,35 @@
       G.boxes.forEach((b, i) => { const s = b.firstElementChild; if (s) { s.style.transition = `transform ${0.18 * G.speed}s ease-in ${((i / G.rows) | 0) * 0.02}s`; s.style.transform = `translateY(${G.step * 0.25}px)`; } });
       return { tumble: true };
     }
-    const iv = setInterval(() => { G.boxes.forEach((b, i) => { if (!vis.stopped[(i / G.rows) | 0]) { b.innerHTML = Sym.symHtml(G.id, randCode()); b.firstElementChild.style.filter = 'blur(1.5px)'; b.firstElementChild.style.transform = `translateY(${(Math.random() * 10 - 5) | 0}px)`; } }); Sound.play('tick'); }, 70);
-    const vis = { iv, stopped: [] };
+    // Gerçek makara şeridi: her sütun için semboller BİR KEZ çizilir, şerit yalnızca kaydırılır (ekran kartında; düşük donanımda akıcı).
+    // Eski yöntem 70 ms'de bir tüm hücreleri bulanıklık filtresiyle yeniden yazıyordu → takılma.
+    const reels = $('#reels'), vis = { stopped: [], strips: [] };
+    for (let c = 0; c < G.cols; c++) {
+      const top = G.boxes[c * G.rows]; if (!top) continue;
+      const strip = document.createElement('div'); strip.className = 'spinstrip';
+      Object.assign(strip.style, { left: top.offsetLeft + 'px', top: top.offsetTop + 'px', width: top.offsetWidth + 'px', height: (G.step * G.rows - 4) + 'px' });
+      const n = G.rows + 3; let h = ''; for (let k = 0; k < n; k++) h += `<div class="spincell">${Sym.symHtml(G.id, randCode())}</div>`;
+      strip.innerHTML = `<div class="spininner" style="--n:${n};--dur:${(0.16 + c * 0.012) * (G.speed || 1)}s">${h}${h}</div>`;
+      reels.appendChild(strip); vis.strips[c] = strip;
+      for (let r = 0; r < G.rows; r++) { const b = G.boxes[c * G.rows + r]; b && (b.style.visibility = 'hidden'); }
+    }
+    reels.classList.add('spinning');
+    vis.iv = setInterval(() => Sound.play('tick'), 110);
+    vis.cleanup = () => { clearInterval(vis.iv); vis.strips.forEach(st => st && st.remove()); G.boxes.forEach(b => (b.style.visibility = '')); reels.classList.remove('spinning'); };
     return vis;
   }
-  function stopVisualRandom(vis) { if (vis && vis.iv) clearInterval(vis.iv); initialFill(); }
+  function stopVisualRandom(vis) { if (vis && vis.cleanup) vis.cleanup(); else if (vis && vis.iv) clearInterval(vis.iv); initialFill(); }
   function sideL(label, val) { const m = $('#mL'); if (m) m.innerHTML = `<small>${label}</small><b>${val}</b>`; }
   function sideR(label, val) { const m = $('#mR'); if (m) m.innerHTML = `<small>${label}</small><b>${val}</b>`; }
   async function stopReels(vis, grid, decor) {
     for (let c = 0; c < G.cols; c++) {
       await sleep(c === 0 ? 220 : 110);
       vis.stopped[c] = true;
-      for (let r = 0; r < G.rows; r++) { const i = c * G.rows + r; setCell(i, decor ? decor(i, grid[i]) : grid[i]); G.boxes[i].firstElementChild.classList.add('stopbounce'); }
+      for (let r = 0; r < G.rows; r++) { const i = c * G.rows + r; setCell(i, decor ? decor(i, grid[i]) : grid[i]); G.boxes[i].style.visibility = ''; G.boxes[i].firstElementChild.classList.add('stopbounce'); }
+      if (vis.strips && vis.strips[c]) { vis.strips[c].remove(); vis.strips[c] = null; }
       Sound.play('stop');
     }
-    clearInterval(vis.iv);
+    if (vis.cleanup) vis.cleanup(); else clearInterval(vis.iv);
   }
   function spinVisualAgain() { const v = startVisual(); return v; }
 
@@ -380,6 +395,11 @@
     });
   }
   // Büyük kazanç: "TEBRİKLER! KAZANDINIZ" — sayaç yükselirken seviye BIG → MEGA → SUPER → EPIC yükselir, DEVAM ET ile kapanır
+  // Kazançta tema karakteri tepki verir (zıplar, parlar; büyük kazançta sallanır)
+  function heroReact(kind) {
+    const h = $('.gchar .hero'); if (!h) return; h.classList.remove('react', 'reactbig'); void h.offsetWidth; h.classList.add(kind === 'big' ? 'reactbig' : 'react');
+    setTimeout(() => h.classList.remove('react', 'reactbig'), 1400);
+  }
   function bigWin(win, x) {
     const TIERS = [[10, 'BÜYÜK KAZANÇ'], [25, 'MEGA KAZANÇ'], [50, 'SÜPER KAZANÇ'], [100, 'EFSANE KAZANÇ']];
     const final = TIERS.filter(t => x >= t[0]).length - 1;

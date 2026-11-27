@@ -26,6 +26,7 @@
   const Lt = (ch, color) => ({ t: 'letter', ch, color });
 
   const I = (src, lbl, name) => ({ t: 'img', src, lbl });
+  const A = (k, lbl) => ({ t: 'art', k, lbl }); // çizim sembol (symart.js)
   const THEMES = {
     zeus: { b1: '#0a1a3a', b2: '#2a5aa8', glow: '#8fe3ff', frame: '#f2c14e', emb: '⚡', heroImg: 'hero_zeus', card: 'card_zeus',
       syms: [I('a_dia2'), I('a_green2'), I('a_purple'), I('b_hex'), I('a_red'), I('a_ostar'), I('b_sun'), I('a_crown'), I('b_crown')],
@@ -34,24 +35,25 @@
       syms: [I('b_green'), I('b_blue'), I('b_hex'), I('b_heart'), I('b_moon'), I('b_star'), I('b_sun'), I('a_wand'), I('b_crown')],
       scatter: I('a_scatter'), names: ['Yeşil Kristal', 'Mavi Kristal', 'Altın Kristal', 'Kalp', 'Ay', 'Yıldız', 'Güneş', 'Sihirli Asa', 'Taç'] },
     misir: { b1: '#2a1206', b2: '#d9772a', glow: '#ffb347', frame: '#e8b04a', emb: '🏺', heroImg: 'hero_egypt', card: 'card_egypt',
-      syms: [Lt('10', '#4fd1ff'), Lt('J', '#6bff7a'), Lt('Q', '#ff7acf'), Lt('K', '#ffb347'), Lt('A', '#ff4d5d'), I('a_green'), I('a_dia'), I('a_crown'), I('hero_egypt', '', 'round'), E('📖', '#b86e08', 'WILD')],
+      syms: [Lt('10', '#4fd1ff'), Lt('J', '#6bff7a'), Lt('Q', '#ff7acf'), Lt('K', '#ffb347'), Lt('A', '#ff4d5d'), I('a_green'), I('a_dia'), I('a_crown'), I('hero_egypt', '', 'round'), A('book', 'WILD')],
       names: ['10', 'J', 'Q', 'K', 'A', 'Zümrüt', 'Elmas', 'Firavun Tacı', 'Firavun', 'Kitap (Wild + Scatter)'] },
     vegas: { b1: '#3a0a12', b2: '#c1121f', glow: '#ffb347', frame: '#ffd23f', emb: '🍒', heroImg: 'card_vegas', card: 'card_vegas',
-      syms: [I('a_cherry'), I('a_lemon'), E('🍊'), I('a_pgem'), I('a_grape'), I('a_melon'), I('a_bell'), I('a_bar'), I('a_seven', 'WILD'), I('a_ystar', 'BONUS')],
+      syms: [I('a_cherry'), I('a_lemon'), A('orange'), I('a_pgem'), I('a_grape'), I('a_melon'), I('a_bell'), I('a_bar'), I('a_seven', 'WILD'), I('a_ystar', 'BONUS')],
       names: ['Kiraz', 'Limon', 'Portakal', 'Erik Taşı', 'Üzüm', 'Karpuz', 'Çan', 'Altın Külçe', '7 (Wild x2)', 'Yıldız'] },
     ejderha: { b1: '#2b0505', b2: '#a31212', glow: '#ff8a3d', frame: '#e6b84a', emb: '🐉', heroImg: 'hero_dragon', heroAlpha: true, card: 'card_dragon',
-      syms: [E('🪙'), E('🏮'), I('a_bell2'), I('a_bow'), I('a_green'), I('a_red'), I('a_ystar'), E('🐉', '#1a5a1a'), I('fx_flame', 'WILD'), E('🔮', '#3a1a6a', 'SCATTER')],
+      syms: [A('coin'), A('lantern'), I('a_bell2'), I('a_bow'), I('a_green'), I('a_red'), I('a_ystar'), A('dragon'), I('fx_flame', 'WILD'), A('pearl', 'SCATTER')],
       names: ['Sikke', 'Fener', 'Çan', 'Kurdele', 'Yeşim', 'Yakut', 'Altın Yıldız', 'Ejderha', 'Ateş Wild', 'İnci'] },
     korsan: { b1: '#06293a', b2: '#1f8a8a', glow: '#7fffd4', frame: '#c28a3a', emb: '🏴‍☠️', heroImg: 'card_pirate', card: 'card_pirate',
-      syms: [Lt('A', '#ff4d5d'), Lt('K', '#ffb347'), Lt('Q', '#ff7acf'), Lt('J', '#6bff7a'), E('🦜'), E('⛵'), I('a_dia'), I('a_wild', ''), I('a_chest')],
+      syms: [Lt('A', '#ff4d5d'), Lt('K', '#ffb347'), Lt('Q', '#ff7acf'), Lt('J', '#6bff7a'), A('parrot'), A('ship'), I('a_dia'), I('a_wild', ''), I('a_chest')],
       names: ['A', 'K', 'Q', 'J', 'Papağan', 'Gemi', 'Elmas', 'Wild', 'Altın Sikke'] },
     altin: { b1: '#06103a', b2: '#1236a8', glow: '#5aa0ff', frame: '#f2c14e', emb: '🎰', heroImg: 'card_gold', card: 'card_gold',
-      syms: [I('a_cherry'), I('a_grape'), E('🍊'), I('a_melon'), I('a_bar'), I('a_bell'), I('a_dia'), I('a_seven'), I('b_wild'), I('a_bonus')],
+      syms: [I('a_cherry'), I('a_grape'), A('orange'), I('a_melon'), I('a_bar'), I('a_bell'), I('a_dia'), I('a_seven'), I('b_wild'), I('a_bonus')],
       names: ['Kiraz', 'Üzüm', 'Portakal', 'Karpuz', 'Altın Külçe', 'Çan', 'Elmas', '7', 'Wild (x2)', 'Bonus'] },
   };
 
   function tileHtml(d) {
     if (d.t === 'gem') return `<div class="tile">${gem(d.shape, d.color)}</div>`;
+    if (d.t === 'art' && window.SymArt && SymArt.has(d.k)) return `<div class="tile imgtile arttile">${SymArt.html(d.k)}${d.lbl ? `<span class="lbl">${d.lbl}</span>` : ''}</div>`;
     if (d.t === 'img') return `<div class="tile imgtile${d.src.startsWith('hero') ? ' round' : ''}"><img class="simg" src="assets/${d.src}.webp" draggable="false" alt="">${d.lbl ? `<span class="lbl">${d.lbl}</span>` : ''}</div>`;
     const bg = d.bg ? `background:radial-gradient(circle at 35% 30%,${mix(d.bg, 0.35)},${d.bg} 70%);box-shadow:inset 0 0 0 2px rgba(255,255,255,.15)` : '';
     let inner = '';

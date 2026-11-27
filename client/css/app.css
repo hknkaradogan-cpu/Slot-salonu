@@ -1790,3 +1790,57 @@ html.rtl-text .otile span{font-family:"SpCond",Arial,sans-serif}
 .omeld{background:rgba(255,255,255,.07)!important}
 .omgrp .omeld{border-bottom-width:2px!important}
 #olOnline b{font-size:inherit!important;color:#ffe28a}
+
+/* ==================== 5.0.26 · SLOTLAR: makara şeridi, oyuna özel çerçeve/hücre, karakter hareketi ==================== */
+/* makara şeridi (dönüş): yalnızca transform canlandırılır */
+.reels{position:relative}
+.spinstrip{position:absolute;overflow:hidden;z-index:2;border-radius:10px;pointer-events:none}
+.spininner{will-change:transform;animation:spinroll var(--dur,.18s) linear infinite}
+.spincell{position:relative;height:calc(var(--cell) + 4px);width:100%}
+.spincell .sym{position:absolute!important;left:0;top:0;width:var(--cell);height:var(--cell);opacity:.95}
+.spinstrip::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.45),transparent 22%,transparent 78%,rgba(0,0,0,.45))}
+@keyframes spinroll{from{transform:translateY(-50%)}to{transform:translateY(0)}}
+.reels.spinning .spincell .sym{filter:none}
+/* çizim semboller */
+.tile.arttile{display:flex;align-items:center;justify-content:center}
+.tile.arttile .ssvg{width:96%;height:96%;display:block}
+/* kazanç: karakter tepkisi */
+.gchar .hero.react .heroimg{animation:heroJump .9s cubic-bezier(.3,1.5,.5,1)!important}
+.gchar .hero.reactbig .heroimg{animation:heroShake 1.3s ease-in-out!important}
+@keyframes heroJump{0%{transform:translate(0,0) scale(1);filter:brightness(1)}35%{transform:translate(0,-14px) scale(1.07);filter:brightness(1.4)}100%{transform:translate(0,0) scale(1);filter:brightness(1)}}
+@keyframes heroShake{0%,100%{transform:translate(0,0) scale(1)}15%{transform:translate(-7px,-4px) scale(1.06)}30%{transform:translate(7px,-6px) scale(1.08)}45%{transform:translate(-5px,-4px) scale(1.06)}60%{transform:translate(4px,-2px) scale(1.04)}}
+/* karakterlerin bekleme hareketi (yalnızca transform/opacity) */
+.gscreen[data-g] .gtop .heroimg,.gscreen[data-g] .gchar .heroimg{will-change:transform}
+.gscreen[data-g="zeus"] .gchar .heroimg{animation:heroFloat 3.2s ease-in-out infinite}
+.gscreen[data-g="peri"] .gchar .heroimg{animation:heroFloatR 2.6s ease-in-out infinite}
+.gscreen[data-g="korsan"] .gchar .heroimg{animation:heroSway 4s ease-in-out infinite;transform-origin:50% 90%}
+.gscreen[data-g="ejderha"] .gchar .heroimg{animation:heroBreath 3s ease-in-out infinite}
+.gscreen[data-g="misir"] .gchar .heroimg,.gscreen[data-g="vegas"] .gchar .heroimg,.gscreen[data-g="altin"] .gchar .heroimg{animation:heroPulse 2.4s ease-in-out infinite}
+@keyframes heroFloat{0%,100%{transform:translate(0,0)}50%{transform:translate(0,-8px)}}
+@keyframes heroFloatR{0%,100%{transform:translate(0,0) rotate(-1deg)}50%{transform:translate(0,-12px) rotate(1deg)}}
+@keyframes heroSway{0%,100%{transform:translate(0,0) rotate(-1.2deg)}50%{transform:translate(0,-5px) rotate(1.2deg)}}
+@keyframes heroBreath{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(0,-4px) scale(1.035)}}
+@keyframes heroPulse{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(0,0) scale(1.025)}}
+/* ---- oyuna özel makara çerçevesi ve hücre malzemesi ---- */
+.gscreen.ok[data-g="zeus"] .machine{background:linear-gradient(135deg,#f7f1e4,#d9d0bd 30%,#fffaf0 50%,#cfc4ad 70%,#f4ede0)!important;box-shadow:inset 0 0 0 2px #e8c060,inset 0 0 0 5px #8a6421,0 0 30px rgba(143,227,255,.5),0 10px 24px rgba(0,0,0,.6)!important}
+.gscreen.ok[data-g="zeus"] .reels{background:linear-gradient(180deg,#0b2152,#0a1838)!important}
+.gscreen.ok[data-g="zeus"] .cellbox{background:radial-gradient(120% 80% at 50% 0%,rgba(120,190,255,.16),rgba(0,0,0,0) 70%)!important;border-color:rgba(160,210,255,.14)!important}
+.gscreen.ok[data-g="misir"] .machine{background:repeating-linear-gradient(0deg,rgba(90,50,10,.25) 0 2px,transparent 2px 22px),repeating-linear-gradient(90deg,rgba(90,50,10,.2) 0 2px,transparent 2px 46px),linear-gradient(180deg,#e9c88a,#c99a52 50%,#a87632)!important;box-shadow:inset 0 0 0 2px #ffe2a0,inset 0 0 0 6px #6b3d0c,0 0 26px rgba(255,170,60,.5),0 10px 24px rgba(0,0,0,.6)!important}
+.gscreen.ok[data-g="misir"] .reels{background:radial-gradient(120% 80% at 50% 0%,#1d3a7a,#0c1a3d)!important}
+.gscreen.ok[data-g="misir"] .letter{background:linear-gradient(180deg,#fff3c2,#f0b93a 45%,#a8640a 80%,#ffd77a);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;text-shadow:none!important}
+.gscreen.ok[data-g="peri"] .machine{background:linear-gradient(135deg,rgba(255,220,250,.75),rgba(190,140,255,.55) 40%,rgba(255,255,255,.8) 55%,rgba(170,120,240,.55))!important;box-shadow:inset 0 0 0 2px rgba(255,255,255,.95),inset 0 0 22px rgba(255,180,240,.8),0 0 32px rgba(255,154,232,.6),0 10px 24px rgba(0,0,0,.5)!important}
+.gscreen.ok[data-g="peri"] .reels{background:linear-gradient(180deg,rgba(60,20,110,.92),rgba(30,10,70,.95))!important}
+.gscreen.ok[data-g="korsan"] .machine{background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(0,0,0,.2)),url(../assets/wood_dark.webp) center/cover!important;box-shadow:inset 0 0 0 2px #d6a45a,inset 0 0 0 6px rgba(40,18,4,.8),0 0 24px rgba(127,255,212,.4),0 10px 24px rgba(0,0,0,.6)!important}
+.gscreen.ok[data-g="korsan"] .reels{background:linear-gradient(180deg,#0b3a48,#062430)!important}
+.gscreen.ok[data-g="korsan"] .letter{background:linear-gradient(180deg,#fff1c4,#e0a83a 50%,#8a5512);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;text-shadow:none!important}
+.gscreen.ok[data-g="vegas"] .machine{background:linear-gradient(180deg,#f2f2f2,#9a9a9a 20%,#e8e8e8 40%,#7d7d7d 70%,#d9d9d9)!important;box-shadow:inset 0 0 0 3px #c1121f,inset 0 0 0 6px #ffd23f,0 0 30px rgba(255,80,100,.6),0 10px 24px rgba(0,0,0,.6)!important;position:relative}
+.gscreen.ok[data-g="vegas"] .machine::before{content:"";position:absolute;inset:2px;border-radius:inherit;pointer-events:none;z-index:3;
+  background:radial-gradient(circle,#fff6b0 0 3px,transparent 3.5px) 0 0/18px 18px;-webkit-mask:linear-gradient(#000,#000) top/100% 7px no-repeat,linear-gradient(#000,#000) bottom/100% 7px no-repeat,linear-gradient(#000,#000) left/7px 100% no-repeat,linear-gradient(#000,#000) right/7px 100% no-repeat;
+  mask:linear-gradient(#000,#000) top/100% 7px no-repeat,linear-gradient(#000,#000) bottom/100% 7px no-repeat,linear-gradient(#000,#000) left/7px 100% no-repeat,linear-gradient(#000,#000) right/7px 100% no-repeat;animation:bulbs .5s steps(2) infinite}
+@keyframes bulbs{to{background-position:9px 9px}}
+.gscreen.ok[data-g="vegas"] .reels{background:linear-gradient(180deg,#fff 0%,#f1e9e9 50%,#d8cccc 100%)!important}
+.gscreen.ok[data-g="vegas"] .cellbox{background:linear-gradient(180deg,rgba(0,0,0,.02),rgba(0,0,0,.06))!important;border-color:rgba(0,0,0,.08)!important}
+.gscreen.ok[data-g="ejderha"] .machine{background:linear-gradient(135deg,#8b0d0d,#c41a1a 40%,#7a0909 70%,#b01414)!important;box-shadow:inset 0 0 0 2px #ffd77a,inset 0 0 0 5px #6b0a0a,inset 0 0 0 7px #e6b84a,0 0 30px rgba(255,120,40,.55),0 10px 24px rgba(0,0,0,.6)!important}
+.gscreen.ok[data-g="ejderha"] .reels{background:radial-gradient(120% 80% at 50% 0%,#3a0808,#1a0303)!important}
+.gscreen.ok[data-g="altin"] .machine{background:linear-gradient(135deg,#fff1b0,#e0a92a 25%,#fff6c9 45%,#b9800f 65%,#ffe08a 85%,#c99316)!important;box-shadow:inset 0 0 0 2px #fff6c9,inset 0 0 0 5px #7a5000,0 0 34px rgba(255,210,60,.6),0 10px 24px rgba(0,0,0,.6)!important}
+.gscreen.ok[data-g="altin"] .reels{background:radial-gradient(120% 80% at 50% 0%,#1d47c4,#0a1d6b)!important}
