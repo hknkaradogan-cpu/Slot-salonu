@@ -1733,3 +1733,12 @@ body.lowfx .cfart .arays,body.lowfx .cfart .zcloud,body.lowfx .cfart .msweep,bod
 .rvb{padding:8px 16px;border-radius:12px;border:0;color:#fff;font:700 16px "SpCond",Arial,sans-serif;background:linear-gradient(180deg,#6a3bb0,#3b1a70);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 4px 0 #1f0b40}
 .rvb.g{font-size:22px;padding:8px 32px;background:linear-gradient(180deg,#4ff07c,#16a040 60%,#0f7a2f);box-shadow:inset 0 2px 0 rgba(255,255,255,.55),0 4px 0 #075a1f,0 0 16px rgba(80,255,120,.45)}
 .rvb.o{background:linear-gradient(180deg,#ffb23a,#d46f00);box-shadow:inset 0 1px 0 rgba(255,255,255,.45),0 4px 0 #7a3c00}
+
+/* ==================== 5.0.26 · ÇOK DİL: Kiril (Rusça) ve Arap (Arapça/Farsça) yazı tipleri ==================== */
+@font-face{font-family:"SpCond";src:url(../fonts/oswald-cyrillic-700-normal.woff2) format("woff2");font-weight:700;font-display:swap;unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:"SpCond6";src:url(../fonts/oswald-cyrillic-600-normal.woff2) format("woff2");font-weight:600;font-display:swap;unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:"SpCond";src:url(../fonts/noto-sans-arabic-arabic-700-normal.woff2) format("woff2");font-weight:400 900;font-display:swap;unicode-range:U+0600-06FF,U+0750-077F,U+0870-088E,U+0890-0891,U+0898-08E1,U+08E3-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FE74,U+FE76-FEFC}
+@font-face{font-family:"SpAr";src:url(../fonts/noto-sans-arabic-arabic-700-normal.woff2) format("woff2");font-weight:400 900;font-display:swap}
+html.rtl-text body{font-family:"SpCond","SpAr",Arial,sans-serif}
+html.rtl-text .otile span{font-family:"SpCond",Arial,sans-serif}
+.orbtn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.olbn b{overflow-wrap:normal;word-break:keep-all}

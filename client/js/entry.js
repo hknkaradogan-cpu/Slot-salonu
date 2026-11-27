@@ -68,7 +68,7 @@
       if (d.active) { act.innerHTML = `<div class="enresume"><b>Devam eden masan var</b><button class="enbtn green" id="enRes">MASAYA DÖN ▸</button></div>`; $('#enRes').onclick = () => Okey.openTable(d.active.id); }
       else if (d.rejoin) { act.innerHTML = `<div class="enresume warn"><b>Ayrıldığın masa sürüyor</b><button class="enbtn gold" id="enRej">GERİ DÖN ▸</button></div>`; $('#enRej').onclick = () => guard($('#enRej'), async () => { const r = await Api.post('/api/okey/join', { tableId: d.rejoin.id }); Okey.openTable(r.tableId); }); }
       OkeyRooms.mergeServer(d); const rr = $('#olRooms'); if (rr) { const keep = [...rr.querySelectorAll('.orc:not([data-room])')]; rr.innerHTML = OkeyRooms.cardsHtml(V); keep.forEach(k => rr.appendChild(k)); bindRooms(); }
-      $('#olOnline').textContent = d.autoStake ? `Jetonuna uygun oda: ${(OkeyRooms.roomByStake(d.autoStake) || {}).name || ''} · ${d.online.players} oyuncu masada` : `Oynamak için en az ${fmt(d.minPlay || 3500)} jeton gerekir`;
+      $('#olOnline').innerHTML = d.autoStake ? `<span>Jetonuna uygun oda</span>: <b>${esc((OkeyRooms.roomByStake(d.autoStake) || {}).name || '')}</b> · ${d.online.players} oyuncu masada` : `Oynamak için en az ${fmt(d.minPlay || 3500)} jeton gerekir`;
     } catch (e) { /* */ }
   }
 
